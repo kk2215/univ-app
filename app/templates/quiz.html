@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}学習スタイル診断{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>あなたの「勝ちパターン」が見つかる！</h1>
+        <h2>学習スタイル診断</h2>
+    </hgroup>
+
+    <form method="post" action="{{ url_for('main.submit_quiz', user_id=user.id) }}">
+        <div id="quiz-container"></div>
+        
+        <div class="quiz-navigation">
+            <button type="button" id="prev-btn" class="secondary outline" disabled>戻る</button>
+            <button type="button" id="next-btn">次へ</button>
+            <button type="submit" id="submit-btn" class="contrast" style="display: none;">結果を見る</button>
+        </div>
+    </form>
+</article>
+
+<script>
+    const questions = [
+        { q: "新しいゲームのルールを覚えるとき、最も楽な方法は？", a: "プレイ画面の図解や、他の人のプレイ動画を見る。", b: "友達に口頭でルールを説明してもらう。", c: "説明書や攻略サイトの文章をじっくり読む。" },
+        { q: "歴史の出来事を勉強するとき、記憶に残りやすいのは？", a: "資料集の地図や絵、人物の肖像画と一緒に覚える。", b: "先生が話してくれた面白いエピソードや、物語のような講義を聞く。", c: "教科書を読み込み、自分で年表や相関図を作って整理する。" },
+        { q: "初めて訪れる場所へ行くとき、どうやって道を覚える？", a: "「あの赤い看板のコンビニ」のように、目印になる建物の見た目を覚える。", b: "「次の信号を右、2本目の道を左」のように、音声ナビのような指示を頭の中で繰り返す。", c: "スマートフォンの地図アプリでルート全体を何度も確認し、道の名前を覚える。" },
+        { q: "授業のノートを見返したとき、自分のノートはどんな特徴がある？", a: "色ペンやマーカーが多く、図やイラストが書き込んである。", b: "先生が言った重要な言葉や、時には雑談までメモしてある。", c: "箇条書きや記号を使って、情報が整然とまとめられている。" },
+        { q: "英単語を覚えるとき、一番しっくりくる方法は？", a: "単語帳のイラストや、単語が持つイメージを映像で思い浮かべる。", b: "付属のCDやアプリで音声を聞きながら、何度も発音してみる。", c: "とにかくノートに何度も単語を書き出して覚える。" },
+        { q: "数学の難しい問題に行き詰まったら、まずどうする？", a: "問題文の内容を図やグラフに書き出して、関係性を可視化しようと試みる。", b: "問題を声に出して読んでみたり、誰かに「こういう問題で…」と説明してみる。", c: "解説をじっくり読んで、解法のパターンや論理的な流れを理解しようとする。" },
+        { q: "感動した映画の内容を友達に伝えるなら、どんな説明になる？", a: "「あのシーンの映像がすごく綺麗で…」と、印象的な場面の映像について話す。", b: "「主人公のセリフが心に響いて…」「BGMが最高で…」と、音や言葉について話す。", c: "「物語のあらすじはこうで…」と、ストーリー展開を順序立てて説明する。" },
+        { q: "プレゼンテーションをすることになったら、一番力を入れるのは？", a: "見る人が一目で理解できるような、分かりやすいスライドのデザイン。", b: "聞き手を引き込むような、声のトーンや話し方の工夫。", c: "矛盾がなく、説得力のある話の流れや原稿の構成。" },
+        { q: "久しぶりに会った人のことを思い出すとき、何を手がかりにする？", a: "顔やその人がよく着ていた服装。", b: "声や話し方の特徴的な癖。", c: "名前や以前話した会話の内容。" },
+        { q: "勉強の休憩中、どんなことをするのが好き？", a: "好きなアーティストのミュージックビデオや、景色の綺麗な動画を眺める。", b: "好きな音楽やラジオ、ポッドキャストを聴く。", c: "好きな小説や漫画、雑誌を読む。" }
+    ];
+
+    let currentQuestionIndex = 0;
+    const quizContainer = document.getElementById('quiz-container');
+    const nextBtn = document.getElementById('next-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function showQuestion(index) {
+        const question = questions[index];
+        quizContainer.innerHTML = `
+            <fieldset>
+                <legend>質問 ${index + 1}/${questions.length}</legend>
+                <p>${question.q}</p>
+                <label>
+                    <input type="radio" name="q${index}" value="A" required>
+                    ${question.a}
+                </label>
+                <label>
+                    <input type="radio" name="q${index}" value="B" required>
+                    ${question.b}
+                </label>
+                <label>
+                    <input type="radio" name="q${index}" value="C" required>
+                    ${question.c}
+                </label>
+            </fieldset>
+        `;
+    }
+
+    nextBtn.addEventListener('click', () => {
+        const currentAnswer = document.querySelector(`input[name="q${currentQuestionIndex}"]:checked`);
+        if (!currentAnswer) {
+            alert('答えを選択してください！');
+            return;
+        }
+
+        if (currentQuestionIndex < questions.length - 1) {
+            currentQuestionIndex++;
+            showQuestion(currentQuestionIndex);
+            prevBtn.disabled = false;
+        }
+        if (currentQuestionIndex === questions.length - 1) {
+            nextBtn.style.display = 'none';
+            submitBtn.style.display = 'inline-block';
+        }
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+            showQuestion(currentQuestionIndex);
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'inline-block';
+        }
+        if (currentQuestionIndex === 0) {
+            prevBtn.disabled = true;
+        }
+    });
+
+    showQuestion(0);
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>登録ユーザー一覧</title>
+</head>
+<body>
+    <h1>登録ユーザー一覧</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>学年</th>
+                <th>志望校</th>
+                <th>志望学部</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user['id'] }}</td>
+                <td>{{ user['grade'] }}</td>
+                <td>{{ user['school'] }}</td>
+                <td>{{ user['faculty'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    <a href="/register">新しいユーザーを登録する</a>
+</body>
+</html>

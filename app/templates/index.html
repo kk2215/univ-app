@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}ようこそ{% endblock %}
+
+{% block content %}
+<section class="hero hidden">
+    <div class="container">
+        <hgroup>
+            <h1>ようこそ！ここは、君だけの「合格への地図」が見つかる場所。</h1>
+        　　<h2>
+            「大学受験って、何から始めればいいんだろう？」<br>
+            「どの参考書が自分に合ってるの？」<br>
+            「みちしるべ」は、そんな君のためのアプリです。<br>
+            あなたの目標に合わせて、やるべきこととその順番を、AIが全部考えてくれます。
+        　　</h2>
+        </hgroup>
+        <div class="grid hero-buttons">
+    <a href="{{ url_for('main.register') }}" role="button" class="contrast hero-button">無料であなたの学習計画を作成する</a>
+</div>
+    </div>
+</section>
+
+<section class="how-it-works hidden">
+    <div class="container">
+        <h2>たった3ステップで、あなただけの計画が完成</h2>
+        <div class="grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3>目標を設定</h3>
+                <p>あなたの学年や志望校、受験科目など、いくつかの簡単な質問に答えるだけ。</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3>計画を自動生成</h3>
+                <p>AIが膨大な参考書データから、あなたの現在地と目標を結ぶ最短ルートを計算します。</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3>学習を開始</h3>
+                <p>あとは計画に従って、毎日の課題をこなすだけ。進捗はいつでも確認できます。</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="features hidden">
+    <div class="container">
+        <h2>あなたの独学を成功に導く、3つの力</h2>
+        <div class="grid">
+            <article class="feature-article">
+                <hgroup>
+                    <h3>&#128221; パーソナルプランニング</h3>
+                    <h4>あなただけの「最短ルート」を自動生成</h4>
+                </hgroup>
+                <p>市販されている全ての主要な参考書データを網羅。あなたの志望校レベルや現在の学力に合わせて、やるべき参考書とその順番、使い方までを明確に提示。もう「次は何をすればいい？」とは迷わせません。</p>
+            </article>
+            <article class="feature-article">
+                <hgroup>
+                    <h3>&#9989; 進捗の見える化</h3>
+                    <h4>毎日の頑張りを、確実に力に変える</h4>
+                </hgroup>
+                <p>完了した参考書はタップでチェックするだけ。学習の進捗はレベルごとに管理され、自分の成長が一目瞭然。ゲームのようにレベルをクリアしていく感覚で、モチベーションを維持できます。</p>
+            </article>
+            <article class="feature-article">
+                <hgroup>
+                    <h3>&#128250; 独学サポート</h3>
+                    <h4>「わからない」を、その場で解決</h4>
+                </hgroup>
+                <p>一人では解決しにくい疑問も、全ての参考書に用意された解説動画へのリンクがサポート。さらに、各レベルの最後には過去問演習ステップを設置。自分の実力を正確に測り、着実にステップアップできます。</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="final-cta hidden">
+    <div class="container">
+        <h2>さあ、今日から始めよう。</h2>
+        <p>ライバルが悩んでいる時間も、あなたは前に進める。</p>
+        <a href="{{ url_for('main.register') }}" role="button" class="contrast hero-button">今すぐ無料で計画を作成</a>
+    </div>
+</section>
+
+<script>
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('show');
+            }
+        });
+    });
+
+    const hiddenElements = document.querySelectorAll('.hidden');
+    hiddenElements.forEach((el) => observer.observe(el));
+</script>
+{% endblock %}

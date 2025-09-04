@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}マイページ{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>マイページ</h1>
+        <h2>こんにちは、{{ user.username }}さん！</h2>
+    </hgroup>
+</article>
+
+<div class="dashboard-grid">
+
+    <div class="dashboard-main">
+        <article class="dashboard-card">
+            <h3>今日のフォーカス</h3>
+            <p>まずはここから始めよう！各科目の「次の１冊」と「毎日やるタスク」です。</p>
+            
+            {% for subject in dashboard_data %}
+            <div class="focus-subject-group">
+                <h4>{{ subject.name }}</h4>
+                <div class="focus-task-list">
+                    {% for c_task in subject.continuous_tasks %}
+                    <div class="focus-task-item continuous">
+                        <span class="task-icon">🔁</span>
+                        <div class="task-details">
+                            <strong>{{ c_task.title }}</strong>
+                            <small>継続タスク</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if subject.pending_selections %}
+                    <div class="focus-task-item pending-selection">
+                        <span class="task-icon">👉</span>
+                        <div class="task-details">
+                            <strong>選択が必要です</strong>
+                            <small>「{{ subject.pending_selections | join(', ') }}」の参考書を選んでください</small>
+                        </div>
+                        <div class="task-actions">
+                            <a href="{{ url_for('main.show_plan', user_id=user.id, subject=subject.name) }}" role="button" class="contrast">選択する</a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if subject.next_task %}
+                        
+                        {# is_choice_pendingキーが存在するかどうかで、どちらのデータかを判断 #}
+                        {% if subject.next_task.is_choice_pending is defined %}
+                            <div class="focus-task-item pending-selection">
+                                <span class="task-icon">👉</span>
+                                <div class="task-details">
+                                    <strong>{{ subject.next_task.title }}</strong>
+                                    <small>学習マップで次に進む参考書を選んでください。</small>
+                                </div>
+                                <div class="task-actions">
+                                    <a href="{{ url_for('main.show_plan', user_id=user.id, subject=subject.next_task.subject_name) }}" role="button" class="contrast">選択する</a>
+                                </div>
+                            </div>
+                        
+                        {# 通常のタスクデータの場合 #}
+                        {% else %}
+                            {% if subject.next_task.task_id.startswith('level_check_') %}
+                                <div class="focus-task-item level-up">
+                                    <span class="task-icon">🏆</span>
+                                    <div class="task-details">
+                                        <strong>{{ subject.next_task.title }}</strong>
+                                        <small>おめでとう！過去問を解いて実力を試しましょう。</small>
+                                    </div>
+                                    <div class="task-actions level-up-actions">
+                                        <a href="https://www.toshin-kakomon.com/" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">東進過去問DB</a>
+                                        {% if university and university.info_url %}
+                                        <a href="{{ university.info_url }}" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">パスナビで探す</a>
+                                        {% endif %}
+                                        <button class="complete-btn" data-task-id="{{ subject.next_task.task_id }}">クリア</button>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="focus-task-item sequential">
+                                    <span class="task-icon">📖</span>
+                                    <div class="task-details">
+                                        <strong>{{ subject.next_task.title }}</strong>
+                                        <small>次の参考書</small>
+                                    </div>
+                                    <div class="task-actions">
+                                        <button class="contrast outline complete-btn" data-task-id="{{ subject.next_task.task_id }}">✔️ 完了</button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                    {% elif not subject.continuous_tasks and not subject.pending_selections %}
+                        <div class="focus-task-item all-done">
+                            <span class="task-icon">🎉</span>
+                            <div class="task-details">
+                                <strong>すべてのタスクが完了しています！</strong>
+                                <small>素晴らしい！</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if subject.last_completed_task %}
+                    <div class="focus-task-item last-completed">
+                        <span class="task-icon">✅</span>
+                        <div class="task-details">
+                            <strong>{{ subject.last_completed_task.title }}</strong>
+                            <small>直前に完了したタスク</small>
+                        </div>
+                        <div class="task-actions">
+                            <button class="secondary outline uncomplete-btn" data-task-id="{{ subject.last_completed_task.task_id }}">↩︎ 未完了に戻す</button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </article>
+    </div>
+
+    <div class="dashboard-side">
+        <article class="dashboard-card">
+            <h3>学習進捗</h3>
+            {% for subject in dashboard_data %}
+            <div class="progress-group">
+                <label for="progress-{{ subject.name }}">{{ subject.name }}</label>
+                <progress id="progress-{{ subject.name }}" value="{{ subject.progress }}" max="100"></progress>
+            </div>
+            {% endfor %}
+        </article>
+        <article class="dashboard-card">
+            <h3>志望校情報</h3>
+            <p><strong>{{ user.school }}</strong></p>
+            <p>試験日まで、あと <strong>{{ days_until_exam }}</strong> 日</p>
+            {% if university and university.info_url %}
+            <a href="{{ university.info_url }}" role="button" class="contrast" target="_blank" rel="noopener noreferrer">大学情報を確認</a>
+            {% endif %}
+        </article>
+        <article class="dashboard-card">
+            <h3>学習マップ</h3>
+            <p>学習の全体像を確認して、自分の現在地を把握しよう。</p>
+            <a href="{{ url_for('main.show_plan', user_id=user.id) }}" role="button">学習マップを見る</a>
+        </article>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.complete-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            handleProgressUpdate(event.target, true);
+        });
+    });
+    document.querySelectorAll('.uncomplete-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            handleProgressUpdate(event.target, false);
+        });
+    });
+    async function handleProgressUpdate(buttonElement, isCompleted) {
+        const taskId = buttonElement.dataset.taskId;
+        buttonElement.disabled = true;
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = '保存中...';
+        try {
+            const response = await fetch("{{ url_for('main.update_progress') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: taskId, is_completed: isCompleted })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                throw new Error('API request failed');
+            }
+        } catch (error) {
+            console.error('更新に失敗しました:', error);
+            alert('エラーが発生しました。ページの更新に失敗しました。');
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+        }
+    }
+});
+</script>
+{% endblock %}

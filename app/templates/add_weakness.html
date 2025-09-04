@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>苦手分野の登録</title>
+</head>
+<body>
+    <h1>苦手分野の登録</h1>
+    <p>苦手な分野を選択すると、学習計画に補強用の参考書が追加されます。</p>
+    <form action="{{ url_for('add_weakness', user_id=user_id) }}" method="post">
+        <label for="topic">分野:</label>
+        <select name="topic" id="topic">
+            <option value="english_grammar">英文法</option>
+            <option value="english_vocab">英単語</option>
+        </select>
+        <button type="submit">登録する</button>
+    </form>
+    <br>
+    <a href="{{ url_for('show_plan', user_id=user_id) }}">学習計画に戻る</a>
+</body>
+</html>

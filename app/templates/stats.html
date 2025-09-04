@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}学習記録{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>学習記録</h1>
+        <h2>カレンダーの日付をクリックして、学習時間を記録・編集しましょう。</h2>
+    </hgroup>
+</article>
+
+<div class="grid">
+    <article>
+        <h3>科目別 合計学習時間</h3>
+        <canvas id="subjectChart"></canvas>
+    </article>
+    <article>
+        <h3>直近7日間の学習時間</h3>
+        <canvas id="dailyChart"></canvas>
+    </article>
+</div>
+
+<article>
+    <div class="calendar-header">
+        <a href="{{ url_for('main.stats', user_id=user.id, year=prev_month.year, month=prev_month.month) }}" role="button" class="secondary outline">&lt; 前の月</a>
+        <h3>{{ year }}年 {{ month }}月</h3>
+        {% if not is_future %}
+        <a href="{{ url_for('main.stats', user_id=user.id, year=next_month.year, month=next_month.month) }}" role="button" class="secondary outline">次の月 &gt;</a>
+        {% else %}
+        <a role="button" class="secondary outline" disabled>次の月 &gt;</a>
+        {% endif %}
+    </div>
+
+    <div class="calendar-grid">
+        <div class="day-header">月</div><div class="day-header">火</div><div class="day-header">水</div><div class="day-header">木</div><div class="day-header">金</div><div class="day-header">土</div><div class="day-header">日</div>
+        {% for week in calendar_data %}
+            {% for day_data in week %}
+                {% set day = day_data.date %}
+                {% set is_this_month = "is-this-month" if day.month == month else "" %}
+                {% set hours = (day_data.total_minutes / 60) | int %}{% set minutes = day_data.total_minutes % 60 %}
+                {% set tooltip_text = day.strftime('%Y-%m-%d') + ': ' + hours|string + '時間' + minutes|string + '分' %}
+                <div class="day {{ is_this_month }} study-level-{{ day_data.color_level }}" data-date="{{ day.isoformat() }}" title="{{ tooltip_text }}">
+                    {{ day.day }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</article>
+
+<details>
+    <summary><h3 style="display: inline-block; margin: 0;">最近の記録</h3></summary>
+    <article style="padding-top: 0;">
+        <table>
+            <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                    <td>{{ log.name }}</td>
+                    <td><strong>{{ log.duration_minutes }} 分</strong></td>
+                    <td>
+                        <form method="POST" action="{{ url_for('main.delete_log', log_id=log.id) }}" onsubmit="return confirm('本当にこの記録を削除しますか？');" style="margin: 0;">
+                            <button type="submit" class="secondary outline" style="margin: 0;">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</details>
+
+<dialog id="log-modal">
+    <article>
+        <header>
+            <a href="#close" aria-label="Close" class="close" data-target="log-modal"></a>
+            <h3 id="modal-title">学習を記録</h3>
+        </header>
+        <form id="log-form">
+            <input type="hidden" id="log-date" name="date">
+            {% for subject in user_subjects %}
+            <div class="grid subject-log-row">
+                <label for="duration_h_{{ subject.id }}" class="subject-label">{{ subject.name }}</label>
+                <div class="grid">
+                    <input type="number" id="duration_h_{{ subject.id }}" name="duration_h_{{ subject.id }}" placeholder="時間" min="0">
+                    <input type="number" id="duration_m_{{ subject.id }}" name="duration_m_{{ subject.id }}" placeholder="分" min="0" max="59">
+                </div>
+            </div>
+            {% endfor %}
+            <footer>
+                <button type="submit" id="save-log-btn">この日の記録を保存</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // (グラフ描画のコード)
+    const subjectCtx = document.getElementById('subjectChart');
+    if (subjectCtx && {{ subject_labels | tojson }} && {{ subject_data | tojson }}.some(d => d > 0)) { new Chart(subjectCtx, { type: 'doughnut', data: { labels: {{ subject_labels | tojson }}, datasets: [{ label: '学習時間 (分)', data: {{ subject_data | tojson }}, backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'], }] }}); }
+    const dailyCtx = document.getElementById('dailyChart');
+    if (dailyCtx && {{ date_labels | tojson }} && {{ date_data | tojson }}.some(d => d > 0)) { new Chart(dailyCtx, { type: 'bar', data: { labels: {{ date_labels | tojson }}, datasets: [{ label: '学習時間 (分)', data: {{ date_data | tojson }}, backgroundColor: '#36a2eb', }] }, options: { scales: { y: { beginAtZero: true } } } }); }
+
+    // --- モーダル操作のロジック ---
+    const modal = document.getElementById('log-modal');
+    const form = document.getElementById('log-form');
+    const dateInput = document.getElementById('log-date');
+    const modalTitle = document.getElementById('modal-title');
+    const userSubjects = JSON.parse('{{ user_subjects|tojson|safe }}');
+    const logsByDate = JSON.parse('{{ logs_by_date|tojson|safe }}');
+    const calendarGrid = document.querySelector('.calendar-grid');
+
+    if (calendarGrid) {
+        calendarGrid.addEventListener('click', (e) => {
+            const dayElement = e.target.closest('.day.is-this-month');
+            if (!dayElement) return;
+
+            const dateStr = dayElement.dataset.date;
+            dateInput.value = dateStr;
+            modalTitle.textContent = `${dateStr} の学習を記録・編集`;
+            
+            const recordsForDay = logsByDate[dateStr] || {};
+            userSubjects.forEach(subject => {
+                const totalMinutes = recordsForDay[String(subject.id)] || 0;
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                const hoursInput = form.querySelector(`#duration_h_${subject.id}`);
+                const minutesInput = form.querySelector(`#duration_m_${subject.id}`);
+                
+                hoursInput.value = hours > 0 ? hours : '';
+                minutesInput.value = minutes > 0 ? minutes : '';
+            });
+            modal.showModal();
+        });
+    }
+
+    modal.querySelector('.close').addEventListener('click', (e) => {
+        e.preventDefault();
+        modal.close();
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const saveBtn = document.getElementById('save-log-btn');
+        saveBtn.setAttribute('aria-busy', 'true');
+        saveBtn.textContent = '保存中...';
+        const logs = userSubjects.map(subject => ({
+            subject_id: subject.id,
+            hours: form.querySelector(`#duration_h_${subject.id}`).value,
+            minutes: form.querySelector(`#duration_m_${subject.id}`).value,
+        }));
+        try {
+            const response = await fetch("{{ url_for('main.log_study_for_date', user_id=user.id) }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: dateInput.value, logs: logs })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else { throw new Error('API request failed'); }
+        } catch (error) {
+            console.error('記録の保存に失敗:', error);
+            alert('エラーが発生しました。記録の保存に失敗しました。');
+            saveBtn.removeAttribute('aria-busy');
+            saveBtn.textContent = 'この日の記録を保存';
+        }
+    });
+});
+</script>
+{% endblock %}

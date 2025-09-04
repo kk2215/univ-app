@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}診断結果{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>診断結果</h1>
+        <h2>あなたの学習スタイルは「{{ result_type }}」です！</h2>
+    </hgroup>
+    
+    <div class="result-description">
+        {{ description|safe }}
+    </div>
+
+    <div class="advice-section">
+        <h3>おすすめの学習法</h3>
+        <ul>
+        {% for advice_item in advice %}
+            <li>{{ advice_item|safe }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+
+    <div class="final-message">
+        <h4>診断結果の賢い使い方</h4>
+        <p>この診断は、あなたの学習における「得意な入り口」や「好み」を知るためのツールです。まずは自分のタイプに合った方法を中心に学習を進め、勉強をスムーズに軌道に乗せてみてください。自分の得意な方法を軸にしつつも、時には他のタイプの方法も意識的に取り入れて、あなただけの「最強の学習法」を確立していきましょう。</p>
+    </div>
+
+    <a href="{{ url_for('main.dashboard', user_id=user.id) }}" role="button">マイページに戻る</a>
+</article>
+{% endblock %}

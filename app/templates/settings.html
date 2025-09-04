@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}設定{% endblock %}
+{% block content %}
+<article>
+    <hgroup>
+        <h1>アカウント設定</h1>
+        <h2>登録情報を変更できます</h2>
+    </hgroup>
+
+    {% if message %}
+        <p class="success-message" style="color: green;"><strong>{{ message }}</strong></p>
+    {% endif %}
+    {% if error %}
+        <p class="error-message" style="color: red;"><strong>{{ error }}</strong></p>
+    {% endif %}
+
+    <form method="post">
+        <h4>基本情報</h4>
+        <div class="grid">
+            <label for="username">ユーザー名
+                <input type="text" id="username" name="username" value="{{ user.username }}" required>
+            </label>
+            <label for="grade">学年
+                <select name="grade" id="grade" required>
+                    <option value="high1" {% if user.grade == 'high1' %}selected{% endif %}>高校1年生</option>
+                    <option value="high2" {% if user.grade == 'high2' %}selected{% endif %}>高校2年生</option>
+                    <option value="high3" {% if user.grade == 'high3' %}selected{% endif %}>高校3年生</option>
+                    <option value="ronin" {% if user.grade == 'ronin' %}selected{% endif %}>浪人生</option>
+                </select>
+            </label>
+        </div>
+        <hr>
+
+        <h4>目標設定</h4>
+        <div class="grid">
+            <label for="school">志望校
+                <input type="text" id="school" name="school" value="{{ user.school }}" required autocomplete="off">
+                <div id="school-suggestions"></div>
+            </label>
+            <label for="faculty">志望学部
+                <select name="faculty" id="faculty" required>
+                    <option value="{{ user.faculty }}">{{ user.faculty }}</option>
+                </select>
+            </label>
+        </div>
+        <label for="target_exam_date">第一志望の試験日
+            <input type="date" id="target_exam_date" name="target_exam_date" value="{{ user.target_exam_date }}">
+        </label>
+        <hr>
+
+        <fieldset>
+            <legend>受験科目・開始レベルを変更</legend>
+            {% for subject in all_subjects %}
+                <div class="subject-level-group">
+                    <label class="subject-label">
+                        <input type="checkbox" name="subjects" value="{{ subject.id }}" 
+                               {% if subject.id in user_subject_ids %}checked{% endif %}>
+                        <strong>{{ subject.name }}</strong>
+                    </label>
+                    <div class="start-level-options">
+                        {% for value, text in level_options.items() %}
+                            <label>
+                                <input type="radio" name="start_level_{{ subject.id }}" value="{{ value }}" 
+                                       {% if user_start_levels.get(subject.id) == value %}checked{% endif %}>
+                                <small>{{ text }}</small>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </fieldset>
+        <hr>
+
+        <div class="grid">
+            <a href="{{ url_for('main.change_password', user_id=user.id) }}" role="button" class="secondary">パスワードを変更する</a>
+            <button type="submit" class="contrast">設定を保存</button>
+        </div>
+    </form>
+</article>
+
+<script>
+    // (ここに、以前完成させた大学名・学部名のオートコンプリート用JavaScriptが入ります)
+</script>
+{% endblock %}

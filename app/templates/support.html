@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}あなたへの支援制度{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>あなたへのおすすめ支援制度</h1>
+        <h2>{{ user.prefecture or '地域未登録' }}の情報を表示しています</h2>
+    </hgroup>
+
+    {% if support_list %}
+        {% for support in support_list %}
+            <article class="support-card">
+                <h4>{{ support.name }}</h4>
+                <p>{{ support.description }}</p>
+                <small>※詳細は各自治体の公式サイトをご確認ください。</small>
+            </article>
+        {% endfor %}
+    {% else %}
+        <p>現在、お住まいの地域で登録されている支援情報はありません。</p>
+    {% endif %}
+
+    <a href="{{ url_for('main.show_plan', user_id=user.id) }}" role="button" class="secondary">学習計画に戻る</a>
+</article>
+{% endblock %}
