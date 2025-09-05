@@ -1,4 +1,4 @@
-from app import app
+from app import create_app, db
 from app.models import db, Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
@@ -7,9 +7,8 @@ from seed_data.faculties import faculties_to_seed
 from seed_data.strategies import strategy_data
 
 def seed_database():
+    app = create_app()
     with app.app_context():
-        print("Seeding database...")
-
         # --- 1. 科目マスターデータ ---
         subjects_list = [
             '英語', '数学', '現代文', '古文', '漢文', '世界史', '日本史', 

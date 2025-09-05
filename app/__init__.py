@@ -3,28 +3,33 @@ from flask import Flask
 from .models import db
 from flask_migrate import Migrate
 
-app = Flask(__name__, instance_relative_config=True)
+def create_app():
+    app = Flask(__name__, instance_relative_config=True)
 
-# 1. 最初にデフォルトのローカルDBを設定
-app.config.from_mapping(
-    SECRET_KEY='dev', # 開発中は'dev'でOK, 本番では環境変数で上書き
-    SQLALCHEMY_DATABASE_URI='sqlite:///instance/database.db',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-)
+    # 設定の読み込み
+    app.config.from_mapping(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-for-local-use'),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    )
+    
+    # データベースURIの設定
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    else:
+        # ローカル開発用の設定
+        db_path = os.path.join(app.instance_path, 'database.db')
+        os.makedirs(app.instance_path, exist_ok=True)
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
-# 2. Renderの環境変数があれば、それで設定を上書き
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # RenderのPostgreSQL URL形式をSQLAlchemyが認識できる形式に修正
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    # 拡張機能の初期化
+    db.init_app(app)
+    migrate.init_app(app, db) # Migrateの初期化もここに変更
 
-    # 本番用の強力なSECRET_KEYも環境変数から読み込む
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+    # ルート（Blueprint）の登録
+    from . import routes
+    app.register_blueprint(routes.bp)
 
-db.init_app(app)
-migrate = Migrate(app, db)
-
-from . import routes
-app.register_blueprint(routes.bp)
+    return app
