@@ -5,7 +5,7 @@ from app.routes import bp
 from app.models import db          # <-- 重要パーツ1: models.pyからdbをインポート
 from flask_migrate import Migrate  # <-- 重要パーツ2: Migrateをインポート
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 # SECRET_KEYなどの設定
 app.config['SECRET_KEY'] = 'a-very-secret-key'
 app.config['DATABASE'] = 'database.db' # これはFlask独自の設定なので残してOK
