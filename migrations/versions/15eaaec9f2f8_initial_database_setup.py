@@ -1,8 +1,8 @@
-"""Create all tables from models
+"""Initial database setup
 
-Revision ID: 5533b071b7fb
-Revises: f1c5782375d6
-Create Date: 2025-09-05 08:23:25.234912
+Revision ID: 15eaaec9f2f8
+Revises: 
+Create Date: 2025-09-05 10:04:39.410971
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5533b071b7fb'
-down_revision = 'f1c5782375d6'
+revision = '15eaaec9f2f8'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -43,6 +43,22 @@ def upgrade():
     sa.Column('info_url', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
+    )
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('username', sa.String(), nullable=False),
+    sa.Column('password_hash', sa.String(), nullable=False),
+    sa.Column('grade', sa.String(), nullable=False),
+    sa.Column('school', sa.String(), nullable=False),
+    sa.Column('faculty', sa.String(), nullable=False),
+    sa.Column('plan_type', sa.String(), nullable=False),
+    sa.Column('course_type', sa.String(), nullable=True),
+    sa.Column('prefecture', sa.String(), nullable=True),
+    sa.Column('target_exam_date', sa.Date(), nullable=True),
+    sa.Column('starting_level', sa.Integer(), nullable=False),
+    sa.Column('learning_style', sa.String(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('username')
     )
     op.create_table('faculties',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -159,6 +175,7 @@ def downgrade():
     op.drop_table('routes')
     op.drop_table('progress')
     op.drop_table('faculties')
+    op.drop_table('users')
     op.drop_table('universities')
     op.drop_table('subjects')
     op.drop_table('books')
