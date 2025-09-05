@@ -1,14 +1,16 @@
-import os
 from flask import Flask
+from .models import db
+from flask_migrate import Migrate
 
-def create_app():
-    app = Flask(__name__)
-    app.config.from_mapping(
-        SECRET_KEY='your_super_secret_key_change_later',
-        DATABASE=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database.db'),
-    )
+app = Flask(__name__, template_folder='templates', static_folder='static')
+app.config['SECRET_KEY'] = 'a-very-secret-key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    from . import routes
-    app.register_blueprint(routes.bp)
+db.init_app(app)
+migrate = Migrate(app, db)
 
-    return app
+from . import routes
+app.register_blueprint(routes.bp)
+
+# __init__.pyのトップレベルでFlask appインスタンスを返す必要はありません
