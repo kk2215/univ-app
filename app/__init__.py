@@ -19,14 +19,14 @@ def create_app():
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     else:
-        # ローカル開発用の設定
         db_path = os.path.join(app.instance_path, 'database.db')
         os.makedirs(app.instance_path, exist_ok=True)
         app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
     # 拡張機能の初期化
     db.init_app(app)
-    migrate.init_app(app, db) # Migrateの初期化もここに変更
+    migrate = Migrate() # <-- Migrateインスタンスを先に作成
+    migrate.init_app(app, db) # <-- 正しい変数名 "migrate" を使用
 
     # ルート（Blueprint）の登録
     from . import routes
