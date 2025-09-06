@@ -221,7 +221,15 @@ def dashboard(user_id):
     user_subject_ids = [s.id for s in user.subjects]
     completed_tasks_set = {p.task_id for p in Progress.query.filter_by(user_id=user_id, is_completed=1).all()}
     
-    cont_selections = UserContinuousTaskSelection.query.filter_by(user_id=user_id).join(Book, UserContinuousTaskSelection.selected_task_id == Book.task_id).add_columns(Book.title, UserContinuousTaskSelection.level, UserContinuousTaskSelection.category).all()
+    cont_selections = db.session.query(
+        UserContinuousTaskSelection.subject_id,
+        UserContinuousTaskSelection.level,
+        UserContinuousTaskSelection.category,
+        UserContinuousTaskSelection.selected_task_id,
+        Book.title
+    ).join(Book, UserContinuousTaskSelection.selected_task_id == Book.task_id)\
+     .filter(UserContinuousTaskSelection.user_id == user_id).all()
+     
     seq_selections = {row.group_id: row.selected_task_id for row in UserSequentialTaskSelection.query.filter_by(user_id=user_id).all()}
 
     dashboard_data = []
