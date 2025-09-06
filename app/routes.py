@@ -139,9 +139,10 @@ def show_plan(user_id):
             Subject.name.label('subject_name'), Book.task_id, Book.title.label('book'),
             Book.description, Book.youtube_query, Book.task_type, RouteStep.level,
             RouteStep.category, RouteStep.is_main, Book.duration_weeks
-        ).join(RouteStep, Route.id == RouteStep.route_id)\
+        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
          .join(Book, RouteStep.book_id == Book.id)\
          .join(Subject, Route.subject_id == Subject.id)
+
 
         if subject_name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
