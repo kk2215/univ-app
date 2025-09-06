@@ -300,6 +300,31 @@ def dashboard(user_id):
 
     return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
 
+# app/routes.py に追加
+
+@bp.route('/support/<int:user_id>')
+def support(user_id):
+    if 'user_id' not in session or session['user_id'] != user_id:
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(user_id)
+    if not user:
+        return "ユーザーが見つかりません", 404
+
+    # ここに、支援制度のデータを定義します
+    support_data = {
+        "東京都": [
+            {"name": "受験生チャレンジ支援貸付事業", "description": "塾代や受験費用を無利子で借りられ、入学すれば返済が免除される場合があります。"},
+        ],
+        "大阪府": [
+            {"name": "塾代助成事業", "description": "所得制限等に応じて、塾代に利用できるクーポンが支給されます。"},
+        ]
+        # 他の都道府県のデータも追加可能
+    }
+    
+    user_support = support_data.get(user.prefecture, [])
+    
+    return render_template('support.html', user=user, support_list=user_support)
 
 @bp.route('/stats/<int:user_id>')
 def stats(user_id):
