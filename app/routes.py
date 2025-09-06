@@ -333,6 +333,8 @@ def stats(user_id):
         return redirect(url_for('main.login'))
 
     user = User.query.get(user_id)
+    if not user:
+        return "ユーザーが見つかりません", 404
     
     try:
         year = int(request.args.get('year', date.today().year))
@@ -371,6 +373,8 @@ def stats(user_id):
             week_data.append({'date': day, 'total_minutes': total_minutes, 'color_level': color_level})
         calendar_data.append(week_data)
         
+    user_subjects_list = [{'id': s.id, 'name': s.name} for s in user.subjects]    
+        
     # 最近の記録リストとモーダル用データ
     recent_logs = db.session.query(StudyLog.id, StudyLog.date, Subject.name, StudyLog.duration_minutes).join(Subject).filter(StudyLog.user_id == user_id).order_by(StudyLog.date.desc(), StudyLog.id.desc()).limit(10).all()
     user_subjects = user.subjects
@@ -383,7 +387,7 @@ def stats(user_id):
         subject_labels=[r.name for r in total_by_subject], subject_data=[r.total for r in total_by_subject],
         date_labels=[r.date.isoformat() for r in last_7_days], date_data=[r.total for r in last_7_days],
         calendar_data=calendar_data, month=month, year=year,
-        recent_logs=recent_logs, user_subjects=user_subjects,
+        recent_logs=recent_logs, user_subjects=user_subjects_list,
         logs_by_date=logs_by_date, prev_month=prev_month, next_month=next_month, is_future=is_future
     )
 
