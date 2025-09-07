@@ -165,12 +165,10 @@ def show_plan(user_id):
                 today = date.today()
                 exam_date = user.target_exam_date if user.target_exam_date else date(today.year + 1, 2, 25)
                 
-                task_groups = []
-                temp_group = []
+                task_groups, temp_group = [], []
                 for task in sequential_tasks:
                     if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group)
-                        temp_group = []
+                        task_groups.append(temp_group); temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
