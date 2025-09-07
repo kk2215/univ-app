@@ -211,7 +211,7 @@ def dashboard(user_id):
     user = User.query.get(user_id)
     if not user:
         return "ユーザーが見つかりません", 404
-
+        
     university = University.query.filter_by(name=user.school).first()
     days_until_exam = "未設定"
     if user.target_exam_date:
@@ -222,10 +222,8 @@ def dashboard(user_id):
     completed_tasks_set = {p.task_id for p in Progress.query.filter_by(user_id=user_id, is_completed=1).all()}
     
     cont_selections = db.session.query(
-        UserContinuousTaskSelection.subject_id,
-        UserContinuousTaskSelection.level,
-        UserContinuousTaskSelection.category,
-        UserContinuousTaskSelection.selected_task_id,
+        UserContinuousTaskSelection.subject_id, UserContinuousTaskSelection.level,
+        UserContinuousTaskSelection.category, UserContinuousTaskSelection.selected_task_id,
         Book.title
     ).join(Book, UserContinuousTaskSelection.selected_task_id == Book.task_id)\
      .filter(UserContinuousTaskSelection.user_id == user_id).all()
@@ -255,12 +253,10 @@ def dashboard(user_id):
         if full_plan:
             sequential_plan = [task for task in full_plan if task['task_type'] == 'sequential']
             if sequential_plan:
-                task_groups = []
-                temp_group = []
+                task_groups, temp_group = [], []
                 for task in sequential_plan:
                     if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group)
-                        temp_group = []
+                        task_groups.append(temp_group); temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
@@ -291,11 +287,9 @@ def dashboard(user_id):
                 subject_info['progress'] = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
 
             continuous_tasks_in_plan = [task for task in full_plan if task['task_type'] == 'continuous' and task['category'] != '補助教材']
-            tasks_to_display = []
-            tasks_by_category = defaultdict(list)
-            for task in continuous_tasks_in_plan:
-                tasks_by_category[task['category']].append(task)
-
+            tasks_to_display, tasks_by_category = [], defaultdict(list)
+            for task in continuous_tasks_in_plan: tasks_by_category[task['category']].append(task)
+            
             for category, tasks in tasks_by_category.items():
                 if category == '漢字':
                     if tasks: tasks_to_display.append({'title': tasks[0]['title']}); continue
@@ -304,7 +298,7 @@ def dashboard(user_id):
                 if not tasks_in_current_level: continue
                 
                 user_selection = next((s for s in cont_selections if s.subject_id == subject_id and s.level == current_level and s.category == category), None)
-
+                
                 if len(tasks_in_current_level) > 1:
                     if user_selection:
                         tasks_to_display.append({'title': user_selection.title})
@@ -312,12 +306,10 @@ def dashboard(user_id):
                         subject_info['pending_selections'].append(f"{current_level}の{category}")
                 else:
                     tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
-
             subject_info['continuous_tasks'] = tasks_to_display
         dashboard_data.append(subject_info)
 
     return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
-
 
 @bp.route('/support/<int:user_id>')
 def support(user_id):
