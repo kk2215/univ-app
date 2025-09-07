@@ -160,7 +160,7 @@ route_steps_human_readable = [
 
     # 倫理ルート
     ('ethics_standard', 'eth_n01', 1, '日東駒専レベル', '講義', 1),
-    ('ethics_standard', 'level_check_nittokomasen_poli', 2, '日東駒専レベル', 'レベルチェック', 1),
+    ('ethics_standard', 'level_check_nittokomasen_eth', 2, '日東駒専レベル', 'レベルチェック', 1),
     ('ethics_standard', 'eth_m01', 3, 'MARCH・早慶レベル', '用語', 1),
 
     # 物理ルート
