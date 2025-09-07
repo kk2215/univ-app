@@ -260,15 +260,17 @@ def dashboard(user_id):
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
+                 # 「次のタスク」を決定するロジックの修正
                 for group in task_groups:
                     group_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
                     actual_task_id = seq_selections.get(group_id, group_id)
+                    # このグループ内の「やるべきタスク」が完了しているかチェック
                     if actual_task_id not in completed_tasks_set:
                         if len(group) > 1 and group_id not in seq_selections:
                             subject_info['next_task'] = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject_name}
                         else:
                             subject_info['next_task'] = next((t for t in group if t['task_id'] == actual_task_id), group[0])
-                        break
+                        break # この科目の次のタスクが見つかったのでループ終了
                 
                 plan_task_ids_in_groups = [seq_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), g[0]['task_id']) for g in task_groups]
                 completed_in_plan = [task_id for task_id in plan_task_ids_in_groups if task_id in completed_tasks_set]
