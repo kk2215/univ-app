@@ -210,4 +210,4 @@ route_steps_human_readable = [
     ('shoronbun_standard', 'shoronbun_task_01', 1, '日東駒専レベル', '基礎知識', 1),
     ('shoronbun_standard', 'shoronbun_task_02', 2, 'MARCHレベル', '書き方の型', 1),
     ('shoronbun_standard', 'shoronbun_task_03', 3, '早慶レベル', '実践演習', 1),
-    ]
+]
