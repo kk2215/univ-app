@@ -108,7 +108,6 @@ def show_plan(user_id):
     if not user:
         return "ユーザーが見つかりません", 404
 
-    # --- 1. 必要なデータをまとめて取得 ---
     target_school = University.query.filter_by(name=user.school).first()
     target_level_name = target_school.level if target_school else None
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
@@ -128,7 +127,6 @@ def show_plan(user_id):
     completed_tasks_set = {p.task_id for p in Progress.query.filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in SubjectStrategy.query.all()}
     
-    # --- 2. 表示データを科目ごとに生成 ---
     plan_by_subject_level = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     continuous_tasks_by_subject_level_category = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
@@ -143,17 +141,14 @@ def show_plan(user_id):
          .join(Book, RouteStep.book_id == Book.id)\
          .join(Subject, Route.subject_id == Subject.id)
 
-
         if subject_name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            subject_plan_rows = query_builder.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
+            subject_plan_rows = query_builder.filter(Route.name == route_name).all()
         else:
-            subject_plan_rows = query_builder.filter(Route.plan_type == 'standard', Route.subject_id == subject_id).order_by(RouteStep.step_order).all()
+            subject_plan_rows = query_builder.filter(Route.plan_type == 'standard', Route.subject_id == subject_id).all()
         
         subject_plan = [dict(row._mapping) for row in subject_plan_rows]
-        
-        # Pythonでレベルの難易度順に並べ替え
-        subject_plan.sort(key=lambda task: level_hierarchy.get(task['level'], 99))
+        subject_plan.sort(key=lambda task: (level_hierarchy.get(task['level'], 99), task.get('step_order', 0)))
 
         if subject_plan:
             starting_level_value = start_levels_map.get(subject_id, 0)
@@ -169,25 +164,31 @@ def show_plan(user_id):
             if sequential_tasks:
                 today = date.today()
                 exam_date = user.target_exam_date if user.target_exam_date else date(today.year + 1, 2, 25)
-                task_groups, temp_group = [], []
+                
+                task_groups = []
+                temp_group = []
                 for task in sequential_tasks:
                     if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group); temp_group = []
+                        task_groups.append(temp_group)
+                        temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
                 main_tasks_in_groups = [sequential_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), next((t['task_id'] for t in g if t['is_main']), g[0]['task_id'])) for g in task_groups]
                 main_tasks_details = [task for task in sequential_tasks if task['task_id'] in main_tasks_in_groups]
-                total_duration = sum(task['duration_weeks'] for task in main_tasks_details)
+                total_duration = sum(t['duration_weeks'] for t in main_tasks_details if t['duration_weeks'] is not None)
                 weeks_until_exam = max(1, (exam_date - today).days / 7)
                 pace_factor = weeks_until_exam / total_duration if total_duration > 0 else 1
+                
                 current_deadline = exam_date
                 deadlines = {}
                 for task in reversed(main_tasks_details):
-                    adjusted_duration = task['duration_weeks'] * pace_factor
+                    duration = task['duration_weeks'] if task['duration_weeks'] is not None else 1
+                    adjusted_duration = duration * pace_factor
                     days_to_subtract = max(7, round(adjusted_duration * 7))
                     current_deadline -= timedelta(days=days_to_subtract)
                     deadlines[task['task_id']] = current_deadline.strftime('%Y-%m-%d')
+                
                 for group in task_groups:
                     main_task_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
                     deadline_for_group = deadlines.get(main_task_id, exam_date.strftime('%Y-%m-%d'))
