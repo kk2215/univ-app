@@ -276,16 +276,24 @@ def dashboard(user_id):
                     last_completed_id = completed_in_plan[-1]
                     subject_info['last_completed_task'] = Book.query.filter_by(task_id=last_completed_id).first()
                 
+                # ▼▼▼ [修正点] 現在のレベルを決定するロジックを、より堅牢なものに修正 ▼▼▼
                 if subject_info['next_task'] and not isinstance(subject_info['next_task'], dict):
+                    # 次のタスクがあれば、そのレベルが現在のレベル
                     current_level = subject_info['next_task']['level']
                 elif completed_in_plan:
+                    # 次のタスクがなく、完了タスクがある場合（＝全クリ）、最後のタスクのレベルを現在レベルとみなす
                     last_task_in_plan = next((t for t in sequential_plan if t['task_id'] == completed_in_plan[-1]), None)
                     current_level = last_task_in_plan['level'] if last_task_in_plan else None
+                elif sequential_plan:
+                    # まだ何も完了していない場合、最初のタスクのレベルを現在地とする
+                    current_level = sequential_plan[0]['level']
                 else:
-                    current_level = sequential_plan[0]['level'] if sequential_plan else None
+                    # Sequentialタスクが一つもない場合
+                    current_level = None
                 
                 subject_info['progress'] = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
 
+            # (継続タスクの処理ロジックは変更なし)
             continuous_tasks_in_plan = [task for task in full_plan if task['task_type'] == 'continuous' and task['category'] != '補助教材']
             tasks_to_display, tasks_by_category = [], defaultdict(list)
             for task in continuous_tasks_in_plan: tasks_by_category[task['category']].append(task)
@@ -298,7 +306,6 @@ def dashboard(user_id):
                 if not tasks_in_current_level: continue
                 
                 user_selection = next((s for s in cont_selections if s.subject_id == subject_id and s.level == current_level and s.category == category), None)
-                
                 if len(tasks_in_current_level) > 1:
                     if user_selection:
                         tasks_to_display.append({'title': user_selection.title})
@@ -306,6 +313,7 @@ def dashboard(user_id):
                         subject_info['pending_selections'].append(f"{current_level}の{category}")
                 else:
                     tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
+
             subject_info['continuous_tasks'] = tasks_to_display
         dashboard_data.append(subject_info)
 
