@@ -643,3 +643,7 @@ dialog article {
     }
     */
 }
+/* ナビゲーションバーを、メニューの位置の基準にする */
+nav.container-fluid {
+    position: relative;
+}
