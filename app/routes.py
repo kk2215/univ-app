@@ -244,7 +244,13 @@ def dashboard(user_id):
     days_until_exam = "未設定"
     if user.target_exam_date:
         days_until_exam = (user.target_exam_date - date.today()).days
+    
+    # ▼▼▼ [修正点] 学習マップと同じレベル判定ロジックを追加 ▼▼▼
+    target_level_name = university.level if university else None
+    level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
+    target_level_value = level_hierarchy.get(target_level_name, 99)
 
+    
     subjects_map = {s.id: s.name for s in Subject.query.all()}
     user_subject_ids = [s.id for s in user.subjects]
     completed_tasks_set = {p.task_id for p in Progress.query.filter_by(user_id=user_id, is_completed=1).all()}
@@ -294,10 +300,16 @@ def dashboard(user_id):
                     actual_task_id = seq_selections.get(group_id, group_id)
                     # このグループ内の「やるべきタスク」が完了しているかチェック
                     if actual_task_id not in completed_tasks_set:
+                        
+                        # ▼▼▼ [修正点] 次のタスクのレベルが、志望校レベルを超えていないかチェック ▼▼▼
+                        potential_next_task = next((t for t in group if t['task_id'] == actual_task_id), group[0])
+                        task_level_value = level_hierarchy.get(potential_next_task['level'], 99)
+                    
+                    if task_level_value <= target_level_value:
                         if len(group) > 1 and group_id not in seq_selections:
                             subject_info['next_task'] = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject_name}
                         else:
-                            subject_info['next_task'] = next((t for t in group if t['task_id'] == actual_task_id), group[0])
+                            subject_info['next_task'] = potential_next_task
                         break # この科目の次のタスクが見つかったのでループ終了
                 
                 plan_task_ids_in_groups = [seq_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), g[0]['task_id']) for g in task_groups]
