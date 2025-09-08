@@ -34,8 +34,9 @@
         <h4>目標設定</h4>
         <div class="grid">
             <label for="school">志望校
-               <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
-                <datalist id="university-list"></datalist>
+              <div class="autocomplete-wrapper">
+              <input type="text" id="school" name="school" placeholder="例：早稲田大学" required>
+              </div>
             </label>
             <label for="faculty">志望学部
                 <select name="faculty" id="faculty" required>
