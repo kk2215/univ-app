@@ -81,23 +81,22 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const schoolInput = document.getElementById('school');
-    const universityList = document.getElementById('university-list');
+    const universityList = document.getElementById('university-list'); // HTMLに<datalist id="university-list"></datalist>が必要です
 
     let debounceTimer;
     schoolInput.addEventListener('keyup', (e) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             const query = e.target.value;
-            if (query.length < 1) { // 1文字以上入力されたら検索
+            if (query.length < 1) {
                 universityList.innerHTML = '';
                 return;
             }
-
             try {
                 const response = await fetch(`{{ url_for('main.get_universities') }}?q=${query}`);
                 const universities = await response.json();
                 
-                universityList.innerHTML = ''; // 候補をリセット
+                universityList.innerHTML = '';
                 universities.forEach(uni => {
                     const option = document.createElement('option');
                     option.value = uni;
@@ -106,8 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('大学名の取得に失敗しました:', error);
             }
-        }, 300); // 300ミリ秒待ってから検索を実行
+        }, 300);
     });
 });
 </script>
-{% endblock %}

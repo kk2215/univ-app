@@ -531,8 +531,17 @@ def get_universities():
     query = request.args.get('q', '')
     if not query:
         return jsonify([])
+
     search_term = f"{query}%"
-    universities = University.query.filter(db.or_(University.name.like(search_term), University.kana_name.like(search_term))).limit(5).all()
+    
+    # SQLAlchemyのモデルを使って大学を検索
+    universities = University.query.filter(
+        db.or_(
+            University.name.like(search_term),
+            University.kana_name.like(search_term)
+        )
+    ).limit(5).all()
+    
     return jsonify([uni.name for uni in universities])
 
 @bp.route('/api/faculties')
