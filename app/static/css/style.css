@@ -632,3 +632,37 @@ nav.container-fluid {
     }
     */
 }
+/* --- モバイル用ナビゲーションの最終修正 --- */
+
+/* ナビゲーションバー自体を、メニューの配置基準にする */
+nav.container-fluid {
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    /* ナビゲーションメニュー本体のスタイル */
+    .primary-navigation[data-visible="true"] {
+        display: block;
+        position: absolute;
+        
+        /* navバーの真下から表示を開始する */
+        top: 100%; 
+        right: 0;
+        
+        width: 95%;
+        max-width: 300px;
+        margin-right: 2.5%;
+        padding: 1.5rem;
+        
+        background: var(--card-background-color);
+        box-shadow: var(--card-box-shadow);
+        border-radius: var(--border-radius);
+        z-index: 1000; /* 他の要素より手前に表示 */
+    }
+
+    /* メニュー内のリストのスタイル調整 */
+    .primary-navigation ul {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
