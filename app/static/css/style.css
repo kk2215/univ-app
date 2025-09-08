@@ -608,3 +608,38 @@ dialog article {
     }
 
 }
+/* ========== スマホ表示用の追加スタイル ========== */
+@media (max-width: 768px) {
+
+    /* --- ハンバーガーメニューの背景と影 --- */
+    .primary-navigation[data-visible="true"] {
+        background-color: var(--card-background-color); /* カードと同じ背景色 */
+        box-shadow: var(--card-box-shadow); /* カードと同じ影 */
+        border-radius: var(--border-radius); /* 角を丸くする */
+        padding: 1.5rem; /* 内側の余白 */
+        margin-top: 0.5rem; /* 上のナビゲーションバーとの間隔 */
+        position: absolute; /* 親要素基準で位置を調整 */
+        right: var(--spacing); /* 右端に寄せる */
+        top: var(--block-spacing-vertical); /* 上からの位置 */
+        z-index: 1000; /* 他の要素より手前に表示 */
+        width: calc(100% - (var(--spacing) * 2)); /* 画面幅いっぱいに広げる */
+        max-width: 300px; /* 必要に応じて最大幅を設定 */
+    }
+
+    /* 以下は、以前提案した他のスマホ向けスタイルがあればそのまま残してください */
+    /*
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    .subject-log-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .subject-label {
+        margin-bottom: 0;
+        text-align: left;
+    }
+    */
+}
