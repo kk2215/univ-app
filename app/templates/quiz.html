@@ -9,7 +9,7 @@
         <h2>学習スタイル診断</h2>
     </hgroup>
 
-    <form method="post" action="{{ url_for('main.submit_quiz', user_id=user.id) }}">
+    <form method="POST" action="{{ url_for('main.submit_quiz_public') if is_public else url_for('main.submit_quiz', user_id=user.id) }}">
         <div id="quiz-container"></div>
         
         <div class="quiz-navigation">

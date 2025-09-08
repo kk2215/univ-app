@@ -7,6 +7,9 @@
     <hgroup>
         <h1>マイページ</h1>
         <h2>こんにちは、{{ user.username }}さん！</h2>
+        {% if user.learning_style %}
+        <p>あなたの学習スタイル: <strong>{{ user.learning_style }}</strong> - <a href="{{ url_for('main.quiz_results', user_id=user.id) }}">詳細を見る</a></p>
+        {% endif %}
     </hgroup>
 </article>
 
@@ -127,6 +130,11 @@
                 <progress id="progress-{{ subject.name }}" value="{{ subject.progress }}" max="100"></progress>
             </div>
             {% endfor %}
+        </article>
+        <article class="dashboard-card">
+             <h3>学習スタイル診断</h3>
+             <p>自分に合った学習法を見つけて、効率を最大化しよう。</p>
+             <a href="{{ url_for('main.quiz', user_id=user.id) }}" role="button">診断を受ける</a>
         </article>
         <article class="dashboard-card">
             <h3>志望校情報</h3>

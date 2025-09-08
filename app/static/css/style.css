@@ -132,6 +132,10 @@ nav .container {
     .mobile-nav-toggle[aria-expanded="true"] {
         background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgb(22, 22, 22)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M6 6l18 18M24 6L6 24'/%3e%3c/svg%3e");
     }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* 1列に変更 */
+    }
 }
 /* static/css/style.css の一番下に追加 */
 
@@ -570,4 +574,37 @@ dialog article {
     border-radius: var(--border-radius) var(--border-radius) 0 0;
     color: var(--primary);
     font-weight: 500;
+}
+/* ========== スマホ表示用の追加スタイル ========== */
+@media (max-width: 768px) {
+
+    /* --- 1. ハンバーガーメニューの背景 --- */
+    /*
+     * ナビゲーションメニューが開いた時(data-visible="true")に、
+     * 背景色と影をつけ、後ろの文字が透けないようにします。
+     */
+    .primary-navigation[data-visible="true"] {
+        background: var(--card-background-color);
+        box-shadow: var(--card-box-shadow);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* --- 2. 学習時間登録フォームのレイアウト --- */
+    /*
+     * 「科目名」と「時間・分入力欄」の2列レイアウトを、
+     * スマホではシンプルな縦1列のレイアウトに変更します。
+     */
+    .subject-log-row {
+        grid-template-columns: 1fr; /* 1列レイアウトに変更 */
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .subject-label {
+        margin-bottom: 0;
+        text-align: left; /* ラベルを左揃えに */
+    }
+
 }

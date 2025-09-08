@@ -11,6 +11,35 @@ from .models import db, User, Subject, University, Faculty, Book, Route, RouteSt
 
 bp = Blueprint('main', __name__)
 
+results_data = {
+    'A': {
+        'description': 'あなたは、目で見た情報を処理するのが得意なタイプです。図やグラフ、イラスト、色分けされた情報、映像などを通して物事を理解し、記憶することに長けています。',
+        'advice': [
+            '<strong>参考書選び:</strong> 解説文だけでなく、図やイラスト、写真が豊富な参考書を選びましょう。特に地理や歴史、理科の資料集はあなたの強力な武器になります。',
+            '<strong>映像授業の活用:</strong> 文字を読むだけでなく、講師の動きや板書を視覚的に捉えられる映像授業は非常に効果的です。',
+            '<strong>ノート術:</strong> 重要なポイントを色分けしたり、情報の関係性を矢印や図でまとめたりすると、記憶に定着しやすくなります。',
+            '<strong>暗記の工夫:</strong> 英単語はイラスト付きの単語帳を使ったり、歴史上の人物は肖像画とセットで覚えたりするなど、常にビジュアルと結びつけることを意識しましょう。'
+        ]
+    },
+    'B': {
+        'description': 'あなたは、耳から入ってくる情報を処理するのが得意なタイプです。講義を聞いたり、ディスカッションをしたり、音読をしたりすることで学習内容が頭に入りやすい傾向があります。',
+        'advice': [
+            '<strong>音読の徹底:</strong> 英語や古文の文章、覚えたい用語などを積極的に声に出して読みましょう。リズムに乗って覚えるのも効果的です。',
+            '<strong>音声教材の活用:</strong> 英単語帳に付属している音声や、講義系の音声コンテンツなどを通学中などのスキマ時間に活用しましょう。',
+            '<strong>セルフレクチャー:</strong> 学習した内容を、まるで先生になったかのように自分自身に声に出して説明してみましょう。理解が整理され、記憶が強固になります。',
+            '<strong>議論・質問:</strong> 友達と問題を出し合ったり、先生に質問に行ったりして、対話の中で理解を深めるのも得意なはずです。'
+        ]
+    },
+    'C': {
+        'description': 'あなたは、文字情報を読んだり書いたりして、論理的に物事を理解・整理するのが得意なタイプです。教科書や参考書の文章をじっくり読み解き、要点をまとめ、自分の言葉で再構築することで知識を定着させます。',
+        'advice': [
+            '<strong>精読と要約:</strong> 教科書や参考書の解説を丁寧に読み込み、段落ごとや章ごとに内容を要約する習慣をつけましょう。',
+            '<strong>ノート作成:</strong> 学習した内容を自分なりにノートにまとめることで、知識が体系的に整理されます。単に書き写すのではなく、情報の構造を意識して整理するのがポイントです。',
+            '<strong>問題演習と解説の熟読:</strong> 多くの問題を解き、なぜその答えになるのかを解説でしっかり確認する、というオーソドックスな学習法が最も効果的です。',
+            '<strong>反復筆記:</strong> なかなか覚えられない用語や公式は、何度も繰り返し書くことで記憶に定着しやすくなります。'
+        ]
+    }
+}
 # --- 認証 & 基本ページ ---
 
 @bp.route('/')
@@ -596,3 +625,128 @@ def delete_log(log_id):
         db.session.delete(log)
         db.session.commit()
     return redirect(url_for('main.stats', user_id=user_id))
+
+# app/routes.py の一番下に追加
+
+@bp.route('/quiz/<int:user_id>')
+def quiz(user_id):
+    if 'user_id' not in session or session['user_id'] != user_id:
+        return redirect(url_for('main.login'))
+    user = User.query.get(user_id)
+    return render_template('quiz.html', user=user)
+
+@bp.route('/quiz/<int:user_id>/submit', methods=['POST'])
+def submit_quiz(user_id):
+    if 'user_id' not in session or session['user_id'] != user_id:
+        return redirect(url_for('main.login'))
+
+    answers = request.form
+    scores = {'A': 0, 'B': 0, 'C': 0}
+    for i in range(1, 11): # 質問は1から10まで
+        answer = answers.get(f'q{i}')
+        if answer in scores:
+            scores[answer] += 1
+
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    top_score = sorted_scores[0][1]
+    top_types = [k for k, v in scores.items() if v == top_score]
+    
+    result_type_name = ""
+    type_map = {'A': '視覚優位', 'B': '聴覚優位', 'C': '言語感覚優位'}
+
+    if len(top_types) > 1:
+        result_type_name = "・".join([type_map[t] for t in top_types]) + "の複合タイプ"
+    else:
+        result_type_name = type_map[top_types[0]] + "タイプ"
+
+    user = User.query.get(user_id)
+    user.learning_style = result_type_name
+    db.session.commit()
+    
+    return redirect(url_for('main.quiz_results', user_id=user_id))
+
+@bp.route('/quiz_results/<int:user_id>')
+def quiz_results(user_id):
+    if 'user_id' not in session or session['user_id'] != user_id:
+        return redirect(url_for('main.login'))
+        
+    user = User.query.get(user_id)
+
+    if not user or not user.learning_style:
+        return redirect(url_for('main.quiz', user_id=user_id))
+
+    result_type_name = user.learning_style
+    
+    # 保存された結果の文字列から、該当するタイプを全て抽出する
+    top_types = []
+    if '視覚' in result_type_name:
+        top_types.append('A')
+    if '聴覚' in result_type_name:
+        top_types.append('B')
+    if '言語' in result_type_name or '読み書き' in result_type_name:
+        top_types.append('C')
+
+    # results_dataは、この関数の外（routes.pyの先頭など）で定義されている必要があります
+    final_advice = []
+    unique_descriptions = []
+    
+    for type_code in top_types:
+        if type_code in results_data:
+            # 同じ説明文が重複しないように追加
+            if results_data[type_code]['description'] not in unique_descriptions:
+                unique_descriptions.append(results_data[type_code]['description'])
+            final_advice.extend(results_data[type_code]['advice'])
+    
+    final_description = "<br><br>".join(unique_descriptions)
+            
+    return render_template('quiz_results.html', user=user, result_type=result_type_name, description=final_description, advice=final_advice)
+
+# app/routes.py の一番下に追加
+
+# 公開診断ページを表示
+@bp.route('/quiz/public')
+def quiz_public():
+    return render_template('quiz.html', is_public=True)
+
+# 公開診断の結果を処理
+@bp.route('/quiz/public/submit', methods=['POST'])
+def submit_quiz_public():
+    answers = request.form
+    scores = {'A': 0, 'B': 0, 'C': 0}
+    for i in range(1, 11):
+        answer = answers.get(f'q{i}')
+        if answer in scores:
+            scores[answer] += 1
+    
+    top_score = sorted(scores.values(), reverse=True)[0]
+    top_types = [k for k, v in scores.items() if v == top_score]
+    
+    # 結果をデータベースではなく、セッションに一時保存
+    session['quiz_result_top_types'] = top_types
+    
+    return redirect(url_for('main.quiz_public_results'))
+
+# 公開診断の結果を表示
+@bp.route('/quiz/public_results')
+def quiz_public_results():
+    top_types = session.get('quiz_result_top_types', [])
+    if not top_types:
+        return redirect(url_for('main.quiz_public'))
+
+    type_map = {'A': '視覚優位', 'B': '聴覚優位', 'C': '言語感覚優位'}
+    if len(top_types) > 1:
+        result_type_name = "・".join([type_map[t] for t in top_types]) + "の複合タイプ"
+    else:
+        result_type_name = type_map[top_types[0]] + "タイプ"
+
+    # results_dataは、routes.pyの先頭で定義されている必要があります
+    final_advice = []
+    unique_descriptions = []
+    for type_code in top_types:
+        if type_code in results_data:
+            if results_data[type_code]['description'] not in unique_descriptions:
+                unique_descriptions.append(results_data[type_code]['description'])
+            final_advice.extend(results_data[type_code]['advice'])
+    final_description = "<br><br>".join(unique_descriptions)
+
+    return render_template('quiz_results.html', is_public=True, result_type=result_type_name, description=final_description, advice=final_advice)
