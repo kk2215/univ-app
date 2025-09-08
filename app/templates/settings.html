@@ -34,10 +34,9 @@
         <h4>目標設定</h4>
         <div class="grid">
             <label for="school">志望校
-              <div class="autocomplete-wrapper">
-              <input type="text" id="school" name="school" placeholder="例：早稲田大学" required>
-              </div>
-            </label>
+    <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
+    <datalist id="university-list"></datalist>
+</label>
             <label for="faculty">志望学部
                 <select name="faculty" id="faculty" required>
                     <option value="{{ user.faculty }}">{{ user.faculty }}</option>
@@ -81,7 +80,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const schoolInput = document.getElementById('school');
-    const universityList = document.getElementById('university-list'); // HTMLに<datalist id="university-list"></datalist>が必要です
+    const universityList = document.getElementById('university-list');
 
     let debounceTimer;
     schoolInput.addEventListener('keyup', (e) => {
@@ -96,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(`{{ url_for('main.get_universities') }}?q=${query}`);
                 const universities = await response.json();
                 
-                universityList.innerHTML = '';
+                universityList.innerHTML = ''; // 候補をリセット
                 universities.forEach(uni => {
                     const option = document.createElement('option');
                     option.value = uni;
@@ -105,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('大学名の取得に失敗しました:', error);
             }
-        }, 300);
+        }, 300); // 300ミリ秒待ってから検索を実行
     });
 });
 </script>
