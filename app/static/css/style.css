@@ -575,58 +575,47 @@ dialog article {
     color: var(--primary);
     font-weight: 500;
 }
-/* ========== スマホ表示用の追加スタイル ========== */
-@media (max-width: 768px) {
-
-    /* --- 1. ハンバーガーメニューの背景 --- */
-    /*
-     * ナビゲーションメニューが開いた時(data-visible="true")に、
-     * 背景色と影をつけ、後ろの文字が透けないようにします。
-     */
-    .primary-navigation[data-visible="true"] {
-        background: var(--card-background-color);
-        box-shadow: var(--card-box-shadow);
-        border-radius: var(--border-radius);
-        padding: 1.5rem;
-        margin-top: 0.5rem;
-    }
-
-    /* --- 2. 学習時間登録フォームのレイアウト --- */
-    /*
-     * 「科目名」と「時間・分入力欄」の2列レイアウトを、
-     * スマホではシンプルな縦1列のレイアウトに変更します。
-     */
-    .subject-log-row {
-        grid-template-columns: 1fr; /* 1列レイアウトに変更 */
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .subject-label {
-        margin-bottom: 0;
-        text-align: left; /* ラベルを左揃えに */
-    }
-
+/* ナビゲーションバーを、メニューの位置の基準にする */
+/* もし既に同様のnavに対するposition定義があれば、そちらの値をrelativeにする */
+nav.container-fluid {
+    position: relative;
 }
+
 /* ========== スマホ表示用の追加スタイル ========== */
 @media (max-width: 768px) {
 
-    /* --- ハンバーガーメニューの背景と影 --- */
+    /* --- ハンバーガーメニューの見た目と位置の修正 --- */
     .primary-navigation[data-visible="true"] {
-        background-color: var(--card-background-color); /* カードと同じ背景色 */
+        background-color: var(--card-background-color); /* 背景色をカードと同じに */
         box-shadow: var(--card-box-shadow); /* カードと同じ影 */
         border-radius: var(--border-radius); /* 角を丸くする */
         padding: 1.5rem; /* 内側の余白 */
-        margin-top: 0.5rem; /* 上のナビゲーションバーとの間隔 */
-        position: absolute; /* 親要素基準で位置を調整 */
-        right: var(--spacing); /* 右端に寄せる */
-        top: var(--block-spacing-vertical); /* 上からの位置 */
+        position: absolute; /* 親要素 (nav.container-fluid) を基準に配置 */
+        right: var(--spacing); /* 右端からの距離 */
+        /* top: var(--block-spacing-vertical); */ /* この行は削除またはコメントアウト */
+        top: calc(var(--block-spacing-vertical) + 1rem); /* ナビゲーションバーの高さ分を考慮して下げる */
         z-index: 1000; /* 他の要素より手前に表示 */
         width: calc(100% - (var(--spacing) * 2)); /* 画面幅いっぱいに広げる */
-        max-width: 300px; /* 必要に応じて最大幅を設定 */
+        max-width: 300px; /* メニューの最大幅 */
+        list-style: none; /* リストの点線を消す */
+        margin-top: 0; /* 元のmargin-topをリセット */
     }
 
-    /* 以下は、以前提案した他のスマホ向けスタイルがあればそのまま残してください */
+    /* メニュー内の各リンク要素のスタイル */
+    .primary-navigation[data-visible="true"] li {
+        margin-bottom: 0.5rem;
+    }
+
+    .primary-navigation[data-visible="true"] li:last-child {
+        margin-bottom: 0;
+    }
+
+    .primary-navigation[data-visible="true"] a {
+        display: block; /* リンク全体をクリック可能に */
+        padding: 0.5rem 0; /* クリックしやすいように余白を追加 */
+    }
+    
+    /* 他のスマホ向けスタイルがあればそのまま残してください */
     /*
     .dashboard-grid {
         grid-template-columns: 1fr;
@@ -642,8 +631,4 @@ dialog article {
         text-align: left;
     }
     */
-}
-/* ナビゲーションバーを、メニューの位置の基準にする */
-nav.container-fluid {
-    position: relative;
 }
