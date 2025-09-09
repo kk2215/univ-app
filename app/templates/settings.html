@@ -81,9 +81,45 @@
 </article>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // --- 要素の取得 ---
     const schoolInput = document.getElementById('school');
     const suggestionsList = document.getElementById('university-suggestions');
+    const facultySelect = document.getElementById('faculty');
 
+    // --- 機能1: 学部リストを更新する関数 ---
+    async function updateFaculties(universityName) {
+        const currentUserFaculty = "{{ user.faculty or '' }}";
+        facultySelect.innerHTML = '<option value="">読み込み中...</option>';
+
+        if (!universityName) {
+            facultySelect.innerHTML = '<option value="">まず大学を選択してください</option>';
+            return;
+        }
+        try {
+            const response = await fetch(`{{ url_for('main.get_faculties') }}?univ=${encodeURIComponent(universityName)}`);
+            const faculties = await response.json();
+            
+            facultySelect.innerHTML = ''; // 候補をリセット
+            if (faculties.length > 0) {
+                faculties.forEach(fac => {
+                    const option = document.createElement('option');
+                    option.value = fac;
+                    option.textContent = fac;
+                    if (fac === currentUserFaculty) {
+                        option.selected = true;
+                    }
+                    facultySelect.appendChild(option);
+                });
+            } else {
+                facultySelect.innerHTML = '<option value="">学部情報がありません</option>';
+            }
+        } catch (error) {
+            console.error('学部情報の取得に失敗しました:', error);
+            facultySelect.innerHTML = '<option value="">取得に失敗しました</option>';
+        }
+    }
+
+    // --- 機能2: 大学名の入力に応じて候補を表示する ---
     let debounceTimer;
     schoolInput.addEventListener('keyup', (e) => {
         clearTimeout(debounceTimer);
@@ -106,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.addEventListener('click', () => {
                             schoolInput.value = uni;
                             suggestionsList.style.display = 'none';
+                            // 候補をクリックしたら、学部リストも更新
+                            updateFaculties(uni);
                         });
                         suggestionsList.appendChild(item);
                     });
@@ -119,12 +157,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    // どこか他の場所をクリックしたら、候補リストを閉じる
+    // --- 機能3: 大学入力欄からフォーカスが外れたら、学部リストを更新 ---
+    schoolInput.addEventListener('change', (e) => {
+        updateFaculties(e.target.value);
+    });
+
+    // --- 機能4: どこか他の場所をクリックしたら、候補リストを閉じる ---
     document.addEventListener('click', (e) => {
         if (e.target !== schoolInput) {
             suggestionsList.style.display = 'none';
         }
     });
+
+    // --- 機能5: ページ読み込み時に、現在の大学の学部を読み込む ---
+    if (schoolInput.value) {
+        updateFaculties(schoolInput.value);
+    }
 });
 </script>
 {% endblock %}
