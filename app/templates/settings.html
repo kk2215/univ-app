@@ -16,20 +16,31 @@
 
     <form method="post">
         <h4>基本情報</h4>
-        <div class="grid">
-            <label for="username">ユーザー名
-                <input type="text" id="username" name="username" value="{{ user.username }}" required>
-            </label>
-            <label for="grade">学年
-                <select name="grade" id="grade" required>
-                    <option value="high1" {% if user.grade == 'high1' %}selected{% endif %}>高校1年生</option>
-                    <option value="high2" {% if user.grade == 'high2' %}selected{% endif %}>高校2年生</option>
-                    <option value="high3" {% if user.grade == 'high3' %}selected{% endif %}>高校3年生</option>
-                    <option value="ronin" {% if user.grade == 'ronin' %}selected{% endif %}>浪人生</option>
-                </select>
-            </label>
-        </div>
-        <hr>
+<div class="grid">
+    <label for="username">ユーザー名
+        <input type="text" id="username" name="username" value="{{ user.username }}" required>
+    </label>
+    <label for="grade">学年
+        <select name="grade" id="grade" required>
+            <option value="high1" {% if user.grade == 'high1' %}selected{% endif %}>高校1年生</option>
+            <option value="high2" {% if user.grade == 'high2' %}selected{% endif %}>高校2年生</option>
+            <option value="high3" {% if user.grade == 'high3' %}selected{% endif %}>高校3年生</option>
+            <option value="ronin" {% if user.grade == 'ronin' %}selected{% endif %}>浪人生</option>
+        </select>
+    </label>
+</div>
+<fieldset>
+    <legend>文理選択</legend>
+    <label for="bunkei">
+        <input type="radio" id="bunkei" name="course_type" value="humanities" {% if user.course_type == 'humanities' %}checked{% endif %}>
+        文系
+    </label>
+    <label for="rikei">
+        <input type="radio" id="rikei" name="course_type" value="science" {% if user.course_type == 'science' %}checked{% endif %}>
+        理系
+    </label>
+</fieldset>
+<hr>
 
         <h4>目標設定</h4>
 <div class="grid">

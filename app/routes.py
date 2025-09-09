@@ -452,41 +452,48 @@ def stats(user_id):
 def settings(user_id):
     if 'user_id' not in session or session['user_id'] != user_id:
         return redirect(url_for('main.login'))
-    
+
     user = User.query.get(user_id)
     message, error = None, None
 
     if request.method == 'POST':
-        username = request.form.get('username')
-        grade = request.form.get('grade')
-        school = request.form.get('school')
-        faculty = request.form.get('faculty')
+        # フォームから新しい設定を取得
+        user.username = request.form.get('username')
+        user.grade = request.form.get('grade')
+        user.course_type = request.form.get('course_type')
+        user.school = request.form.get('school')
+        user.faculty = request.form.get('faculty')
         target_exam_date = request.form.get('target_exam_date')
-        
-        if not all([username, grade, school, faculty]):
-            error = "ユーザー名、学年、志望校、志望学部は必須項目です。"
-        else:
-            user.username = username
-            user.grade = grade
-            user.school = school
-            user.faculty = faculty
-            user.target_exam_date = date.fromisoformat(target_exam_date) if target_exam_date else None
-            
-            new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
-            
-            # ユーザーの科目を更新
-            user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
-            
-            # 科目ごとのレベルを更新
-            UserSubjectLevel.query.filter_by(user_id=user_id).delete()
-            for subject_id in new_subject_ids:
-                start_level = request.form.get(f'start_level_{subject_id}', 1)
-                level_entry = UserSubjectLevel(user_id=user_id, subject_id=subject_id, start_level=int(start_level))
-                db.session.add(level_entry)
-            
-            db.session.commit()
-            message = "設定を保存しました。"
+        user.target_exam_date = date.fromisoformat(target_exam_date) if target_exam_date else None
 
+        # --- 科目情報の更新と、古いデータの掃除 ---
+        old_subject_ids = {s.id for s in user.subjects}
+        new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
+        
+        subjects_to_remove = old_subject_ids - new_subject_ids
+        subjects_to_add = new_subject_ids - old_subject_ids
+
+        if subjects_to_remove:
+            # 不要になった科目の関連データを全て削除
+            Progress.query.filter(Progress.user_id == user_id, Progress.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
+            UserContinuousTaskSelection.query.filter(UserContinuousTaskSelection.user_id == user_id, UserContinuousTaskSelection.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
+            # SequentialTaskの選択も必要であれば削除
+            # ...
+
+        # 新しい科目リストをユーザーに関連付け
+        user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
+        
+        # 科目ごとの開始レベルを更新
+        UserSubjectLevel.query.filter_by(user_id=user_id).delete()
+        for subject_id in new_subject_ids:
+            start_level = request.form.get(f'start_level_{subject_id}', 1)
+            level_entry = UserSubjectLevel(user_id=user_id, subject_id=subject_id, start_level=int(start_level))
+            db.session.add(level_entry)
+        
+        db.session.commit()
+        message = "設定を保存しました。"
+
+    # (GETリクエスト時の表示ロジックは変更なし)
     all_subjects = Subject.query.order_by(Subject.id).all()
     user_subject_ids = {s.id for s in user.subjects}
     user_start_levels = {usl.subject_id: usl.start_level for usl in UserSubjectLevel.query.filter_by(user_id=user_id).all()}
