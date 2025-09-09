@@ -32,21 +32,21 @@
         <hr>
 
         <h4>目標設定</h4>
-        <div class="grid">
-            <label for="school">志望校
-                <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
-                <datalist id="university-list"></datalist>
-            </label>
-            <label for="faculty">志望学部
-                <select name="faculty" id="faculty" required>
-                    <option value="{{ user.faculty }}">{{ user.faculty }}</option>
-                </select>
-            </label>
-        </div>
-        <label for="target_exam_date">第一志望の試験日
-            <input type="date" id="target_exam_date" name="target_exam_date" value="{{ user.target_exam_date.isoformat() if user.target_exam_date }}">
-        </label>
-        <hr>
+<div class="grid">
+    <label for="school">志望校
+        <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
+        <datalist id="university-list"></datalist>
+    </label>
+    <label for="faculty">志望学部
+        <select name="faculty" id="faculty" required>
+            <option value="{{ user.faculty }}" selected>{{ user.faculty }}</option>
+        </select>
+    </label>
+</div>
+<label for="target_exam_date">第一志望の試験日
+    <input type="date" id="target_exam_date" name="target_exam_date" value="{{ user.target_exam_date.isoformat() if user.target_exam_date }}">
+</label>
+<hr>
 
         <fieldset>
             <legend>受験科目・開始レベルを変更</legend>
