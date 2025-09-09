@@ -33,10 +33,10 @@
 
         <h4>目標設定</h4>
 <div class="grid">
-    <label for="school" class="school-label">志望校
-        <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
-        <datalist id="university-list"></datalist>
-    </label>
+    <label for="school">志望校
+    <input type="text" id="school" name="school" value="{{ user.school }}" required list="university-list" autocomplete="off" placeholder="大学名を入力・検索">
+    <datalist id="university-list"></datalist>
+</label>
     <label for="faculty">志望学部
         <select name="faculty" id="faculty" required>
             <option value="{{ user.faculty }}" selected>{{ user.faculty }}</option>
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('大学名の取得に失敗しました:', error);
             }
-        }, 300);
+        }, 300); // 300ミリ秒待ってから検索を実行
     });
 });
 </script>
