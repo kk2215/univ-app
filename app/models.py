@@ -72,11 +72,14 @@ class RouteStep(db.Model):
     category = db.Column(db.String, nullable=False)
     is_main = db.Column(db.Integer, nullable=False, default=1)
 
+# app/models.py
+
 class Progress(db.Model):
     __tablename__ = 'progress'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     task_id = db.Column(db.String, nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False) # <-- この行を追加
     is_completed = db.Column(db.Integer, nullable=False)
 
 class UserSubjectLevel(db.Model):

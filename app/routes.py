@@ -567,7 +567,7 @@ def update_progress():
     user_id = session.get('user_id')
     if not user_id: return jsonify({'success': False, 'error': 'Not logged in'}), 401
     data = request.get_json()
-    task_id = data.get('task_id'); is_completed = data.get('is_completed')
+    task_id = data.get('task_id'); is_completed = data.get('is_completed'); subject_id = data.get('subject_id')
     if task_id is None or is_completed is None:
         return jsonify({'success': False, 'error': 'Missing data'}), 400
     
