@@ -666,3 +666,8 @@ nav.container-fluid {
         align-items: flex-start;
     }
 }
+/* --- オートコンプリート候補表示用のスペース確保 --- */
+.autocomplete-wrapper {
+    position: relative;
+    padding-bottom: 2rem; /* 候補表示のための余白を下に確保 */
+}
