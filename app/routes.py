@@ -758,3 +758,32 @@ def quiz_public_results():
     final_description = "<br><br>".join(unique_descriptions)
 
     return render_template('quiz_results.html', is_public=True, result_type=result_type_name, description=final_description, advice=final_advice)
+
+# app/routes.py
+
+@bp.route('/quiz_results')
+def quiz_results():
+    # まず、ログインしているかどうかを確認
+    if 'user_id' in session:
+        # --- ログインユーザーの場合 ---
+        user = User.query.get(session['user_id'])
+        if not user or not user.learning_style:
+            return redirect(url_for('main.quiz', user_id=user.id)) # 診断を受けていない場合はクイズページへ
+
+        result_type_name = user.learning_style
+        # (結果の文字列からアドバイスなどを生成するロジック...)
+        final_description = ""
+        final_advice = []
+    
+        return render_template('quiz_results.html', user=user, result_type=result_type_name, description=final_description, advice=final_advice)
+
+    else:
+        # --- 公開ユーザーの場合 ---
+        top_types = session.get('quiz_result_top_types', [])
+        if not top_types:
+            return redirect(url_for('main.quiz_public')) # セッションに結果がなければ公開クイズページへ
+
+        # (セッションのデータからアドバイスなどを生成するロジック...)
+
+        return render_template('quiz_results.html', result_type=result_type_name, description=final_description, advice=final_advice)
+    
