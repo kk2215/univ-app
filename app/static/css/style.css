@@ -681,3 +681,14 @@ input[list] + datalist {
     visibility: visible !important;
     position: absolute !important;
 }
+/* オートコンプリートの候補が隠れないようにする上書きスタイル */
+input[list] + datalist,
+input[list] + datalist option {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: static !important; /* 位置の計算をリセット */
+    background-color: white; /* 背景色を強制的に白に */
+    border: 1px solid #ccc; /* 境界線をつけて見やすくする */
+    z-index: 1000; /* 他の要素より手前に表示 */
+}
