@@ -671,3 +671,6 @@ nav.container-fluid {
     position: relative;
     padding-bottom: 2rem; /* 候補表示のための余白を下に確保 */
 }
+.school-label {
+    margin-bottom: 2.5rem; /* 下に間隔を確保 */
+}
