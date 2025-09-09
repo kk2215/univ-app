@@ -697,16 +697,21 @@ input[list] + datalist option {
     position: relative;
 }
 .suggestions-list {
-    display: none; /* 普段は隠しておく */
+    display: none;
     position: absolute;
+    width: 100%;
+    
+    /* ▼▼▼ ここからが修正点 ▼▼▼ */
+    background-color: var(--card-background-color, white); /* 背景色をカードと同じか、白に */
     border: 1px solid var(--border-color);
     border-top: none;
     border-radius: 0 0 var(--border-radius) var(--border-radius);
-    background-color: var(--card-background-color);
-    width: 100%;
+    box-shadow: var(--card-box-shadow); /* 影をつけて立体感を出す */
+    /* ▲▲▲ ここまでが修正点 ▲▲▲ */
+
     max-height: 200px;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: 1000; /* 他の要素より必ず手前に表示 */
 }
 .suggestion-item {
     padding: 0.75rem 1rem;
