@@ -70,15 +70,6 @@
                                {% if subject.id in user_subject_ids %}checked{% endif %}>
                         <strong>{{ subject.name }}</strong>
                     </label>
-                    <div class="start-level-options">
-                        {% for value, text in level_options.items() %}
-                            <label>
-                                <input type="radio" name="start_level_{{ subject.id }}" value="{{ value }}"
-                                       {% if user_start_levels.get(subject.id) == value %}checked{% endif %}>
-                                <small>{{ text }}</small>
-                            </label>
-                        {% endfor %}
-                    </div>
                 </div>
             {% endfor %}
         </fieldset>

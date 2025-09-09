@@ -7,7 +7,7 @@ from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # データベースモデルを全てインポートします
-from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserSubjectLevel, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask
+from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask
 
 bp = Blueprint('main', __name__)
 
@@ -92,14 +92,6 @@ def register():
             subject = Subject.query.get(subject_id)
             if subject:
                 new_user.subjects.append(subject)
-            
-            start_level_for_subject = request.form.get(f'start_level_{subject_id}', starting_level)
-            user_subject_level = UserSubjectLevel(
-                user_id=new_user.id, subject_id=subject_id,
-                start_level=int(start_level_for_subject)
-            )
-            if not UserSubjectLevel.query.filter_by(user_id=new_user.id, subject_id=subject_id).first():
-                db.session.add(user_subject_level)
         
         db.session.commit()
         session['user_id'] = new_user.id
@@ -142,7 +134,6 @@ def show_plan(user_id):
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     target_level_value = level_hierarchy.get(target_level_name, 99)
     
-    start_levels_map = {usl.subject_id: usl.start_level for usl in UserSubjectLevel.query.filter_by(user_id=user_id).all()}
     user_subject_ids = [s.id for s in user.subjects]
     subjects_map = {s.id: s.name for s in Subject.query.all()}
     subject_ids_map = {v: k for k, v in subjects_map.items()}
@@ -180,8 +171,7 @@ def show_plan(user_id):
         subject_plan.sort(key=lambda task: (level_hierarchy.get(task['level'], 99), task.get('step_order', 0)))
 
         if subject_plan:
-            starting_level_value = start_levels_map.get(subject_id, 0)
-            filtered_plan = [task for task in subject_plan if starting_level_value <= level_hierarchy.get(task['level'], 0) <= target_level_value]
+            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 0) <= target_level_value]
             
             sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
             continuous_tasks = [task for task in filtered_plan if task['task_type'] == 'continuous']
@@ -481,14 +471,8 @@ def settings(user_id):
             # ...
 
         # 新しい科目リストをユーザーに関連付け
+        new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
         user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
-        
-        # 科目ごとの開始レベルを更新
-        UserSubjectLevel.query.filter_by(user_id=user_id).delete()
-        for subject_id in new_subject_ids:
-            start_level = request.form.get(f'start_level_{subject_id}', 1)
-            level_entry = UserSubjectLevel(user_id=user_id, subject_id=subject_id, start_level=int(start_level))
-            db.session.add(level_entry)
         
         db.session.commit()
         message = "設定を保存しました。"
@@ -496,13 +480,10 @@ def settings(user_id):
     # (GETリクエスト時の表示ロジックは変更なし)
     all_subjects = Subject.query.order_by(Subject.id).all()
     user_subject_ids = {s.id for s in user.subjects}
-    user_start_levels = {usl.subject_id: usl.start_level for usl in UserSubjectLevel.query.filter_by(user_id=user_id).all()}
-    level_options = {0: '中学レベルから', 1: '日東駒専レベルから', 2: 'MARCHレベルから'}
 
     return render_template(
         'settings.html', user=user, message=message, error=error,
         all_subjects=all_subjects, user_subject_ids=user_subject_ids,
-        user_start_levels=user_start_levels, level_options=level_options
     )
     
 @bp.route('/change_password/<int:user_id>', methods=['GET', 'POST'])

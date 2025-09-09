@@ -82,12 +82,6 @@ class Progress(db.Model):
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False) # <-- この行を追加
     is_completed = db.Column(db.Integer, nullable=False)
 
-class UserSubjectLevel(db.Model):
-    __tablename__ = 'user_subject_levels'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), primary_key=True)
-    start_level = db.Column(db.Integer, nullable=False)
-
 class UserContinuousTaskSelection(db.Model):
     __tablename__ = 'user_continuous_task_selections'
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
