@@ -66,10 +66,9 @@ def register():
         faculty = request.form.get('faculty')
         prefecture = request.form.get('prefecture')
         target_exam_date_str = request.form.get('target_exam_date')
-        starting_level = request.form.get('starting_level')
         error_message = None
 
-        if not all([username, password, password_confirm, grade, course_type, school, faculty, starting_level]):
+        if not all([username, password, password_confirm, grade, course_type, school, faculty]):
             error_message = "全ての必須項目を入力してください。"
         elif password != password_confirm:
             error_message = "パスワードが一致しません。"
@@ -87,7 +86,7 @@ def register():
             username=username, password_hash=password_hash, grade=grade,
             course_type=course_type, school=school, faculty=faculty,
             plan_type='standard', prefecture=prefecture,
-            target_exam_date=target_exam_date, starting_level=int(starting_level)
+            target_exam_date=target_exam_date
         )
         db.session.add(new_user)
         db.session.commit()
