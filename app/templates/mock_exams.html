@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}模試の記録{% endblock %}
+
+{% block content %}
+<article>
+    <hgroup>
+        <h1>模試の記録</h1>
+        <h2>模試の予定を登録し、結果を記録しましょう</h2>
+    </hgroup>
+
+    <form method="post">
+        <h4>新しい模試を登録</h4>
+        <div class="grid">
+            <label for="exam_name">
+                模試の名称
+                <input type="text" id="exam_name" name="exam_name" placeholder="例：第1回 全統共通テスト模試" required>
+            </label>
+            <label for="exam_date">
+                受験日
+                <input type="date" id="exam_date" name="exam_date" required>
+            </label>
+        </div>
+        <button type="submit" class="contrast">登録する</button>
+    </form>
+
+    <hr>
+
+    <h4>登録済みの模試</h4>
+    {% if exams %}
+        <table>
+            <thead>
+                <tr>
+                    <th>受験日</th>
+                    <th>模試の名称</th>
+                    <th>結果</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in exams %}
+                <tr>
+                    <td>{{ exam.exam_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ exam.exam_name }}</td>
+                    <td>
+                        <a href="{{ exam.results_url or '#' }}" target="_blank" rel="noopener noreferrer">結果を見る</a>
+                        {# 将来的に結果URLを編集する機能を追加できます #}
+                    </td>
+                    <td>
+                        <form method="post" action="{{ url_for('main.delete_mock_exam', exam_id=exam.id) }}" style="margin: 0;">
+                            <button type="submit" class="secondary outline" onclick="return confirm('本当にこの模試の記録を削除しますか？');">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>まだ模試の記録はありません。</p>
+    {% endif %}
+</article>
+{% endblock %}

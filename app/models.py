@@ -120,3 +120,11 @@ class UserHiddenTask(db.Model):
     __tablename__ = 'user_hidden_tasks'
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     task_id = db.Column(db.String, primary_key=True)
+    
+class MockExam(db.Model):
+    __tablename__ = 'mock_exams'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    exam_name = db.Column(db.String, nullable=False)
+    exam_date = db.Column(db.Date, nullable=False)
+    results_url = db.Column(db.String) # 結果ページのURLなど    

@@ -773,3 +773,38 @@ def quiz_public_results():
 
     # 公開ユーザー専用の新しいテンプレートを呼び出す
     return render_template('quiz_results_public.html', result_type=result_type_name, description=final_description, advice=final_advice)
+
+# app/routes.py の一番下に追加
+
+@bp.route('/exams/<int:user_id>', methods=['GET', 'POST'])
+def mock_exams(user_id):
+    if 'user_id' not in session or session['user_id'] != user_id:
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(user_id)
+
+    if request.method == 'POST':
+        exam_name = request.form.get('exam_name')
+        exam_date_str = request.form.get('exam_date')
+        if exam_name and exam_date_str:
+            exam_date = date.fromisoformat(exam_date_str)
+            new_exam = MockExam(user_id=user.id, exam_name=exam_name, exam_date=exam_date)
+            db.session.add(new_exam)
+            db.session.commit()
+            return redirect(url_for('main.mock_exams', user_id=user.id))
+
+    exams = MockExam.query.filter_by(user_id=user.id).order_by(MockExam.exam_date.asc()).all()
+    return render_template('mock_exams.html', user=user, exams=exams)
+
+@bp.route('/exams/delete/<int:exam_id>', methods=['POST'])
+def delete_mock_exam(exam_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('main.login'))
+    
+    exam = MockExam.query.get(exam_id)
+    if exam and exam.user_id == user_id:
+        db.session.delete(exam)
+        db.session.commit()
+    
+    return redirect(url_for('main.mock_exams', user_id=user_id))
