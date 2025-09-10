@@ -29,15 +29,12 @@
 
     <a href="{{ url_for('main.dashboard', user_id=user.id) }}" role="button">マイページに戻る</a>
     {# templates/quiz_results.html の</article>の直前などに追加 #}
-{% if is_public %}
 <footer>
-    {% if user %}
-        {# ログインユーザー向けには「マイページに戻る」ボタンを表示 #}
-        <a href="{{ url_for('main.dashboard', user_id=user.id) }}" role="button">マイページに戻る</a>
-    {% else %}
-        {# 公開ユーザー向けには「会員登録」ボタンを表示 #}
+    {% if is_public %}
         <p>診断結果を保存し、あなただけの学習計画を作成しませんか？</p>
         <a href="{{ url_for('main.register') }}" role="button" class="contrast">無料で会員登録して計画を見る</a>
+    {% else %}
+        <a href="{{ url_for('main.dashboard', user_id=user.id) }}" role="button">マイページに戻る</a>
     {% endif %}
 </footer>
 {% endif %}
