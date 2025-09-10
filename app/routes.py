@@ -7,7 +7,7 @@ from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # データベースモデルを全てインポートします
-from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask
+from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam
 
 bp = Blueprint('main', __name__)
 
