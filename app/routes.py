@@ -673,44 +673,56 @@ def submit_quiz(user_id):
     
     return redirect(url_for('main.quiz_results', user_id=user_id))
 
-@bp.route('/quiz_results/<int:user_id>')
-def quiz_results(user_id):
-    if 'user_id' not in session or session['user_id'] != user_id:
-        return redirect(url_for('main.login'))
-        
-    user = User.query.get(user_id)
-
-    if not user or not user.learning_style:
-        return redirect(url_for('main.quiz', user_id=user_id))
-
-    result_type_name = user.learning_style
-    
-    # 保存された結果の文字列から、該当するタイプを全て抽出する
+@bp.route('/quiz_results')
+def quiz_results():
     top_types = []
-    if '視覚' in result_type_name:
-        top_types.append('A')
-    if '聴覚' in result_type_name:
-        top_types.append('B')
-    if '言語' in result_type_name or '読み書き' in result_type_name:
-        top_types.append('C')
+    user = None
 
-    # results_dataは、この関数の外（routes.pyの先頭など）で定義されている必要があります
+    # まず、ログインしているかどうかで、結果の取得元を切り替える
+    if 'user_id' in session:
+        # --- ログインユーザーの場合 ---
+        user = User.query.get(session['user_id'])
+        if not user or not user.learning_style:
+            return redirect(url_for('main.quiz', user_id=user.id))
+        
+        result_type_name = user.learning_style
+        # 保存された結果の文字列から、該当するタイプを全て抽出
+        if '視覚' in result_type_name: top_types.append('A')
+        if '聴覚' in result_type_name: top_types.append('B')
+        if '言語' in result_type_name or '読み書き' in result_type_name: top_types.append('C')
+
+    else:
+        # --- 公開ユーザーの場合 ---
+        top_types = session.get('quiz_result_top_types', [])
+        if not top_types:
+            return redirect(url_for('main.quiz_public'))
+        
+        # セッションデータから結果のタイプ名を生成
+        type_map = {'A': '視覚優位', 'B': '聴覚優位', 'C': '言語感覚優位'}
+        if len(top_types) > 1:
+            result_type_name = "・".join([type_map[t] for t in top_types]) + "の複合タイプ"
+        else:
+            result_type_name = type_map[top_types[0]] + "タイプ"
+
+    # --- 共通の処理：結果表示用のデータを生成 ---
     final_advice = []
     unique_descriptions = []
-    
     for type_code in top_types:
         if type_code in results_data:
-            # 同じ説明文が重複しないように追加
             if results_data[type_code]['description'] not in unique_descriptions:
                 unique_descriptions.append(results_data[type_code]['description'])
             final_advice.extend(results_data[type_code]['advice'])
     
     final_description = "<br><br>".join(unique_descriptions)
             
-    return render_template('quiz_results.html', user=user, result_type=result_type_name, description=final_description, advice=final_advice)
-
-# app/routes.py の一番下に追加
-
+    return render_template(
+        'quiz_results.html', 
+        user=user, 
+        result_type=result_type_name, 
+        description=final_description, 
+        advice=final_advice,
+        is_public= (user is None) # userがいなければ公開ページと判断
+    )
 # 公開診断ページを表示
 @bp.route('/quiz/public')
 def quiz_public():
@@ -758,32 +770,4 @@ def quiz_public_results():
     final_description = "<br><br>".join(unique_descriptions)
 
     return render_template('quiz_results.html', is_public=True, result_type=result_type_name, description=final_description, advice=final_advice)
-
-# app/routes.py
-
-@bp.route('/quiz_results')
-def quiz_results():
-    # まず、ログインしているかどうかを確認
-    if 'user_id' in session:
-        # --- ログインユーザーの場合 ---
-        user = User.query.get(session['user_id'])
-        if not user or not user.learning_style:
-            return redirect(url_for('main.quiz', user_id=user.id)) # 診断を受けていない場合はクイズページへ
-
-        result_type_name = user.learning_style
-        # (結果の文字列からアドバイスなどを生成するロジック...)
-        final_description = ""
-        final_advice = []
-    
-        return render_template('quiz_results.html', user=user, result_type=result_type_name, description=final_description, advice=final_advice)
-
-    else:
-        # --- 公開ユーザーの場合 ---
-        top_types = session.get('quiz_result_top_types', [])
-        if not top_types:
-            return redirect(url_for('main.quiz_public')) # セッションに結果がなければ公開クイズページへ
-
-        # (セッションのデータからアドバイスなどを生成するロジック...)
-
-        return render_template('quiz_results.html', result_type=result_type_name, description=final_description, advice=final_advice)
     
