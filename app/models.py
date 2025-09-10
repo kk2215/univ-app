@@ -21,7 +21,6 @@ class User(db.Model):
     course_type = db.Column(db.String)
     prefecture = db.Column(db.String)
     target_exam_date = db.Column(db.Date)
-    starting_level = db.Column(db.Integer, nullable=False)
     learning_style = db.Column(db.String)
     subjects = db.relationship('Subject', secondary=user_subjects_table, back_populates='users')
 

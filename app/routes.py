@@ -93,8 +93,7 @@ def register():
 
         subject_ids = request.form.getlist('subjects')
         for subject_id_str in subject_ids:
-            subject_id = int(subject_id_str)
-            subject = Subject.query.get(subject_id)
+            subject = Subject.query.get(int(subject_id_str))
             if subject:
                 new_user.subjects.append(subject)
         
@@ -447,12 +446,11 @@ def stats(user_id):
 def settings(user_id):
     if 'user_id' not in session or session['user_id'] != user_id:
         return redirect(url_for('main.login'))
-
+    
     user = User.query.get(user_id)
     message, error = None, None
 
     if request.method == 'POST':
-        # フォームから新しい設定を取得
         user.username = request.form.get('username')
         user.grade = request.form.get('grade')
         user.course_type = request.form.get('course_type')
@@ -460,35 +458,19 @@ def settings(user_id):
         user.faculty = request.form.get('faculty')
         target_exam_date = request.form.get('target_exam_date')
         user.target_exam_date = date.fromisoformat(target_exam_date) if target_exam_date else None
-
-        # --- 科目情報の更新と、古いデータの掃除 ---
-        old_subject_ids = {s.id for s in user.subjects}
-        new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
         
-        subjects_to_remove = old_subject_ids - new_subject_ids
-        subjects_to_add = new_subject_ids - old_subject_ids
-
-        if subjects_to_remove:
-            # 不要になった科目の関連データを全て削除
-            Progress.query.filter(Progress.user_id == user_id, Progress.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
-            UserContinuousTaskSelection.query.filter(UserContinuousTaskSelection.user_id == user_id, UserContinuousTaskSelection.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
-            # SequentialTaskの選択も必要であれば削除
-            # ...
-
-        # 新しい科目リストをユーザーに関連付け
         new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
         user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
         
         db.session.commit()
         message = "設定を保存しました。"
 
-    # (GETリクエスト時の表示ロジックは変更なし)
     all_subjects = Subject.query.order_by(Subject.id).all()
     user_subject_ids = {s.id for s in user.subjects}
-
+    
     return render_template(
         'settings.html', user=user, message=message, error=error,
-        all_subjects=all_subjects, user_subject_ids=user_subject_ids,
+        all_subjects=all_subjects, user_subject_ids=user_subject_ids
     )
     
 @bp.route('/change_password/<int:user_id>', methods=['GET', 'POST'])
