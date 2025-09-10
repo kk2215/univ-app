@@ -447,30 +447,64 @@ def settings(user_id):
     if 'user_id' not in session or session['user_id'] != user_id:
         return redirect(url_for('main.login'))
     
-    user = User.query.get(user_id)
+    user = User.query.get_or_404(user_id)
     message, error = None, None
 
     if request.method == 'POST':
-        user.username = request.form.get('username')
-        user.grade = request.form.get('grade')
-        user.course_type = request.form.get('course_type')
-        user.school = request.form.get('school')
-        user.faculty = request.form.get('faculty')
-        target_exam_date = request.form.get('target_exam_date')
-        user.target_exam_date = date.fromisoformat(target_exam_date) if target_exam_date else None
+        # --- フォームから送信されたデータを取得 ---
+        new_username = request.form.get('username')
+        grade = request.form.get('grade')
+        course_type = request.form.get('course_type')
+        school = request.form.get('school')
+        faculty = request.form.get('faculty')
+        target_exam_date_str = request.form.get('target_exam_date')
         
-        new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
-        user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
-        
-        db.session.commit()
-        message = "設定を保存しました。"
+        # --- バリデーション（入力内容のチェック） ---
+        if not all([new_username, grade, school, faculty, course_type]):
+            error = "必須項目を全て入力してください。"
+        else:
+            # ユーザー名の重複を、自分以外のユーザーでチェック
+            existing_user = User.query.filter(User.id != user_id, User.username == new_username).first()
+            if existing_user:
+                error = "そのユーザー名は既に使用されています。"
 
+        if not error:
+            # --- ユーザー情報の更新 ---
+            user.username = new_username
+            user.grade = grade
+            user.course_type = course_type
+            user.school = school
+            user.faculty = faculty
+            user.target_exam_date = date.fromisoformat(target_exam_date_str) if target_exam_date_str else None
+            
+            # --- 科目情報の更新と、古いデータの掃除 ---
+            old_subject_ids = {s.id for s in user.subjects}
+            new_subject_ids = {int(sid) for sid in request.form.getlist('subjects')}
+            
+            subjects_to_remove = old_subject_ids - new_subject_ids
+            
+            if subjects_to_remove:
+                # 不要になった科目の関連データを全て削除
+                Progress.query.filter(Progress.user_id == user_id, Progress.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
+                UserContinuousTaskSelection.query.filter(UserContinuousTaskSelection.user_id == user_id, UserContinuousTaskSelection.subject_id.in_(subjects_to_remove)).delete(synchronize_session=False)
+                
+            # 新しい科目リストをユーザーに関連付け
+            user.subjects = [subject for subject in Subject.query.all() if subject.id in new_subject_ids]
+            
+            db.session.commit()
+            message = "設定を保存しました。"
+
+    # --- GETリクエスト時の表示データ準備 ---
     all_subjects = Subject.query.order_by(Subject.id).all()
     user_subject_ids = {s.id for s in user.subjects}
     
     return render_template(
-        'settings.html', user=user, message=message, error=error,
-        all_subjects=all_subjects, user_subject_ids=user_subject_ids
+        'settings.html', 
+        user=user, 
+        message=message, 
+        error=error,
+        all_subjects=all_subjects, 
+        user_subject_ids=user_subject_ids
     )
     
 @bp.route('/change_password/<int:user_id>', methods=['GET', 'POST'])
