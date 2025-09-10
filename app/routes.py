@@ -723,6 +723,9 @@ def quiz_results():
         advice=final_advice,
         is_public= (user is None) # userがいなければ公開ページと判断
     )
+    
+# app/routes.py の一番下に追加
+
 # 公開診断ページを表示
 @bp.route('/quiz/public')
 def quiz_public():
@@ -759,7 +762,6 @@ def quiz_public_results():
     else:
         result_type_name = type_map[top_types[0]] + "タイプ"
 
-    # results_dataは、routes.pyの先頭で定義されている必要があります
     final_advice = []
     unique_descriptions = []
     for type_code in top_types:
@@ -769,5 +771,5 @@ def quiz_public_results():
             final_advice.extend(results_data[type_code]['advice'])
     final_description = "<br><br>".join(unique_descriptions)
 
-    return render_template('quiz_results.html', is_public=True, result_type=result_type_name, description=final_description, advice=final_advice)
-    
+    # 公開ユーザー専用の新しいテンプレートを呼び出す
+    return render_template('quiz_results_public.html', result_type=result_type_name, description=final_description, advice=final_advice)
