@@ -51,6 +51,12 @@ def index():
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        # ▼▼▼ ここからデバッグコード ▼▼▼
+        print("--- フォームから受け取ったデータ ---")
+        for key, value in request.form.items():
+            print(f"'{key}': '{value}'")
+        print("---------------------------------")
+        # ▲▲▲ ここまでデバッグコード ▲▲▲
         username = request.form.get('username')
         password = request.form.get('password')
         password_confirm = request.form.get('password_confirm')
