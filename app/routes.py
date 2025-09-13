@@ -5,6 +5,7 @@ from flask import (
 )
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.datastructures import MultiDict
 
 # データベースモデルを全てインポートします
 from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam
@@ -52,7 +53,7 @@ def index():
 def register():
     error_message = None
     # ★ 修正点1: GETリクエストの場合に備えて、最初にform_dataを空の辞書で定義します
-    form_data = {}
+    form_data = MultiDict()
     
     if request.method == 'POST':
         # POSTリクエストの場合は、フォームのデータで上書きします
