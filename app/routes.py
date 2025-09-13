@@ -360,9 +360,17 @@ def dashboard(user_id):
         dashboard_data.append(subject_info)
     print("--- データの最終チェック ---")
     for s in dashboard_data:
-        # 各subjectオブジェクトの名前とIDをログに出力
-        subject_id = getattr(s, 'id', 'IDなし') # idが無くてもエラーにならないようにする
-        print(f"科目名: {s.name}, 科目ID: {subject_id}")
+    # s が辞書(dict)か、それ以外(オブジェクト)かを判定
+      if isinstance(s, dict):
+        # 辞書の場合
+        name = s.get('name', '名前なし')
+        subject_id = s.get('id', 'IDなし')
+        print(f"【辞書発見】=> 科目名: {name}, 科目ID: {subject_id}")
+    else:
+        # オブジェクトの場合
+        name = getattr(s, 'name', '名前なし')
+        subject_id = getattr(s, 'id', 'IDなし')
+        print(f"種類: オブジェクト, 科目名: {name}, 科目ID: {subject_id}")
     print("--------------------------")
     return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
 
