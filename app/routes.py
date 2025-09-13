@@ -51,10 +51,9 @@ def index():
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     error_message = None
-    # GETリクエストの場合や、エラーで再表示する場合に備えて、form_dataを定義
+    form_data = request.form if request.method == 'POST' else {}
 
     if request.method == 'POST':
-        form_data = request.form
         username = form_data.get('username')
         password = form_data.get('password')
         password_confirm = form_data.get('password_confirm')
@@ -63,7 +62,6 @@ def register():
         school = form_data.get('school')
         faculty = form_data.get('faculty')
         
-        # 必須項目チェックから starting_level を削除
         if not all([username, password, password_confirm, grade, course_type, school, faculty]):
             error_message = "全ての必須項目を入力してください。"
         elif password != password_confirm:
@@ -71,10 +69,7 @@ def register():
         elif User.query.filter_by(username=username).first():
             error_message = "そのユーザー名は既に使用されています。"
         
-        if error_message:
-            subjects = Subject.query.order_by(Subject.id).all()
-            return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
-            # 成功時の処理（変更なし）
+        if error_message is None:
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
             target_exam_date_str = form_data.get('target_exam_date')
             target_exam_date = date.fromisoformat(target_exam_date_str) if target_exam_date_str else None
@@ -98,9 +93,9 @@ def register():
             session['user_id'] = new_user.id
             return redirect(url_for('main.dashboard', user_id=new_user.id))
 
-    # GETリクエストの場合、またはPOSTでエラーがあった場合にここに来る
     subjects = Subject.query.order_by(Subject.id).all()
-    return render_template('register.html', subjects=subjects, error=error_message)
+    return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
+
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
