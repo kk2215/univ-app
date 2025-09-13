@@ -561,31 +561,45 @@ def get_faculties():
     faculties = Faculty.query.filter_by(university_id=university.id).all()
     return jsonify([fac.name for fac in faculties])
 
+# app/routes.py
+
 @bp.route('/api/update_progress', methods=['POST'])
 def update_progress():
     user_id = session.get('user_id')
-    if not user_id: return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
     data = request.get_json()
-    task_id = data.get('task_id'); is_completed = data.get('is_completed'); subject_id = data.get('subject_id')
+    task_id = data.get('task_id')
+    is_completed = data.get('is_completed')
+    subject_id_from_request = data.get('subject_id') # フロントから送られてきた値
+
     if task_id is None or is_completed is None:
         return jsonify({'success': False, 'error': 'Missing data'}), 400
-    
+
+    # ★★★★★ ここから修正 ★★★★★
+    try:
+        # フロントから送られてきた subject_id を整数に変換してみる
+        subject_id = int(subject_id_from_request)
+    except (ValueError, TypeError):
+        # 変換に失敗した場合（値が空文字''やNoneだった場合など）はエラーを返す
+        return jsonify({'success': False, 'error': 'Invalid or missing subject_id'}), 400
+    # ★★★★★ ここまで修正 ★★★★★
+
     progress = Progress.query.filter_by(user_id=user_id, task_id=task_id).first()
+
     if progress:
         progress.is_completed = 1 if is_completed else 0
     else:
-    # ★★★ 1. 新規作成時には subject_id が必須であることをチェック
-       if subject_id is None:
-         return jsonify({'success': False, 'error': 'Missing subject_id for new progress record'}), 400
-    
-    # ★★★ 2. 受け取った subject_id を使って new_progress を作成
-       new_progress = Progress(
-          user_id=user_id, 
-          task_id=task_id, 
-          subject_id=subject_id, # ← この行を追加！
-          is_completed=1 if is_completed else 0
+        # 新しいレコードを作成
+        new_progress = Progress(
+            user_id=user_id,
+            task_id=task_id,
+            subject_id=subject_id, # ← 変換後のきれいな整数を使う
+            is_completed=1 if is_completed else 0
         )
-    db.session.add(new_progress)
+        db.session.add(new_progress)
+        
     db.session.commit()
     return jsonify({'success': True})
 
