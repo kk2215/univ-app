@@ -100,7 +100,9 @@
                                         {% if university and university.info_url %}
                                         <a href="{{ university.info_url }}" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">パスナビで探す</a>
                                         {% endif %}
-                                        <button class="complete-btn" data-task-id="{{ subject.next_task.task_id }}">クリア</button>
+                                        <button class="complete-btn" 
+        data-task-id="{{ subject.next_task.task_id }}" 
+        data-subject-id="{{ subject.id }}">クリア</button>
                                     </div>
                                 </div>
                             {% else %}
@@ -111,7 +113,9 @@
                                         <small>次の参考書</small>
                                     </div>
                                     <div class="task-actions">
-                                        <button class="contrast outline complete-btn" data-task-id="{{ subject.next_task.task_id }}">✔️ 完了</button>
+                                        <button class="contrast outline complete-btn" 
+        data-task-id="{{ subject.next_task.task_id }}" 
+        data-subject-id="{{ subject.id }}">✔️ 完了</button> 
                                     </div>
                                 </div>
                             {% endif %}
@@ -135,7 +139,9 @@
                             <small>直前に完了したタスク</small>
                         </div>
                         <div class="task-actions">
-                            <button class="secondary outline uncomplete-btn" data-task-id="{{ subject.last_completed_task.task_id }}">↩︎ 未完了に戻す</button>
+                            <button class="secondary outline uncomplete-btn" 
+        data-task-id="{{ subject.last_completed_task.task_id }}" 
+        data-subject-id="{{ subject.id }}">↩︎ 未完了に戻す</button>
                         </div>
                     </div>
                     {% endif %}
@@ -182,66 +188,46 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.complete-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            handleProgressUpdate(event.target, true);
-        });
-    });
-    document.querySelectorAll('.uncomplete-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            handleProgressUpdate(event.target, false);
-        });
-    });
-    async function handleProgressUpdate(buttonElement, isCompleted) {
-        const taskId = buttonElement.dataset.taskId;
-        buttonElement.disabled = true;
-        const originalText = buttonElement.textContent;
-        buttonElement.textContent = '保存中...';
-        try {
-            const response = await fetch("{{ url_for('main.update_progress') }}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_id: taskId, is_completed: isCompleted })
-            });
-            const result = await response.json();
-            if (result.success) {
-                location.reload();
-            } else {
-                throw new Error('API request failed');
-            }
-        } catch (error) {
-            console.error('更新に失敗しました:', error);
-            alert('エラーが発生しました。ページの更新に失敗しました。');
-            buttonElement.disabled = false;
-            buttonElement.textContent = originalText;
-        }
-    }
-});
-const modalOverlay = document.getElementById('welcome-modal-overlay');
+    // --- チュートリアルモーダル用のJavaScript ---
+
+    // 1. 必要なHTML要素をIDで取得します
+    const modalOverlay = document.getElementById('welcome-modal-overlay');
     const closeButton = document.getElementById('modal-close-button');
     const startButton = document.getElementById('modal-start-button');
 
-    // モーダルを開く関数
+    // 2. モーダルを開くための関数を定義します
     function openModal() {
+        // modalOverlayが存在する場合のみ処理を実行
         if (modalOverlay) {
+            // CSSで display: none; になっているものを display: flex; に変更して表示
             modalOverlay.style.display = 'flex';
         }
     }
 
-    // モーダルを閉じる関数
+    // 3. モーダルを閉じるための関数を定義します
     function closeModal() {
+        // modalOverlayが存在する場合のみ処理を実行
         if (modalOverlay) {
+            // CSSの display を none に戻して非表示に
             modalOverlay.style.display = 'none';
         }
     }
 
-    // クリックイベントを設定
-    if(closeButton) closeButton.addEventListener('click', closeModal);
-    if(startButton) startButton.addEventListener('click', closeModal);
-    if(modalOverlay) {
-        // 背景をクリックしても閉じるようにする
+    // 4. 各要素がクリックされたときのイベントを設定します
+    // 閉じるボタンがクリックされたら、closeModal関数を実行
+    if (closeButton) {
+        closeButton.addEventListener('click', closeModal);
+    }
+
+    // 「はじめる」ボタンがクリックされたら、closeModal関数を実行
+    if (startButton) {
+        startButton.addEventListener('click', closeModal);
+    }
+    
+    // 背景のオーバーレイ自体がクリックされたときもモーダルを閉じる
+    if (modalOverlay) {
         modalOverlay.addEventListener('click', function(event) {
+            // クリックされたのが、内側の白いウィンドウではなく、外側の黒い背景部分の場合のみ実行
             if (event.target === modalOverlay) {
                 closeModal();
             }
@@ -249,16 +235,69 @@ const modalOverlay = document.getElementById('welcome-modal-overlay');
     }
 
 
-    // ▼▼▼▼▼ ここでFlaskからの合図を受け取ります ▼▼▼▼▼
+    // 5. Flaskから送られた「合図」を受け取り、モーダルを自動で開きます
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
+          {# registerルートから 'show_welcome_modal' というメッセージが送られてきた場合 #}
           {% if message == 'show_welcome_modal' %}
-            // ページが読み込まれたらモーダルを開く
+            // HTMLドキュメントが完全に読み込まれたら、openModal関数を実行
             document.addEventListener('DOMContentLoaded', openModal);
           {% endif %}
         {% endfor %}
       {% endif %}
     {% endwith %}
+
+
+    // --- 進捗更新用のJavaScript ---
+    
+    // "完了"ボタン（class="complete-btn"を持つ全ての要素）を取得して、それぞれにイベントを設定
+    document.querySelectorAll('.complete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // data-task-id属性とdata-subject-id属性の値を取得
+            const taskId = this.dataset.taskId;
+            const subjectId = this.dataset.subjectId;
+            
+            // サーバーのAPI（/api/update_progress）にデータを送信
+            fetch('/api/update_progress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // JSON形式で送信するデータを作成
+                body: JSON.stringify({ 
+                    task_id: taskId, 
+                    subject_id: subjectId,
+                    is_completed: true 
+                })
+            })
+            .then(response => {
+                // サーバーからの応答がネットワークエラーなどでないかチェック
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // サーバーから { "success": true } が返ってきたら
+                if (data.success) {
+                    // クリックされたボタンを非表示にし、隣に「完了！」などのテキストを表示
+                    this.style.display = 'none'; 
+                    const completedText = document.createElement('span');
+                    completedText.textContent = '完了！';
+                    this.parentElement.appendChild(completedText);
+                } else {
+                    // サーバーからエラーが返ってきた場合
+                    console.error('Progress update failed:', data.error);
+                    alert('進捗の更新に失敗しました。');
+                }
+            })
+            .catch(error => {
+                // ネットワークエラーなどが発生した場合
+                console.error('Error:', error);
+                alert('サーバーとの通信中にエラーが発生しました。');
+            });
+        });
+    });
 </script>
 {% endblock %}

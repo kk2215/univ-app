@@ -574,8 +574,18 @@ def update_progress():
     if progress:
         progress.is_completed = 1 if is_completed else 0
     else:
-        new_progress = Progress(user_id=user_id, task_id=task_id, is_completed=1 if is_completed else 0)
-        db.session.add(new_progress)
+    # ★★★ 1. 新規作成時には subject_id が必須であることをチェック
+       if subject_id is None:
+         return jsonify({'success': False, 'error': 'Missing subject_id for new progress record'}), 400
+    
+    # ★★★ 2. 受け取った subject_id を使って new_progress を作成
+       new_progress = Progress(
+          user_id=user_id, 
+          task_id=task_id, 
+          subject_id=subject_id, # ← この行を追加！
+          is_completed=1 if is_completed else 0
+        )
+    db.session.add(new_progress)
     db.session.commit()
     return jsonify({'success': True})
 
