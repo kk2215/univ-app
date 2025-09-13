@@ -1,12 +1,6 @@
 {% extends "base.html" %}
 {% block title %}ユーザー初期登録{% endblock %}
 {% block content %}
-<input 
-    type="checkbox" 
-    name="subjects" 
-    value="{{ subject.id }}"
-    {% if form_data and subject.id|string in form_data.getlist('subjects') %}checked{% endif %}>
-<article>
     <hgroup>
         <h1>ユーザー初期登録</h1>
         <h2>あなたの目標達成への第一歩です</h2>
