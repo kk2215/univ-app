@@ -1,12 +1,10 @@
-{% extends 'base.html' %}
-
+{% extends "base.html" %}
 {% block title %}ユーザー初期登録{% endblock %}
-
 {% block content %}
 <article>
     <hgroup>
         <h1>ユーザー初期登録</h1>
-        <h2>あなたの情報を入力してください</h2>
+        <h2>あなたの目標達成への第一歩です</h2>
     </hgroup>
 
     {% if error %}
@@ -15,41 +13,36 @@
 
     <form method="post">
         <div class="grid">
-        <label for="username">ユーザー名
-    <input type="text" id="username" name="username" placeholder="半角英数字" required>
-</label>
-</div>
-<div class="grid">
-    <label for="password">パスワード
-        <input type="password" id="password" name="password" required>
-    </label>
-    <label for="password_confirm">パスワード（確認用）
-        <input type="password" id="password_confirm" name="password_confirm" required>
-    </label>
-</div>
-<hr>
-        {% if error %}
-        <p style="color: red;"><strong>{{ error }}</strong></p>
-        {% endif %}
+            <label for="username">ユーザー名
+                <input type="text" id="username" name="username" placeholder="半角英数字" required value="{{ form_data.get('username', '') }}">
+            </label>
+        </div>
+        <div class="grid">
+            <label for="password">パスワード
+                <input type="password" id="password" name="password" required>
+            </label>
+            <label for="password_confirm">パスワード（確認用）
+                <input type="password" id="password_confirm" name="password_confirm" required>
+            </label>
+        </div>
         <div class="grid">
             <label for="grade">学年
                 <select name="grade" id="grade" required>
-                    <option value="" disabled selected>選択してください</option>
-                    <option value="high1">高校1年生</option>
-                    <option value="high2">高校2年生</option>
-                    <option value="high3">高校3年生</option>
-                    <option value="ronin">浪人生</option>
+                    <option value="" disabled {% if not form_data.get('grade') %}selected{% endif %}>選択してください</option>
+                    <option value="high1" {% if form_data.get('grade') == 'high1' %}selected{% endif %}>高校1年生</option>
+                    <option value="high2" {% if form_data.get('grade') == 'high2' %}selected{% endif %}>高校2年生</option>
+                    <option value="high3" {% if form_data.get('grade') == 'high3' %}selected{% endif %}>高校3年生</option>
+                    <option value="ronin" {% if form_data.get('grade') == 'ronin' %}selected{% endif %}>浪人生</option>
                 </select>
             </label>
             <label for="course_type">文理選択
                 <select name="course_type" id="course_type" required>
-                    <option value="" disabled selected>選択してください</option>
-                    <option value="liberal_arts">文系</option>
-                    <option value="science">理系</option>
+                    <option value="" disabled {% if not form_data.get('course_type') %}selected{% endif %}>選択してください</option>
+                    <option value="humanities" {% if form_data.get('course_type') == 'humanities' %}selected{% endif %}>文系</option>
+                    <option value="science" {% if form_data.get('course_type') == 'science' %}selected{% endif %}>理系</option>
                 </select>
             </label>
         </div>
-
         <label for="prefecture">お住まいの都道府県 (任意)
             <select name="prefecture" id="prefecture">
                 <option value="">選択しない</option>
@@ -102,36 +95,38 @@
                 <option value="沖縄県">沖縄県</option>
             </select>
         </label>
-        
+        <hr>
+
         <div class="grid">
             <label for="school">志望校
-              <div class="autocomplete-wrapper">
-              <input type="text" id="school" name="school" placeholder="例：早稲田大学" required>
-              </div>
+                <input type="text" id="school" name="school" placeholder="例：早稲田大学" required value="{{ form_data.get('school', '') }}" list="university-list" autocomplete="off">
+                <datalist id="university-list"></datalist>
             </label>
             <label for="faculty">志望学部
-              <select name="faculty" id="faculty" required disabled>
-              <option value="">まず大学を選択してください</option>
-              <label for="target_exam_date">第一志望の試験日 (任意)
-            <input type="date" id="target_exam_date" name="target_exam_date">
-        </label>
-           </select>
-</label>
+                <select name="faculty" id="faculty" required>
+                    <option value="">まず大学を選択してください</option>
+                    {% if form_data.get('faculty') %}
+                        <option value="{{ form_data.get('faculty') }}" selected>{{ form_data.get('faculty') }}</option>
+                    {% endif %}
+                </select>
+            </label>
         </div>
+        <label for="target_exam_date">第一志望の試験日
+            <input type="date" id="target_exam_date" name="target_exam_date" value="{{ form_data.get('target_exam_date', '') }}">
+        </label>
         <hr>
-        
+
         <fieldset>
             <legend>受験科目を選択してください</legend>
-            <div class="subject-grid">
-                {% for subject in subjects %}
-                <label for="subject_{{ subject.id }}">
-                    <input type="checkbox" id="subject_{{ subject.id }}" name="subjects" value="{{ subject.id }}">
+            {% for subject in subjects %}
+                <label>
+                    <input type="checkbox" name="subjects" value="{{ subject.id }}" 
+                           {% if subject.id|string in (form_data.getlist('subjects') or []) %}checked{% endif %}>
                     {{ subject.name }}
                 </label>
-                {% endfor %}   
-            </div>
+            {% endfor %}
         </fieldset>
-        
+
         <button type="submit" class="contrast">学習計画を作成する</button>
     </form>
 </article>

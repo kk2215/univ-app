@@ -76,8 +76,9 @@ def register():
             error_message = "そのユーザー名は既に使用されています。"
         
         if error_message:
-            subjects = Subject.query.order_by(Subject.id).all()
-            return render_template('register.html', subjects=subjects, error=error_message, form_data=request.form)
+           subjects = Subject.query.order_by(Subject.id).all()
+    # ▼▼▼ form_data=request.form を追加 ▼▼▼
+           return render_template('register.html', subjects=subjects, error=error_message, form_data=request.form)
 
         password_hash = generate_password_hash(password, method='pbkdf2:sha256')
         target_exam_date = date.fromisoformat(target_exam_date_str) if target_exam_date_str else None
