@@ -52,9 +52,9 @@ def index():
 def register():
     error_message = None
     # GETリクエストの場合や、エラーで再表示する場合に備えて、form_dataを定義
-    form_data = request.form if request.method == 'POST' else {}
 
     if request.method == 'POST':
+        form_data = request.form
         username = form_data.get('username')
         password = form_data.get('password')
         password_confirm = form_data.get('password_confirm')
@@ -71,7 +71,9 @@ def register():
         elif User.query.filter_by(username=username).first():
             error_message = "そのユーザー名は既に使用されています。"
         
-        if error_message is None:
+        if error_message:
+            subjects = Subject.query.order_by(Subject.id).all()
+            return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
             # 成功時の処理（変更なし）
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
             target_exam_date_str = form_data.get('target_exam_date')
@@ -98,7 +100,7 @@ def register():
 
     # GETリクエストの場合、またはPOSTでエラーがあった場合にここに来る
     subjects = Subject.query.order_by(Subject.id).all()
-    return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
+    return render_template('register.html', subjects=subjects, error=error_message)
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
