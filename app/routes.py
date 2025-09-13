@@ -51,8 +51,11 @@ def index():
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     error_message = None
-
+    # ★ 修正点1: GETリクエストの場合に備えて、最初にform_dataを空の辞書で定義します
+    form_data = {}
+    
     if request.method == 'POST':
+        # POSTリクエストの場合は、フォームのデータで上書きします
         form_data = request.form
         username = form_data.get('username')
         password = form_data.get('password')
@@ -62,6 +65,7 @@ def register():
         school = form_data.get('school')
         faculty = form_data.get('faculty')
         
+        # --- 入力チェック ---
         if not all([username, password, password_confirm, grade, course_type, school, faculty]):
             error_message = "全ての必須項目を入力してください。"
         elif password != password_confirm:
@@ -69,7 +73,9 @@ def register():
         elif User.query.filter_by(username=username).first():
             error_message = "そのユーザー名は既に使用されています。"
         
-        if error_message:
+        # ★ 修正点2: エラーが「なかった」場合にユーザー登録処理を行います
+        if not error_message:
+            # --- エラーがないので、ユーザーをデータベースに登録します ---
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
             target_exam_date_str = form_data.get('target_exam_date')
             target_exam_date = date.fromisoformat(target_exam_date_str) if target_exam_date_str else None
@@ -81,7 +87,7 @@ def register():
                 target_exam_date=target_exam_date
             )
             db.session.add(new_user)
-            db.session.commit()
+            db.session.commit() # new_user.id を確定させるために一度コミット
 
             subject_ids = form_data.getlist('subjects')
             for subject_id_str in subject_ids:
@@ -89,13 +95,16 @@ def register():
                 if subject:
                     new_user.subjects.append(subject)
             
-            db.session.commit()
+            db.session.commit() # 科目の関連付けを保存
             session['user_id'] = new_user.id
+            
+            # 登録が成功したらダッシュボードにリダイレクトします
             return redirect(url_for('main.dashboard', user_id=new_user.id))
-            subjects = Subject.query.order_by(Subject.id).all()
-            return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
 
+    # --- ページ表示の処理 ---
+    # GETリクエストの場合、またはPOSTでエラーがあった場合にここが実行されます
     subjects = Subject.query.order_by(Subject.id).all()
+    # ★ 修正点3: エラーがあった場合は、入力内容(form_data)とエラーメッセージを渡してページを再表示します
     return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
 
 
