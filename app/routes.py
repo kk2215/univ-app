@@ -1,7 +1,7 @@
 import calendar
 from datetime import date, timedelta
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, jsonify, session
+    Blueprint, render_template, request, redirect, url_for, jsonify, session, flash
 )
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -98,6 +98,8 @@ def register():
             
             db.session.commit() # 科目の関連付けを保存
             session['user_id'] = new_user.id
+            
+            flash('show_welcome_modal', 'info') 
             
             # 登録が成功したらダッシュボードにリダイレクトします
             return redirect(url_for('main.dashboard', user_id=new_user.id))

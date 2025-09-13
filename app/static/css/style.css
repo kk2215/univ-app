@@ -721,3 +721,42 @@ input[list] + datalist option {
     background-color: var(--primary-hover);
     color: white;
 }
+.modal-overlay {
+  display: none; /* 最初は隠しておく */
+  position: fixed; /* 画面に固定 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* 半透明の黒 */
+  z-index: 1000; /* 他の要素より手前に表示 */
+  justify-content: center; /* 中央揃え（上下） */
+  align-items: center;     /* 中央揃え（左右） */
+}
+
+/* モーダルの本体 */
+.modal-container {
+  position: relative;
+  background-color: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 600px;
+  z-index: 1001;
+}
+
+/* 閉じるボタン */
+.modal-close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.modal-close-button:hover {
+  color: #333;
+}
