@@ -50,6 +50,9 @@ def index():
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
+    error_message = None
+    form_data = {} # 空の辞書として初期化
+    
     if request.method == 'POST':
         # ▼▼▼ ここからデバッグコード ▼▼▼
         print("--- フォームから受け取ったデータ ---")
@@ -57,6 +60,7 @@ def register():
             print(f"'{key}': '{value}'")
         print("---------------------------------")
         # ▲▲▲ ここまでデバッグコード ▲▲▲
+        form_data = request.form # POST時は入力データを取得
         username = request.form.get('username')
         password = request.form.get('password')
         password_confirm = request.form.get('password_confirm')
@@ -67,6 +71,8 @@ def register():
         prefecture = request.form.get('prefecture')
         target_exam_date_str = request.form.get('target_exam_date')
         error_message = None
+        
+        user_exists = User.query.filter_by(username=username).first()
 
         if not all([username, password, password_confirm, grade, course_type, school, faculty]):
             error_message = "全ての必須項目を入力してください。"
@@ -103,7 +109,7 @@ def register():
         return redirect(url_for('main.dashboard', user_id=new_user.id))
 
     subjects = Subject.query.order_by(Subject.id).all()
-    return render_template('register.html', subjects=subjects)
+    return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
