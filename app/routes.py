@@ -358,7 +358,12 @@ def dashboard(user_id):
 
             subject_info['continuous_tasks'] = tasks_to_display
         dashboard_data.append(subject_info)
-
+    print("--- データの最終チェック ---")
+    for s in dashboard_data:
+        # 各subjectオブジェクトの名前とIDをログに出力
+        subject_id = getattr(s, 'id', 'IDなし') # idが無くてもエラーにならないようにする
+        print(f"科目名: {s.name}, 科目ID: {subject_id}")
+    print("--------------------------")
     return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
 
 @bp.route('/support/<int:user_id>')
