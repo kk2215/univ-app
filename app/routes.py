@@ -51,9 +51,9 @@ def index():
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     error_message = None
-    form_data = request.form if request.method == 'POST' else {}
 
     if request.method == 'POST':
+        form_data = request.form
         username = form_data.get('username')
         password = form_data.get('password')
         password_confirm = form_data.get('password_confirm')
@@ -69,11 +69,11 @@ def register():
         elif User.query.filter_by(username=username).first():
             error_message = "そのユーザー名は既に使用されています。"
         
-        if error_message is None:
+        if error_message:
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
             target_exam_date_str = form_data.get('target_exam_date')
             target_exam_date = date.fromisoformat(target_exam_date_str) if target_exam_date_str else None
-            
+        
             new_user = User(
                 username=username, password_hash=password_hash, grade=grade,
                 course_type=course_type, school=school, faculty=faculty,
@@ -92,6 +92,8 @@ def register():
             db.session.commit()
             session['user_id'] = new_user.id
             return redirect(url_for('main.dashboard', user_id=new_user.id))
+            subjects = Subject.query.order_by(Subject.id).all()
+            return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
 
     subjects = Subject.query.order_by(Subject.id).all()
     return render_template('register.html', subjects=subjects, error=error_message, form_data=form_data)
