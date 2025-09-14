@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import db, Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
+from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
 from seed_data.routes import routes_to_seed, route_steps_human_readable
