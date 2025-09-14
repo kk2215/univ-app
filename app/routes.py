@@ -6,9 +6,9 @@ from flask import (
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.datastructures import MultiDict
-
 # データベースモデルを全てインポートします
 from .models import db, User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam
+from flask_login import login_required
 
 bp = Blueprint('main', __name__)
 
@@ -232,7 +232,9 @@ def show_plan(user_id):
         strategies=strategies, subject_ids_map=subject_ids_map
     )
 
+
 @bp.route('/dashboard/<int:user_id>')
+@login_required # login_requiredも必要に応じてインポート
 def dashboard(user_id):
     if 'user_id' not in session or session['user_id'] != user_id:
         return redirect(url_for('main.login'))
@@ -250,8 +252,6 @@ def dashboard(user_id):
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     target_level_value = level_hierarchy.get(target_level_name, 99)
 
-    subjects_map = {s.id: s.name for s in Subject.query.all()}
-    user_subject_ids = [s.id for s in user.subjects]
     completed_tasks_set = {p.task_id for p in Progress.query.filter_by(user_id=user_id, is_completed=1).all()}
     
     cont_selections = db.session.query(
@@ -264,9 +264,15 @@ def dashboard(user_id):
     seq_selections = {row.group_id: row.selected_task_id for row in UserSequentialTaskSelection.query.filter_by(user_id=user_id).all()}
 
     dashboard_data = []
-    for subject_id in user_subject_ids:
-        subject_name = subjects_map.get(subject_id)
-        subject_info = {'name': subject_name, 'next_task': None, 'continuous_tasks': [], 'progress': 0, 'last_completed_task': None, 'pending_selections': []}
+    # ★★★ 変更点1: ユーザーが選択した科目の「オブジェクト」を直接ループ処理します ★★★
+    for subject in user.subjects:
+        
+        # ★★★ 変更点2: 新しい辞書は作らず、subjectオブジェクトに直接プロパティを追加します ★★★
+        subject.next_task = None
+        subject.continuous_tasks = []
+        subject.progress = 0
+        subject.last_completed_task = None
+        subject.pending_selections = []
         
         base_query = db.session.query(
             Book.task_id, Book.title, Book.youtube_query, Book.task_type, 
@@ -274,11 +280,11 @@ def dashboard(user_id):
         ).join(RouteStep, Book.id == RouteStep.book_id)\
          .join(Route, RouteStep.route_id == Route.id)
 
-        if subject_name == '数学':
+        if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
             full_plan_rows = base_query.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
         else:
-            full_plan_rows = base_query.filter(Route.plan_type == 'standard', Route.subject_id == subject_id).order_by(RouteStep.step_order).all()
+            full_plan_rows = base_query.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).order_by(RouteStep.step_order).all()
         
         full_plan = [dict(row._mapping) for row in full_plan_rows]
         
@@ -301,41 +307,34 @@ def dashboard(user_id):
                     if actual_task_id not in completed_tasks_set:
                         
                         potential_next_task = next((t for t in group if t['task_id'] == actual_task_id), group[0])
-                        
-                        # ▼▼▼ [修正点] 変数の定義場所をif文の外に移動 ▼▼▼
                         task_level_value = level_hierarchy.get(potential_next_task['level'], 99)
 
                         if task_level_value <= target_level_value:
                             if len(group) > 1 and group_id not in seq_selections:
-                                subject_info['next_task'] = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject_name}
+                                # ★★★ 変更点3: subject_info['key'] = value の代わりに subject.key = value を使います ★★★
+                                subject.next_task = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject.name}
                             else:
-                                subject_info['next_task'] = potential_next_task
+                                subject.next_task = potential_next_task
                         break
                 
                 plan_task_ids_in_groups = [seq_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), g[0]['task_id']) for g in task_groups]
                 completed_in_plan = [task_id for task_id in plan_task_ids_in_groups if task_id in completed_tasks_set]
                 if completed_in_plan:
                     last_completed_id = completed_in_plan[-1]
-                    subject_info['last_completed_task'] = Book.query.filter_by(task_id=last_completed_id).first()
+                    subject.last_completed_task = Book.query.filter_by(task_id=last_completed_id).first()
                 
-                # ▼▼▼ [修正点] 現在のレベルを決定するロジックを、より堅牢なものに修正 ▼▼▼
-                if subject_info['next_task'] and not isinstance(subject_info['next_task'], dict):
-                    # 次のタスクがあれば、そのレベルが現在のレベル
-                    current_level = subject_info['next_task']['level']
+                if subject.next_task and not isinstance(subject.next_task, dict):
+                    current_level = subject.next_task['level']
                 elif completed_in_plan:
-                    # 次のタスクがなく、完了タスクがある場合（＝全クリ）、最後のタスクのレベルを現在レベルとみなす
                     last_task_in_plan = next((t for t in sequential_plan if t['task_id'] == completed_in_plan[-1]), None)
                     current_level = last_task_in_plan['level'] if last_task_in_plan else None
                 elif sequential_plan:
-                    # まだ何も完了していない場合、最初のタスクのレベルを現在地とする
                     current_level = sequential_plan[0]['level']
                 else:
-                    # Sequentialタスクが一つもない場合
                     current_level = None
                 
-                subject_info['progress'] = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
+                subject.progress = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
 
-            # (継続タスクの処理ロジックは変更なし)
             continuous_tasks_in_plan = [task for task in full_plan if task['task_type'] == 'continuous' and task['category'] != '補助教材']
             tasks_to_display, tasks_by_category = [], defaultdict(list)
             for task in continuous_tasks_in_plan: tasks_by_category[task['category']].append(task)
@@ -347,31 +346,21 @@ def dashboard(user_id):
                 tasks_in_current_level = [t for t in tasks if t['level'] == current_level]
                 if not tasks_in_current_level: continue
                 
-                user_selection = next((s for s in cont_selections if s.subject_id == subject_id and s.level == current_level and s.category == category), None)
+                user_selection = next((s for s in cont_selections if s.subject_id == subject.id and s.level == current_level and s.category == category), None)
                 if len(tasks_in_current_level) > 1:
                     if user_selection:
                         tasks_to_display.append({'title': user_selection.title})
                     else:
-                        subject_info['pending_selections'].append(f"{current_level}の{category}")
+                        subject.pending_selections.append(f"{current_level}の{category}")
                 else:
                     tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
 
-            subject_info['continuous_tasks'] = tasks_to_display
-        dashboard_data.append(subject_info)
-    print("--- データの最終チェック ---")
-    for s in dashboard_data:
-    # s が辞書(dict)か、それ以外(オブジェクト)かを判定
-      if isinstance(s, dict):
-        # 辞書の場合
-        name = s.get('name', '名前なし')
-        subject_id = s.get('id', 'IDなし')
-        print(f"【辞書発見】=> 科目名: {name}, 科目ID: {subject_id}")
-    else:
-        # オブジェクトの場合
-        name = getattr(s, 'name', '名前なし')
-        subject_id = getattr(s, 'id', 'IDなし')
-        print(f"種類: オブジェクト, 科目名: {name}, 科目ID: {subject_id}")
-    print("--------------------------")
+            subject.continuous_tasks = tasks_to_display
+        
+        # ★★★ 変更点4: 辞書ではなく、情報が追加された subject オブジェクトをリストに追加します ★★★
+        dashboard_data.append(subject)
+
+    # デバッグ用のprint文はもう不要なので削除してもOKです
     return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
 
 @bp.route('/support/<int:user_id>')
