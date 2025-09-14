@@ -1,4 +1,5 @@
 from app import create_app, db
+# "db," が削除されていることを確認
 from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
@@ -7,7 +8,9 @@ from seed_data.faculties import faculties_to_seed
 from seed_data.strategies import strategy_data
 
 def seed_database():
+    # 1. Flaskアプリのインスタンスを作成
     app = create_app()
+    # 2. アプリの設定を使ってデータベース操作を実行
     with app.app_context():
         # --- 1. 科目マスターデータ ---
         subjects_list = [
