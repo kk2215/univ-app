@@ -64,5 +64,14 @@ def create_app():
     # modelsモジュールをインポートすることが推奨される場合があります。
     from . import models
 
+
+    from seed_db import seed_database
+    
+    @app.cli.command('seed-db')
+    def seed_db_command():
+        """データベースに初期データを投入します。"""
+        with app.app_context(): # 念のためコンテキストを明示的に確保します
+            seed_database(db)
+            print('データベースの初期化が完了しました。')
     # 組み立てが完了したアプリケーションインスタンスを返します。
     return app
