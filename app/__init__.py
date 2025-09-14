@@ -13,43 +13,44 @@ login_manager = LoginManager()
 login_manager.login_view = 'main.login'
 
 
+# app/__init__.py の create_app 関数
+
 def create_app():
-    """アプリケーションファクトリ"""
+    print("--- 1. create_app() が呼び出されました ---")
     app = Flask(__name__, instance_relative_config=True)
     
-    # アプリケーションの設定を読み込みます
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'default_dev_secret_key'),
         SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///default.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False
     )
 
-    # ★★★ ここが最重要ポイント ★★★
-    # 拡張機能をまずアプリケーションに連携させます
+    print("--- 2. db.init_app(app) を呼び出します ---")
     db.init_app(app)
+    print("--- 3. db.init_app(app) が完了しました ---")
+    
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
-    # アプリケーションコンテキスト内で、残りの部分をインポート・登録します
-    # これにより循環インポートが完全に解決されます
     with app.app_context():
         from . import routes
         from . import models
 
-        # ユーザーローダーを登録
         @login_manager.user_loader
         def load_user(user_id):
             return models.User.query.get(int(user_id))
 
-        # Blueprintを登録
         app.register_blueprint(routes.bp)
 
-        # カスタムCLIコマンドを登録
         from seed_db import seed_database
+        
+        print("--- 4. seed-db コマンドを登録します ---")
         @app.cli.command('seed-db')
         def seed_db_command():
             """データベースに初期データを投入します。"""
+            print("--- 6. seed_db_command が実行されました ---")
             seed_database(db)
             print('データベースの初期化が完了しました。')
 
+    print("--- 5. create_app() が完了します ---")
     return app

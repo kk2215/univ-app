@@ -11,6 +11,7 @@ from seed_data.strategies import strategy_data
 # ▼▼▼ 関数が引数 (db) を受け取るように変更 ▼▼▼
 def seed_database(db):
     """データベースに初期データを投入する関数"""
+    print("--- 7. seed_database() が呼び出されました ---")
     print("Seeding database...")
 
     # --- 1. 科目マスターデータ ---
