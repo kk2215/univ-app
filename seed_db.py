@@ -1,4 +1,6 @@
-from app import db
+# seed_db.py
+
+# ▼▼▼ "from app import db" を削除 ▼▼▼
 from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
@@ -6,7 +8,8 @@ from seed_data.routes import routes_to_seed, route_steps_human_readable
 from seed_data.faculties import faculties_to_seed
 from seed_data.strategies import strategy_data
 
-def seed_database():
+# ▼▼▼ 関数が引数 (db) を受け取るように変更 ▼▼▼
+def seed_database(db):
     """データベースに初期データを投入する関数"""
     print("Seeding database...")
 
@@ -21,6 +24,7 @@ def seed_database():
     db.session.commit()
     print("科目を登録しました。")
 
+    # (以降の処理は変更なし)
     # --- 2. 大学マスターデータ ---
     for name, kana, level, url in universities_to_seed:
         if not University.query.filter_by(name=name).first():
