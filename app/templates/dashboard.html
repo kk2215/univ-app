@@ -279,19 +279,13 @@
                 return response.json();
             })
             .then(data => {
-                // サーバーから { "success": true } が返ってきたら
-                if (data.success) {
-                    // クリックされたボタンを非表示にし、隣に「完了！」などのテキストを表示
-                    this.style.display = 'none'; 
-                    const completedText = document.createElement('span');
-                    completedText.textContent = '完了！';
-                    this.parentElement.appendChild(completedText);
-                } else {
-                    // サーバーからエラーが返ってきた場合
-                    console.error('Progress update failed:', data.error);
-                    alert('進捗の更新に失敗しました。');
-                }
-            })
+    if (data.success) {
+        // 成功したらページをリロードして最新の状態を表示する
+        location.reload();
+    } else {
+        alert('進捗の更新に失敗しました。');
+    }
+})
             .catch(error => {
                 // ネットワークエラーなどが発生した場合
                 console.error('Error:', error);
