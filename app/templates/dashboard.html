@@ -249,49 +249,66 @@
     {% endwith %}
 
 
-    // --- 進捗更新用のJavaScript ---
+   // --- 進捗更新用のJavaScript ---
     
-    // "完了"ボタン（class="complete-btn"を持つ全ての要素）を取得して、それぞれにイベントを設定
-    document.querySelectorAll('.complete-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            // data-task-id属性とdata-subject-id属性の値を取得
-            const taskId = this.dataset.taskId;
-            const subjectId = this.dataset.subjectId;
-            
-            // サーバーのAPI（/api/update_progress）にデータを送信
-            fetch('/api/update_progress', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // JSON形式で送信するデータを作成
-                body: JSON.stringify({ 
-                    task_id: taskId, 
-                    subject_id: subjectId,
-                    is_completed: true 
-                })
+// ▼▼▼ 「完了」ボタン用の処理 (既存のコード) ▼▼▼
+document.querySelectorAll('.complete-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const taskId = this.dataset.taskId;
+        const subjectId = this.dataset.subjectId;
+        
+        fetch('/api/update_progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                task_id: taskId, 
+                subject_id: subjectId,
+                is_completed: true // タスクを「完了」に設定
             })
-            .then(response => {
-                // サーバーからの応答がネットワークエラーなどでないかチェック
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-    if (data.success) {
-        // 成功したらページをリロードして最新の状態を表示する
-        location.reload();
-    } else {
-        alert('進捗の更新に失敗しました。');
-    }
-})
-            .catch(error => {
-                // ネットワークエラーなどが発生した場合
-                console.error('Error:', error);
-                alert('サーバーとの通信中にエラーが発生しました。');
-            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('進捗の更新に失敗しました。');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('サーバーとの通信中にエラーが発生しました。');
         });
     });
+});
+
+// ▼▼▼ 「未完了に戻す」ボタン用の処理 (ここからが追加部分) ▼▼▼
+document.querySelectorAll('.uncomplete-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const taskId = this.dataset.taskId;
+        const subjectId = this.dataset.subjectId;
+        
+        fetch('/api/update_progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                task_id: taskId, 
+                subject_id: subjectId,
+                is_completed: false // ★タスクを「未完了」に設定
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('進捗の更新に失敗しました。');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('サーバーとの通信中にエラーが発生しました。');
+        });
+    });
+});
 </script>
 {% endblock %}
