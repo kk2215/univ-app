@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>{% block title %}{% endblock %} - みちしるべ｜独学受験生の学習計画パートナー</title>
-
     <meta name="description" content="「みちしるべ」は、大学受験を独学で乗り越える受験生のための、パーソナルな学習計画を提供するWebアプリケーションです。">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,25 +13,23 @@
     <meta name="google-site-verification" content="xnzSDRCtBnkRILV7Zix81ETAUIyQti0BgHUEGUvILgQ" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-NYYBJXRHW3"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-NYYBJXRHW3');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NYYBJXRHW3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-NYYBJXRHW3');
+    </script>
 </head>
 <body>
     <nav class="container-fluid">
     <div class="container">
         <ul>
             <li>
-                {% if session.user_id %}
-                    <a href="{{ url_for('main.dashboard', user_id=session.user_id) }}" class="contrast"><strong>みちしるべ</strong></a>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}" class="contrast"><strong>みちしるべ</strong></a>
                 {% else %}
-                    <a href="/" class="contrast"><strong>みちしるべ</strong></a>
+                    <a href="{{ url_for('main.index') }}" class="contrast"><strong>みちしるべ</strong></a>
                 {% endif %}
             </li>
         </ul>
@@ -42,14 +39,14 @@
         </button>
 
         <ul id="primary-navigation" class="primary-navigation" data-visible="false">
-            {% if session.user_id %}
-    <li><a href="{{ url_for('main.dashboard', user_id=session.user_id) }}">マイページ</a></li>
-    <li><a href="{{ url_for('main.show_plan', user_id=session.user_id) }}">学習マップ</a></li>
-    <li><a href="{{ url_for('main.stats', user_id=session.user_id) }}">学習記録</a></li>
-    <li><a href="{{ url_for('main.support', user_id=session.user_id) }}">支援制度</a></li>
-    <li><a href="{{ url_for('main.settings', user_id=session.user_id) }}" class="secondary">設定</a></li>
-    <li><a href="{{ url_for('main.logout') }}">ログアウト</a></li>
-{% else %}
+            {% if current_user.is_authenticated %}
+                <li><a href="{{ url_for('main.dashboard', user_id=current_user.id) }}">マイページ</a></li>
+                <li><a href="{{ url_for('main.show_plan', user_id=current_user.id) }}">学習マップ</a></li>
+                <li><a href="{{ url_for('main.stats', user_id=current_user.id) }}">学習記録</a></li>
+                <li><a href="{{ url_for('main.support', user_id=current_user.id) }}">支援制度</a></li>
+                <li><a href="{{ url_for('main.settings', user_id=current_user.id) }}" class="secondary">設定</a></li>
+                <li><a href="{{ url_for('main.logout') }}">ログアウト</a></li>
+            {% else %}
                 <li><a href="{{ url_for('main.login') }}" role="button" class="secondary outline">ログイン</a></li>
                 <li><a href="{{ url_for('main.register') }}" role="button">新規登録</a></li>
             {% endif %}
