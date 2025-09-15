@@ -1,5 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from . import db
+from flask_login import UserMixin # ★ 1. UserMixinをインポート
+
 
 db = SQLAlchemy()
 
@@ -9,10 +12,10 @@ user_subjects_table = db.Table('user_subjects',
     db.Column('subject_id', db.Integer, db.ForeignKey('subjects.id'), primary_key=True)
 )
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String, unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
     grade = db.Column(db.String, nullable=False)
     school = db.Column(db.String, nullable=False)

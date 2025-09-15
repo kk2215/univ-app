@@ -6,7 +6,7 @@ from flask import (
 from collections import defaultdict
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.datastructures import MultiDict
-from flask_login import login_required, current_user
+from flask_login import login_user, login_required, current_user
 
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
@@ -114,9 +114,15 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         user = db.session.query(User).filter_by(username=username).first()
+        
         if user and check_password_hash(user.password_hash, password):
-            session.clear()
-            session['user_id'] = user.id
+            # ▼▼▼ 2. sessionの操作を login_user(user) に置き換える ▼▼▼
+            login_user(user) 
+            
+            # ログイン後にリダイレクトすべきページがあれば、そちらにリダイレクト
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
             return redirect(url_for('main.dashboard', user_id=user.id))
         else:
             error_message = "ユーザー名またはパスワードが正しくありません。"
