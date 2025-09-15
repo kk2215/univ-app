@@ -99,7 +99,7 @@ def register():
                     new_user.subjects.append(subject)
             
             db.session.commit()
-            session['user_id'] = new_user.id
+            login_user(new_user)
             flash('show_welcome_modal', 'info')
             return redirect(url_for('main.dashboard', user_id=new_user.id))
 
