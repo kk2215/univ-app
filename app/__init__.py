@@ -38,7 +38,8 @@ def create_app():
 
         @login_manager.user_loader
         def load_user(user_id):
-            return models.User.query.get(int(user_id))
+        # db.session.query() を使うことで、正しく初期化されたdbインスタンスを参照します
+         return db.session.query(models.User).get(int(user_id))
 
         app.register_blueprint(routes.bp)
 
