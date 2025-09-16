@@ -728,3 +728,45 @@ def delete_exam(exam_id):
     db.session.delete(exam)
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
+
+# app/routes.py の一番下に追加
+
+import requests
+from bs4 import BeautifulSoup
+import re
+
+@bp.route('/api/scrape-exam-url', methods=['POST'])
+@login_required
+@admin_required
+def scrape_exam_url():
+    data = request.get_json()
+    url = data.get('url')
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status() # エラーがあれば例外を発生
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # ページタイトルから模試名を推測
+        title = soup.title.string if soup.title else ''
+        
+        # ページ内のテキストから日付を探す (YYYY年MM月DD日 形式)
+        text = soup.get_text()
+        dates = re.findall(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text)
+        
+        # 日付を "YYYY-MM-DD" 形式に変換
+        formatted_dates = [f"{y}-{m.zfill(2)}-{d.zfill(2)}" for y, m, d in dates]
+        
+        return jsonify({
+            'success': True,
+            'title': title,
+            'dates': formatted_dates # 見つかった日付のリスト
+        })
+
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        return jsonify({'error': str(e)}), 500

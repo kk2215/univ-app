@@ -4,7 +4,14 @@
 <article>
     <hgroup>
         <h1>{% if exam %}模試の編集{% else %}新しい模試の追加{% endif %}</h1>
+        <p>URLを貼り付けて「情報取得」ボタンを押すと、AIが自動で入力欄を埋めます。</p>
     </hgroup>
+
+    <div class="grid">
+        <input type="url" id="source-url" placeholder="模試の公式サイトURLをここに貼り付け">
+        <button id="fetch-btn" class="secondary" style="width: auto;">情報取得</button>
+    </div>
+    <hr>
     <form method="post">
         <label for="provider">提供元</label>
         <input type="text" id="provider" name="provider" value="{{ exam.provider if exam else '' }}" required>
@@ -23,10 +30,85 @@
             <input type="date" id="app_end_date" name="app_end_date" value="{{ exam.app_end_date.strftime('%Y-%m-%d') if exam else '' }}" required>
         </div>
 
-        <label for="url">公式サイトURL</label>
+        <label for="url">公式サイトURL (登録用)</label>
         <input type="url" id="url" name="url" value="{{ exam.url if exam else '' }}" required>
 
         <button type="submit">{% if exam %}更新する{% else %}追加する{% endif %}</button>
     </form>
 </article>
+
+<script>
+document.getElementById('fetch-btn').addEventListener('click', async () => {
+    const urlInput = document.getElementById('source-url');
+    const url = urlInput.value;
+    if (!url) {
+        alert('URLを入力してください。');
+        return;
+    }
+
+    const btn = document.getElementById('fetch-btn');
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = '解析中...';
+
+    try {
+        const response = await fetch("{{ url_for('main.scrape_exam_url') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            // 取得した情報をフォームに自動入力
+            document.getElementById('name').value = data.title || '';
+            document.getElementById('url').value = url;
+            
+            // 日付の候補を表示して、ユーザーがクリックで入力できるようにする
+            if (data.dates && data.dates.length > 0) {
+                alert('Webページから日付の候補を ' + data.dates.length + '件見つけました。実施日、申込開始日、申込締切日の順に、候補の中からクリックして入力してください。');
+                
+                // 候補を画面に表示
+                const dateInputs = ['exam_date', 'app_start_date', 'app_end_date'];
+                dateInputs.forEach(inputId => {
+                    const input = document.getElementById(inputId);
+                    input.addEventListener('focus', () => showDateSuggestions(data.dates, inputId), { once: true });
+                });
+            } else {
+                alert('タイトルを自動入力しました。日付は見つからなかったので、手動で入力してください。');
+            }
+        } else {
+            alert('情報の取得に失敗しました: ' + data.error);
+        }
+    } catch (err) {
+        alert('エラーが発生しました。');
+    } finally {
+        btn.removeAttribute('aria-busy');
+        btn.textContent = '情報取得';
+    }
+});
+
+function showDateSuggestions(dates, targetInputId) {
+    let suggestionsContainer = document.getElementById('date-suggestions');
+    if (!suggestionsContainer) {
+        suggestionsContainer = document.createElement('div');
+        suggestionsContainer.id = 'date-suggestions';
+        suggestionsContainer.innerHTML = '<h4>日付の候補:</h4>';
+        // フォームの最初の子要素として挿入
+        document.querySelector('form').prepend(suggestionsContainer);
+    }
+    suggestionsContainer.innerHTML = '<h4>日付の候補（クリックして入力）:</h4>'; // 中身をリセット
+    dates.forEach(dateStr => {
+        const dateBtn = document.createElement('button');
+        dateBtn.textContent = dateStr;
+        dateBtn.className = 'secondary outline';
+        dateBtn.style.margin = '0.2rem';
+        dateBtn.type = 'button';
+        dateBtn.onclick = () => {
+            document.getElementById(targetInputId).value = dateStr;
+            suggestionsContainer.innerHTML = ''; // 選択後は候補を消す
+        };
+        suggestionsContainer.appendChild(dateBtn);
+    });
+}
+</script>
 {% endblock %}
