@@ -729,46 +729,52 @@ def delete_exam(exam_id):
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
 
-# app/routes.py
+# app/routes.py の一番下
 
 import requests
 from bs4 import BeautifulSoup
 import re
 from datetime import date
-from urllib.parse import urljoin # URLを結合するために追加
+from urllib.parse import urljoin
 
-# --- ヘルパー関数群 ---
-def _scrape_toshin(soup, url):
-    # 東進はページによって構造が大きく異なるため、まずはページ内のリンクを探す
-    exams_found = []
-    # aタグで、hrefに 'moshi' と 'detail' が含まれるものを探す
-    for a in soup.find_all('a', href=re.compile(r'moshi.*detail')):
-        name = a.get_text(strip=True)
-        link = a.get('href')
-        if name and link:
-            full_url = urljoin(url, link) # 相対URLを絶対URLに変換
-            exams_found.append({'name': name, 'url': full_url})
-    
-    # もしリンクが見つかれば、それは一覧ページだと判断
-    if exams_found:
-        return {'is_index': True, 'exams_found': exams_found}
-    
-    # 詳細ページだった場合の解析ロジック（前回のものを流用）
+# --- ヘルパー関数：サイトごとの専用解析ロジック ---
+
+def _extract_dates_from_text(text):
+    """テキストからYYYY-MM-DD形式の日付を抽出する"""
+    date_pattern = re.compile(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日')
+    found_dates = date_pattern.findall(text)
+    iso_dates = sorted(list(set([f"{y}-{m.zfill(2)}-{d.zfill(2)}" for y, m, d in found_dates])))
+    return iso_dates
+
+def _parse_detail_page(soup):
+    """詳細ページから情報を抜き出す共通ロジック"""
     data = {}
-    if soup.title: data['name'] = soup.title.string.strip().replace('｜大学受験の予備校・塾 東進', '')
-    text_content = soup.get_text()
-    exam_date_match = re.search(r'実施日\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
-    if exam_date_match:
-        y, m, d = exam_date_match.groups()
-        data['exam_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-    end_date_match = re.search(r'申込締切\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
-    if end_date_match:
-        y, m, d = end_date_match.groups()
-        data['app_end_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-    return {'is_index': False, 'data': data}
+    title_tag = soup.find('h1') or soup.find('h2')
+    if title_tag:
+        data['name'] = title_tag.get_text(strip=True)
+    
+    all_dates = _extract_dates_from_text(soup.get_text())
+    # 簡易的なロジック：日付が3つ以上あれば、申込開始、締切、実施日と仮定
+    if len(all_dates) >= 3:
+        data['app_start_date'] = all_dates[0]
+        data['app_end_date'] = all_dates[1]
+        data['exam_date'] = all_dates[-1]
+    elif len(all_dates) == 1:
+        data['exam_date'] = all_dates[0]
+        
+    return data
 
-# （_scrape_sundai, _scrape_kawai も同様に is_index を返すように拡張可能）
-# ...
+def _find_exam_links(soup, url, link_pattern):
+    """一覧ページから模試へのリンクを探す共通ロジック"""
+    exams_found = []
+    for a_tag in soup.find_all('a', href=True):
+        if re.search(link_pattern, a_tag['href']):
+            name = a_tag.get_text(strip=True)
+            if name and len(name) > 5: # 短すぎるリンク名（「詳細」など）を無視
+                full_url = urljoin(url, a_tag['href'])
+                exams_found.append({'name': name, 'url': full_url})
+    return list({v['url']: v for v in exams_found}.values()) # URLの重複を削除
+
 
 @bp.route('/api/scrape-exam-url', methods=['POST'])
 @login_required
@@ -784,21 +790,31 @@ def scrape_exam_url():
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        result_data = {}
         provider = None
+        exams_found = []
         
-        if 'toshin' in url:
-            result_data = _scrape_toshin(soup, url)
+        # URLドメインを見て、どの専用ロジックを呼び出すか判断
+        if 'toshin-moshi.com' in url:
             provider = '東進'
-        # 他のプロバイダー用の分岐もここに追加
-        # elif 'sundai' in url: ...
-
-        else: # どのサイトにも当てはまらない場合
+            exams_found = _find_exam_links(soup, url, r'lineup/detail.php')
+        elif 'sundai.ac.jp' in url:
+            provider = '駿台'
+            exams_found = _find_exam_links(soup, url, r'/moshi/detail/')
+        elif 'kawai-juku.ac.jp' in url:
+            provider = '河合塾'
+            exams_found = _find_exam_links(soup, url, r'/moshi/zento/')
+        else:
             return jsonify({'error': 'This site is not supported yet'}), 400
-        
-        # プロバイダー名を結果に追加
-        if 'data' in result_data:
-            result_data['data']['provider'] = provider
+
+        # リンクが見つかったか（一覧ページか）、見つからなかったか（詳細ページか）で処理を分ける
+        if exams_found:
+            # 一覧ページの場合：候補リストを返す
+            result_data = {'is_index': True, 'exams_found': exams_found}
+        else:
+            # 詳細ページの場合：ページ内容を解析して返す
+            parsed_data = _parse_detail_page(soup)
+            parsed_data['provider'] = provider
+            result_data = {'is_index': False, 'data': parsed_data}
 
         return jsonify({'success': True, **result_data})
 
