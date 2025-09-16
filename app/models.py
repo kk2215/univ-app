@@ -130,3 +130,15 @@ class MockExam(db.Model):
     exam_name = db.Column(db.String, nullable=False)
     exam_date = db.Column(db.Date, nullable=False)
     results_url = db.Column(db.String) # 結果ページのURLなど    
+    
+class OfficialMockExam(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(50), nullable=False)  # 例: '河合塾', '駿台', '東進'
+    name = db.Column(db.String(150), nullable=False) # 例: '第1回 全統共通テスト模試'
+    exam_date = db.Column(db.Date, nullable=False) # 模試の実施日
+    app_start_date = db.Column(db.Date, nullable=False) # 申込開始日
+    app_end_date = db.Column(db.Date, nullable=False) # 申込締切日
+    url = db.Column(db.String(255), nullable=False) # 申込ページのURL
+
+    def __repr__(self):
+        return f'<OfficialMockExam {self.name}>'    

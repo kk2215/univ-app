@@ -35,6 +35,18 @@
            <p>あなたの学習スタイル: <strong>{{ user.learning_style }}</strong> - <a href="{{ url_for('main.quiz_results', user_id=user.id) }}">詳細を見る</a></p>
         {% endif %}
     </hgroup>
+    {% if upcoming_exams %}
+    <div class="exam-notification">
+        <h4>📢 受付中の模試があります！</h4>
+        {% for exam in upcoming_exams %}
+        <p>
+            <strong>{{ exam.provider }}</strong> - {{ exam.name }}<br>
+            <small>申込締切: {{ exam.app_end_date.strftime('%Y年%m月%d日') }}</small>
+            <a href="{{ exam.url }}" target="_blank" rel="noopener noreferrer" style="margin-left: 1rem;">公式サイトで申し込む</a>
+        </p>
+        {% endfor %}
+    </div>
+    {% endif %}
 </article>
 
 <div class="dashboard-grid">

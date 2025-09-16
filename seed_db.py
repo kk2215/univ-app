@@ -1,11 +1,12 @@
 # seed_db.py
 
-from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy
+from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy, OfficialMockExam
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
 from seed_data.routes import routes_to_seed, route_steps_human_readable
 from seed_data.faculties import faculties_to_seed
 from seed_data.strategies import strategy_data
+from datetime import date
 
 def seed_database(db):
     """データベースに初期データを投入する関数"""
@@ -76,5 +77,22 @@ def seed_database(db):
                 db.session.add(SubjectStrategy(subject_id=subject_id, strategy_html=strategy_html))
     db.session.commit()
     print("学習戦略データを登録しました。")
+    
+    # --- 8. 模試マスターデータ ---
+    # provider, name, exam_date, app_start_date, app_end_date, url
+    official_exams_to_seed = [
+        ('河合塾', '第1回 全統共通テスト模試', date(2026, 5, 3), date(2026, 3, 20), date(2026, 4, 22), 'https://www.kawai-juku.ac.jp/moshi/'),
+        ('駿台', '第1回 駿台atama＋共通テスト模試', date(2026, 6, 7), date(2026, 4, 1), date(2026, 5, 28), 'https://www.sundai.ac.jp/moshi/'),
+        ('東進', '第2回 共通テスト本番レベル模試', date(2026, 4, 26), date(2026, 3, 1), date(2026, 4, 23), 'https://www.toshin.com/moshi/'),
+    ]
+
+    for provider, name, exam_d, app_start, app_end, url in official_exams_to_seed:
+        if not db.session.query(OfficialMockExam).filter_by(name=name, exam_date=exam_d).first():
+            db.session.add(OfficialMockExam(
+                provider=provider, name=name, exam_date=exam_d,
+                app_start_date=app_start, app_end_date=app_end, url=url
+            ))
+    db.session.commit()
+    print("模試マスターデータを登録しました。")
 
     print("データベースに全ての初期データを投入しました。")

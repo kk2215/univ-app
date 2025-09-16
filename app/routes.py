@@ -11,7 +11,7 @@ from flask_login import login_user, login_required, current_user
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
 # データベースモデルをインポートします
-from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam
+from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam
 
 
 bp = Blueprint('main', __name__)
@@ -255,7 +255,13 @@ def dashboard(user_id):
      .filter(UserContinuousTaskSelection.user_id == user_id).all()
      
     seq_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
-
+    
+    today = date.today()
+    upcoming_exams = db.session.query(OfficialMockExam).filter(
+        OfficialMockExam.app_start_date <= today,
+        OfficialMockExam.app_end_date >= today
+    ).order_by(OfficialMockExam.app_end_date.asc()).all()
+    
     dashboard_data = []
     for subject in user.subjects:
         subject.next_task = None; subject.continuous_tasks = []; subject.progress = 0
@@ -331,7 +337,9 @@ def dashboard(user_id):
                 else: tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
             subject.continuous_tasks = tasks_to_display
         dashboard_data.append(subject)
-    return render_template('dashboard.html', user=user, university=university, days_until_exam=days_until_exam, dashboard_data=dashboard_data)
+    return render_template('dashboard.html', user=user, university=university, 
+                           days_until_exam=days_until_exam, dashboard_data=dashboard_data,
+                           upcoming_exams=upcoming_exams)
 
 @bp.route('/support/<int:user_id>')
 @login_required
