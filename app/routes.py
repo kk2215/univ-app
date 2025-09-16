@@ -387,8 +387,10 @@ def stats(user_id):
     
     return render_template(
         'stats.html', user=user,
-        subject_labels=[r.name for r in total_by_subject], subject_data=[r.total for r in total_by_subject],
-        date_labels=[r.date.isoformat() for r in last_7_days], date_data=[r.total for r in last_7_days],
+        subject_labels=[r.name for r in total_by_subject], 
+        subject_data=[round(r.total / 60, 1) for r in total_by_subject],
+        date_labels=[r.date.isoformat() for r in last_7_days], 
+        date_data=[round(r.total / 60, 1) for r in last_7_days],
         calendar_data=calendar_data, month=month, year=year,
         recent_logs=recent_logs, user_subjects=user_subjects_list,
         logs_by_date=logs_by_date, prev_month=prev_month, next_month=next_month, is_future=is_future

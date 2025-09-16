@@ -72,21 +72,27 @@
 <dialog id="log-modal">
     <article>
         <header>
-            <a href="#close" aria-label="Close" class="close" data-target="log-modal"></a>
+            <a href="#close" aria-label="Close" class="close"></a>
             <h3 id="modal-title">学習を記録</h3>
         </header>
         <form id="log-form">
             <input type="hidden" id="log-date" name="date">
             {% for subject in user_subjects %}
-            <div class="grid subject-log-row">
-                <label for="duration_h_{{ subject.id }}" class="subject-label">{{ subject.name }}</label>
-                <div class="grid">
-                    <input type="number" id="duration_h_{{ subject.id }}" name="duration_h_{{ subject.id }}" placeholder="時間" min="0">
-                    <input type="number" id="duration_m_{{ subject.id }}" name="duration_m_{{ subject.id }}" placeholder="分" min="0" max="59">
+            <div class="grid subject-log-row" data-subject-id="{{ subject.id }}" data-total-minutes="0">
+                <label class="subject-label">{{ subject.name }}</label>
+                <div class="time-controls">
+                    <span class="time-display">0分</span>
+                    <div class="button-group">
+                        <button type="button" class="secondary outline time-btn" data-change="-15" aria-label="15分減らす">-15m</button>
+                        <button type="button" class="secondary time-btn" data-change="15" aria-label="15分増やす">+15m</button>
+                        <button type="button" class="secondary time-btn" data-change="30" aria-label="30分増やす">+30m</button>
+                        <button type="button" class="contrast time-btn" data-change="60" aria-label="1時間増やす">+1h</button>
+                    </div>
                 </div>
             </div>
             {% endfor %}
             <footer>
+                <a href="#cancel" role="button" class="secondary" data-target="log-modal">キャンセル</a>
                 <button type="submit" id="save-log-btn">この日の記録を保存</button>
             </footer>
         </form>
@@ -96,13 +102,62 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // (グラフ描画のコード)
+    // ▼▼▼ 改善2: グラフの単位を「時間」に変更 ▼▼▼
     const subjectCtx = document.getElementById('subjectChart');
-    if (subjectCtx && {{ subject_labels | tojson }} && {{ subject_data | tojson }}.some(d => d > 0)) { new Chart(subjectCtx, { type: 'doughnut', data: { labels: {{ subject_labels | tojson }}, datasets: [{ label: '学習時間 (分)', data: {{ subject_data | tojson }}, backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'], }] }}); }
+    if (subjectCtx && {{ subject_labels | tojson }} && {{ subject_data | tojson }}.some(d => d > 0)) { 
+        new Chart(subjectCtx, { 
+            type: 'doughnut', 
+            data: { 
+                labels: {{ subject_labels | tojson }}, 
+                datasets: [{ 
+                    label: '学習時間 (時間)', 
+                    data: {{ subject_data | tojson }},
+                    backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'],
+                }] 
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return context.label + ': ' + context.raw + ' 時間'; }
+                        }
+                    }
+                }
+            }
+        }); 
+    }
+    
     const dailyCtx = document.getElementById('dailyChart');
-    if (dailyCtx && {{ date_labels | tojson }} && {{ date_data | tojson }}.some(d => d > 0)) { new Chart(dailyCtx, { type: 'bar', data: { labels: {{ date_labels | tojson }}, datasets: [{ label: '学習時間 (分)', data: {{ date_data | tojson }}, backgroundColor: '#36a2eb', }] }, options: { scales: { y: { beginAtZero: true } } } }); }
+    if (dailyCtx && {{ date_labels | tojson }} && {{ date_data | tojson }}.some(d => d > 0)) { 
+        new Chart(dailyCtx, { 
+            type: 'bar', 
+            data: { 
+                labels: {{ date_labels | tojson }}, 
+                datasets: [{ 
+                    label: '学習時間 (時間)', 
+                    data: {{ date_data | tojson }}, 
+                    backgroundColor: '#36a2eb', 
+                }] 
+            }, 
+            options: { 
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        title: { display: true, text: '学習時間 (時間)' }
+                    } 
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return context.dataset.label + ': ' + context.raw + ' 時間'; }
+                        }
+                    }
+                }
+            } 
+        }); 
+    }
 
-    // --- モーダル操作のロジック ---
+    // --- ここから下は、新しいボタン式入力に対応したJavaScript ---
     const modal = document.getElementById('log-modal');
     const form = document.getElementById('log-form');
     const dateInput = document.getElementById('log-date');
@@ -110,6 +165,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const userSubjects = JSON.parse('{{ user_subjects|tojson|safe }}');
     const logsByDate = JSON.parse('{{ logs_by_date|tojson|safe }}');
     const calendarGrid = document.querySelector('.calendar-grid');
+
+    function updateDisplay(subjectRow) {
+        const totalMinutes = parseInt(subjectRow.dataset.totalMinutes, 10);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const displaySpan = subjectRow.querySelector('.time-display');
+        let displayText = '';
+        if (hours > 0) displayText += `${hours}時間 `;
+        if (minutes > 0) displayText += `${minutes}分`;
+        if (displayText === '') displayText = '0分';
+        displaySpan.textContent = displayText.trim();
+    }
 
     if (calendarGrid) {
         calendarGrid.addEventListener('click', (e) => {
@@ -121,24 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = `${dateStr} の学習を記録・編集`;
             
             const recordsForDay = logsByDate[dateStr] || {};
-            userSubjects.forEach(subject => {
-                const totalMinutes = recordsForDay[String(subject.id)] || 0;
-                const hours = Math.floor(totalMinutes / 60);
-                const minutes = totalMinutes % 60;
-                
-                const hoursInput = form.querySelector(`#duration_h_${subject.id}`);
-                const minutesInput = form.querySelector(`#duration_m_${subject.id}`);
-                
-                hoursInput.value = hours > 0 ? hours : '';
-                minutesInput.value = minutes > 0 ? minutes : '';
+            modal.querySelectorAll('.subject-log-row').forEach(row => {
+                const subjectId = row.dataset.subjectId;
+                const totalMinutes = recordsForDay[String(subjectId)] || 0;
+                row.dataset.totalMinutes = totalMinutes;
+                updateDisplay(row);
             });
             modal.showModal();
         });
     }
 
-    modal.querySelector('.close').addEventListener('click', (e) => {
-        e.preventDefault();
-        modal.close();
+    modal.addEventListener('click', (e) => {
+        if (e.target.matches('.close') || e.target.getAttribute('href') === '#cancel') {
+            e.preventDefault();
+            modal.close();
+        } else if (e.target.matches('.time-btn')) {
+            const subjectRow = e.target.closest('.subject-log-row');
+            const change = parseInt(e.target.dataset.change, 10);
+            let currentMinutes = parseInt(subjectRow.dataset.totalMinutes, 10) || 0;
+            subjectRow.dataset.totalMinutes = Math.max(0, currentMinutes + change);
+            updateDisplay(subjectRow);
+        }
     });
 
     form.addEventListener('submit', async (e) => {
@@ -146,11 +216,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.getElementById('save-log-btn');
         saveBtn.setAttribute('aria-busy', 'true');
         saveBtn.textContent = '保存中...';
-        const logs = userSubjects.map(subject => ({
-            subject_id: subject.id,
-            hours: form.querySelector(`#duration_h_${subject.id}`).value,
-            minutes: form.querySelector(`#duration_m_${subject.id}`).value,
-        }));
+
+        const logs = Array.from(form.querySelectorAll('.subject-log-row')).map(row => {
+            const totalMinutes = parseInt(row.dataset.totalMinutes, 10);
+            return {
+                subject_id: row.dataset.subjectId,
+                hours: String(Math.floor(totalMinutes / 60)),
+                minutes: String(totalMinutes % 60),
+            };
+        });
+
         try {
             const response = await fetch("{{ url_for('main.log_study_for_date', user_id=user.id) }}", {
                 method: 'POST',
