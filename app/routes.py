@@ -14,6 +14,7 @@ from . import db
 from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam
 from functools import wraps
 from flask_login import current_user
+import re
 
 def admin_required(f):
     @wraps(f)
@@ -729,94 +730,80 @@ def delete_exam(exam_id):
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
 
-# app/routes.py の一番下
+# app/routes.py の一番下に追加
 
 import requests
 from bs4 import BeautifulSoup
-import re
-from datetime import date
+import os
+import google.generativeai as genai
+import json
 from urllib.parse import urljoin
-
-# --- ヘルパー関数：サイトごとの専用解析ロジック ---
-
-def _extract_dates_from_text(text):
-    """テキストからYYYY-MM-DD形式の日付を抽出する"""
-    date_pattern = re.compile(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日')
-    found_dates = date_pattern.findall(text)
-    iso_dates = sorted(list(set([f"{y}-{m.zfill(2)}-{d.zfill(2)}" for y, m, d in found_dates])))
-    return iso_dates
-
-def _parse_detail_page(soup):
-    """詳細ページから情報を抜き出す共通ロジック"""
-    data = {}
-    title_tag = soup.find('h1') or soup.find('h2')
-    if title_tag:
-        data['name'] = title_tag.get_text(strip=True)
-    
-    all_dates = _extract_dates_from_text(soup.get_text())
-    # 簡易的なロジック：日付が3つ以上あれば、申込開始、締切、実施日と仮定
-    if len(all_dates) >= 3:
-        data['app_start_date'] = all_dates[0]
-        data['app_end_date'] = all_dates[1]
-        data['exam_date'] = all_dates[-1]
-    elif len(all_dates) == 1:
-        data['exam_date'] = all_dates[0]
-        
-    return data
-
-def _find_exam_links(soup, url, link_pattern):
-    """一覧ページから模試へのリンクを探す共通ロジック"""
-    exams_found = []
-    for a_tag in soup.find_all('a', href=True):
-        if re.search(link_pattern, a_tag['href']):
-            name = a_tag.get_text(strip=True)
-            if name and len(name) > 5: # 短すぎるリンク名（「詳細」など）を無視
-                full_url = urljoin(url, a_tag['href'])
-                exams_found.append({'name': name, 'url': full_url})
-    return list({v['url']: v for v in exams_found}.values()) # URLの重複を削除
-
 
 @bp.route('/api/scrape-exam-url', methods=['POST'])
 @login_required
 @admin_required
 def scrape_exam_url():
+    """
+    URLを受け取り、Gemini AIを使って模試情報を抽出するAPI。
+    一覧ページか詳細ページかをAIが判断し、適切な形式で返す。
+    """
+    # 1. APIキーを環境変数から読み込む
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'GEMINI_API_KEY is not set on server'}), 500
+    genai.configure(api_key=api_key)
+
     data = request.get_json()
     url = data.get('url')
-    if not url: return jsonify({'error': 'URL is required'}), 400
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
 
     try:
+        # 2. Webページの内容を取得
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
+        # テキストを抽出し、余分な空白を削除して短縮
+        page_text = ' '.join(soup.get_text().split())[:8000]
+
+        # 3. AIモデルに情報を抽出させるための指示（プロンプト）を作成
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+        あなたは、Webページから日本の大学受験の模試情報を抽出するエキスパートです。
+        以下のテキストは「{url}」から取得したものです。
+
+        手順：
+        1. まず、このページが「複数の模試がリストされている一覧ページ」か「単一の模試の詳細ページ」かを判断してください。
+        2. もし「一覧ページ」なら、ページ内にある全ての模試の名称(name)と、その詳細ページへの完全なURL(url)をリストアップしてください。URLは元のページのURLと結合して完全なものにしてください。
+        3. もし「詳細ページ」なら、その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)を抽出してください。
+        4. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
+        5. 結果を必ずJSON形式で返してください。一覧ページの場合は {{"is_index": true, "exams_found": [{{"name": ..., "url": ...}}]}} の形式で、詳細ページの場合は {{"is_index": false, "data": {{"name": ..., "exam_date": ...}}}} の形式で返してください。
+
+        テキスト：
+        {page_text}
+        """
         
+        # 4. AIを実行し、回答を整形して返す
+        ai_response = model.generate_content(prompt)
+        # AIの回答からJSON部分だけを安全に抜き出す
+        json_text = re.search(r'```json\s*(\{.*?\})\s*```', ai_response.text, re.DOTALL)
+        if not json_text:
+            raise ValueError("AI did not return a valid JSON block.")
+        
+        extracted_data = json.loads(json_text.group(1))
+
+        # プロバイダー名を特定して追加
         provider = None
-        exams_found = []
+        if 'toshin' in url: provider = '東進'
+        elif 'sundai' in url: provider = '駿台'
+        elif 'kawai-juku' in url: provider = '河合塾'
         
-        # URLドメインを見て、どの専用ロジックを呼び出すか判断
-        if 'toshin-moshi.com' in url:
-            provider = '東進'
-            exams_found = _find_exam_links(soup, url, r'lineup/detail.php')
-        elif 'sundai.ac.jp' in url:
-            provider = '駿台'
-            exams_found = _find_exam_links(soup, url, r'/moshi/detail/')
-        elif 'kawai-juku.ac.jp' in url:
-            provider = '河合塾'
-            exams_found = _find_exam_links(soup, url, r'/moshi/zento/')
-        else:
-            return jsonify({'error': 'This site is not supported yet'}), 400
+        if not extracted_data.get('is_index'):
+            extracted_data['data']['provider'] = provider
 
-        # リンクが見つかったか（一覧ページか）、見つからなかったか（詳細ページか）で処理を分ける
-        if exams_found:
-            # 一覧ページの場合：候補リストを返す
-            result_data = {'is_index': True, 'exams_found': exams_found}
-        else:
-            # 詳細ページの場合：ページ内容を解析して返す
-            parsed_data = _parse_detail_page(soup)
-            parsed_data['provider'] = provider
-            result_data = {'is_index': False, 'data': parsed_data}
-
-        return jsonify({'success': True, **result_data})
+        return jsonify({'success': True, **extracted_data})
 
     except Exception as e:
+        print(f"Scraping/AI error: {e}")
         return jsonify({'error': str(e)}), 500
