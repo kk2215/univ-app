@@ -729,11 +729,12 @@ def delete_exam(exam_id):
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
 
-# app/routes.py の一番下に追加
+# app/routes.py の scrape_exam_url 関数
 
 import requests
 from bs4 import BeautifulSoup
 import re
+from datetime import datetime
 
 @bp.route('/api/scrape-exam-url', methods=['POST'])
 @login_required
@@ -747,26 +748,50 @@ def scrape_exam_url():
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status() # エラーがあれば例外を発生
-        
+        response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
+
+        # ページタイトルを模試名とする
+        name = soup.title.string.strip() if soup.title else ''
+
+        # 日付を抽出するための正規表現
+        date_pattern = re.compile(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日')
         
-        # ページタイトルから模試名を推測
-        title = soup.title.string if soup.title else ''
+        # キーワードの近くにある日付を探す
+        exam_date, app_start_date, app_end_date = None, None, None
         
-        # ページ内のテキストから日付を探す (YYYY年MM月DD日 形式)
-        text = soup.get_text()
-        dates = re.findall(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text)
+        keywords = {
+            'exam_date': ['実施日', '試験日'],
+            'app_start_date': ['申込開始', '受付開始'],
+            'app_end_date': ['申込締切', '受付締切', '締切日']
+        }
         
-        # 日付を "YYYY-MM-DD" 形式に変換
-        formatted_dates = [f"{y}-{m.zfill(2)}-{d.zfill(2)}" for y, m, d in dates]
+        # ページ全体から日付を見つける
+        all_dates = [datetime(int(y), int(m), int(d)).date() for y, m, d in date_pattern.findall(soup.get_text())]
         
+        # キーワードに基づいて日付を割り当てる（簡易的なロジック）
+        # より高度な解析も可能だが、まずは基本的なものから
+        if all_dates:
+            sorted_dates = sorted(list(set(all_dates)))
+            if len(sorted_dates) >= 3:
+                app_start_date = sorted_dates[0].isoformat()
+                app_end_date = sorted_dates[1].isoformat()
+                exam_date = sorted_dates[2].isoformat()
+            elif len(sorted_dates) == 2:
+                app_start_date = sorted_dates[0].isoformat()
+                exam_date = sorted_dates[1].isoformat()
+            elif len(sorted_dates) == 1:
+                exam_date = sorted_dates[0].isoformat()
+
         return jsonify({
             'success': True,
-            'title': title,
-            'dates': formatted_dates # 見つかった日付のリスト
+            'data': {
+                'name': name,
+                'exam_date': exam_date,
+                'app_start_date': app_start_date,
+                'app_end_date': app_end_date
+            }
         })
 
     except Exception as e:
-        print(f"Scraping error: {e}")
         return jsonify({'error': str(e)}), 500
