@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}模試情報管理{% endblock %}
+{% block content %}
+<article>
+    <hgroup>
+        <h1>模試情報管理</h1>
+        <a href="{{ url_for('main.new_exam') }}" role="button">新しい模試を追加</a>
+    </hgroup>
+    <table>
+        <thead>
+            <tr>
+                <th>提供元</th>
+                <th>模試名</th>
+                <th>実施日</th>
+                <th>申込締切</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exam in exams %}
+            <tr>
+                <td>{{ exam.provider }}</td>
+                <td>{{ exam.name }}</td>
+                <td>{{ exam.exam_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ exam.app_end_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <a href="{{ url_for('main.edit_exam', exam_id=exam.id) }}">編集</a>
+                    <form action="{{ url_for('main.delete_exam', exam_id=exam.id) }}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="display: inline;">
+                        <button type="submit" class="secondary outline" style="padding: 2px 8px; margin-left: 1rem;">削除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

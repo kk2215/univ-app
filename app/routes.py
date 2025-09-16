@@ -12,7 +12,16 @@ from flask_login import login_user, login_required, current_user
 from . import db
 # データベースモデルをインポートします
 from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam
+from functools import wraps
+from flask_login import current_user
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            abort(403) # 権限がない場合は403エラー
+        return f(*args, **kwargs)
+    return decorated_function
 
 bp = Blueprint('main', __name__)
 
@@ -665,3 +674,57 @@ def delete_mock_exam(exam_id):
         db.session.delete(exam)
         db.session.commit()
     return redirect(url_for('main.mock_exams', user_id=current_user.id))
+
+# --- 管理者専用ルート ---
+
+@bp.route('/admin/exams')
+@login_required
+@admin_required
+def admin_exams():
+    exams = db.session.query(OfficialMockExam).order_by(OfficialMockExam.exam_date.desc()).all()
+    return render_template('admin/admin_exams.html', exams=exams, user=current_user)
+
+@bp.route('/admin/exams/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_exam():
+    if request.method == 'POST':
+        # フォームからデータを受け取り、新しい模試を作成
+        new_exam = OfficialMockExam(
+            provider=request.form['provider'],
+            name=request.form['name'],
+            exam_date=date.fromisoformat(request.form['exam_date']),
+            app_start_date=date.fromisoformat(request.form['app_start_date']),
+            app_end_date=date.fromisoformat(request.form['app_end_date']),
+            url=request.form['url']
+        )
+        db.session.add(new_exam)
+        db.session.commit()
+        return redirect(url_for('main.admin_exams'))
+    return render_template('admin/admin_exam_form.html', user=current_user, exam=None)
+
+@bp.route('/admin/exams/<int:exam_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_exam(exam_id):
+    exam = db.session.query(OfficialMockExam).get_or_404(exam_id)
+    if request.method == 'POST':
+        # フォームからデータを受け取り、既存の模試を更新
+        exam.provider = request.form['provider']
+        exam.name = request.form['name']
+        exam.exam_date = date.fromisoformat(request.form['exam_date'])
+        exam.app_start_date = date.fromisoformat(request.form['app_start_date'])
+        exam.app_end_date = date.fromisoformat(request.form['app_end_date'])
+        exam.url = request.form['url']
+        db.session.commit()
+        return redirect(url_for('main.admin_exams'))
+    return render_template('admin/admin_exam_form.html', user=current_user, exam=exam)
+
+@bp.route('/admin/exams/<int:exam_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_exam(exam_id):
+    exam = db.session.query(OfficialMockExam).get_or_404(exam_id)
+    db.session.delete(exam)
+    db.session.commit()
+    return redirect(url_for('main.admin_exams'))

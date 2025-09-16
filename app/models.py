@@ -26,7 +26,8 @@ class User(db.Model, UserMixin):
     target_exam_date = db.Column(db.Date)
     learning_style = db.Column(db.String)
     subjects = db.relationship('Subject', secondary=user_subjects_table, back_populates='users')
-
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    
 class Subject(db.Model):
     __tablename__ = 'subjects'
     id = db.Column(db.Integer, primary_key=True)

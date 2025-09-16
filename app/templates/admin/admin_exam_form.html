@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{% if exam %}模試の編集{% else %}新しい模試の追加{% endif %}{% endblock %}
+{% block content %}
+<article>
+    <hgroup>
+        <h1>{% if exam %}模試の編集{% else %}新しい模試の追加{% endif %}</h1>
+    </hgroup>
+    <form method="post">
+        <label for="provider">提供元</label>
+        <input type="text" id="provider" name="provider" value="{{ exam.provider if exam else '' }}" required>
+
+        <label for="name">模試名</label>
+        <input type="text" id="name" name="name" value="{{ exam.name if exam else '' }}" required>
+
+        <div class="grid">
+            <label for="exam_date">実施日</label>
+            <label for="app_start_date">申込開始日</label>
+            <label for="app_end_date">申込締切日</label>
+        </div>
+        <div class="grid">
+            <input type="date" id="exam_date" name="exam_date" value="{{ exam.exam_date.strftime('%Y-%m-%d') if exam else '' }}" required>
+            <input type="date" id="app_start_date" name="app_start_date" value="{{ exam.app_start_date.strftime('%Y-%m-%d') if exam else '' }}" required>
+            <input type="date" id="app_end_date" name="app_end_date" value="{{ exam.app_end_date.strftime('%Y-%m-%d') if exam else '' }}" required>
+        </div>
+
+        <label for="url">公式サイトURL</label>
+        <input type="url" id="url" name="url" value="{{ exam.url if exam else '' }}" required>
+
+        <button type="submit">{% if exam %}更新する{% else %}追加する{% endif %}</button>
+    </form>
+</article>
+{% endblock %}
