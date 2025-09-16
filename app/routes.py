@@ -729,12 +729,55 @@ def delete_exam(exam_id):
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
 
-# app/routes.py の scrape_exam_url 関数
+# app/routes.py
 
 import requests
 from bs4 import BeautifulSoup
 import re
-from datetime import datetime
+from datetime import date
+
+# --- ヘルパー関数：サイトごとの専用解析ロジック ---
+
+def _scrape_toshin(soup):
+    """東進のサイトを解析する専用ロジック"""
+    data = {}
+    # 東進はタイトルが分かりやすいことが多い
+    if soup.title:
+        data['name'] = soup.title.string.strip().replace('｜大学受験の予備校・塾 東進', '')
+    # 「実施日」「申込締切」などのキーワードの隣にある日付を探す
+    text_content = soup.get_text()
+    
+    exam_date_match = re.search(r'実施日\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
+    if exam_date_match:
+        y, m, d = exam_date_match.groups()
+        data['exam_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+        
+    end_date_match = re.search(r'申込締切\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
+    if end_date_match:
+        y, m, d = end_date_match.groups()
+        data['app_end_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+        
+    return data
+
+def _scrape_sundai(soup):
+    """駿台のサイトを解析する専用ロジック"""
+    # 駿台はサイト構造が複雑なため、より丁寧な解析が必要 (これは一例)
+    data = {}
+    if soup.title:
+        data['name'] = soup.title.string.strip().replace('- 駿台予備学校', '')
+    # (ここに駿台のサイト構造に特化した解析ロジックを追加)
+    return data
+
+def _scrape_kawai(soup):
+    """河合塾のサイトを解析する専用ロジック"""
+    data = {}
+    # h1タグを模試名と仮定
+    h1 = soup.find('h1')
+    if h1:
+        data['name'] = h1.get_text(strip=True)
+    # (ここに河合塾のサイト構造に特化した解析ロジックを追加)
+    return data
+
 
 @bp.route('/api/scrape-exam-url', methods=['POST'])
 @login_required
@@ -750,47 +793,25 @@ def scrape_exam_url():
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-
-        # ページタイトルを模試名とする
-        name = soup.title.string.strip() if soup.title else ''
-
-        # 日付を抽出するための正規表現
-        date_pattern = re.compile(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日')
         
-        # キーワードの近くにある日付を探す
-        exam_date, app_start_date, app_end_date = None, None, None
-        
-        keywords = {
-            'exam_date': ['実施日', '試験日'],
-            'app_start_date': ['申込開始', '受付開始'],
-            'app_end_date': ['申込締切', '受付締切', '締切日']
-        }
-        
-        # ページ全体から日付を見つける
-        all_dates = [datetime(int(y), int(m), int(d)).date() for y, m, d in date_pattern.findall(soup.get_text())]
-        
-        # キーワードに基づいて日付を割り当てる（簡易的なロジック）
-        # より高度な解析も可能だが、まずは基本的なものから
-        if all_dates:
-            sorted_dates = sorted(list(set(all_dates)))
-            if len(sorted_dates) >= 3:
-                app_start_date = sorted_dates[0].isoformat()
-                app_end_date = sorted_dates[1].isoformat()
-                exam_date = sorted_dates[2].isoformat()
-            elif len(sorted_dates) == 2:
-                app_start_date = sorted_dates[0].isoformat()
-                exam_date = sorted_dates[1].isoformat()
-            elif len(sorted_dates) == 1:
-                exam_date = sorted_dates[0].isoformat()
+        extracted_data = {}
+        # URLに含まれるドメインを見て、どの専用ロジックを呼び出すか判断する
+        if 'toshin' in url:
+            extracted_data = _scrape_toshin(soup)
+            extracted_data['provider'] = '東進'
+        elif 'sundai' in url:
+            extracted_data = _scrape_sundai(soup)
+            extracted_data['provider'] = '駿台'
+        elif 'kawai-juku' in url:
+            extracted_data = _scrape_kawai(soup)
+            extracted_data['provider'] = '河合塾'
+        else:
+            # どのサイトにも当てはまらない場合の汎用ロジック
+            if soup.title: extracted_data['name'] = soup.title.string.strip()
 
         return jsonify({
             'success': True,
-            'data': {
-                'name': name,
-                'exam_date': exam_date,
-                'app_start_date': app_start_date,
-                'app_end_date': app_end_date
-            }
+            'data': extracted_data
         })
 
     except Exception as e:
