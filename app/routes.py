@@ -735,49 +735,40 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from datetime import date
+from urllib.parse import urljoin # URLを結合するために追加
 
-# --- ヘルパー関数：サイトごとの専用解析ロジック ---
-
-def _scrape_toshin(soup):
-    """東進のサイトを解析する専用ロジック"""
-    data = {}
-    # 東進はタイトルが分かりやすいことが多い
-    if soup.title:
-        data['name'] = soup.title.string.strip().replace('｜大学受験の予備校・塾 東進', '')
-    # 「実施日」「申込締切」などのキーワードの隣にある日付を探す
-    text_content = soup.get_text()
+# --- ヘルパー関数群 ---
+def _scrape_toshin(soup, url):
+    # 東進はページによって構造が大きく異なるため、まずはページ内のリンクを探す
+    exams_found = []
+    # aタグで、hrefに 'moshi' と 'detail' が含まれるものを探す
+    for a in soup.find_all('a', href=re.compile(r'moshi.*detail')):
+        name = a.get_text(strip=True)
+        link = a.get('href')
+        if name and link:
+            full_url = urljoin(url, link) # 相対URLを絶対URLに変換
+            exams_found.append({'name': name, 'url': full_url})
     
+    # もしリンクが見つかれば、それは一覧ページだと判断
+    if exams_found:
+        return {'is_index': True, 'exams_found': exams_found}
+    
+    # 詳細ページだった場合の解析ロジック（前回のものを流用）
+    data = {}
+    if soup.title: data['name'] = soup.title.string.strip().replace('｜大学受験の予備校・塾 東進', '')
+    text_content = soup.get_text()
     exam_date_match = re.search(r'実施日\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
     if exam_date_match:
         y, m, d = exam_date_match.groups()
         data['exam_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-        
     end_date_match = re.search(r'申込締切\s*[:：]?\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', text_content)
     if end_date_match:
         y, m, d = end_date_match.groups()
         data['app_end_date'] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-        
-    return data
+    return {'is_index': False, 'data': data}
 
-def _scrape_sundai(soup):
-    """駿台のサイトを解析する専用ロジック"""
-    # 駿台はサイト構造が複雑なため、より丁寧な解析が必要 (これは一例)
-    data = {}
-    if soup.title:
-        data['name'] = soup.title.string.strip().replace('- 駿台予備学校', '')
-    # (ここに駿台のサイト構造に特化した解析ロジックを追加)
-    return data
-
-def _scrape_kawai(soup):
-    """河合塾のサイトを解析する専用ロジック"""
-    data = {}
-    # h1タグを模試名と仮定
-    h1 = soup.find('h1')
-    if h1:
-        data['name'] = h1.get_text(strip=True)
-    # (ここに河合塾のサイト構造に特化した解析ロジックを追加)
-    return data
-
+# （_scrape_sundai, _scrape_kawai も同様に is_index を返すように拡張可能）
+# ...
 
 @bp.route('/api/scrape-exam-url', methods=['POST'])
 @login_required
@@ -785,8 +776,7 @@ def _scrape_kawai(soup):
 def scrape_exam_url():
     data = request.get_json()
     url = data.get('url')
-    if not url:
-        return jsonify({'error': 'URL is required'}), 400
+    if not url: return jsonify({'error': 'URL is required'}), 400
 
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
@@ -794,25 +784,23 @@ def scrape_exam_url():
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        extracted_data = {}
-        # URLに含まれるドメインを見て、どの専用ロジックを呼び出すか判断する
+        result_data = {}
+        provider = None
+        
         if 'toshin' in url:
-            extracted_data = _scrape_toshin(soup)
-            extracted_data['provider'] = '東進'
-        elif 'sundai' in url:
-            extracted_data = _scrape_sundai(soup)
-            extracted_data['provider'] = '駿台'
-        elif 'kawai-juku' in url:
-            extracted_data = _scrape_kawai(soup)
-            extracted_data['provider'] = '河合塾'
-        else:
-            # どのサイトにも当てはまらない場合の汎用ロジック
-            if soup.title: extracted_data['name'] = soup.title.string.strip()
+            result_data = _scrape_toshin(soup, url)
+            provider = '東進'
+        # 他のプロバイダー用の分岐もここに追加
+        # elif 'sundai' in url: ...
 
-        return jsonify({
-            'success': True,
-            'data': extracted_data
-        })
+        else: # どのサイトにも当てはまらない場合
+            return jsonify({'error': 'This site is not supported yet'}), 400
+        
+        # プロバイダー名を結果に追加
+        if 'data' in result_data:
+            result_data['data']['provider'] = provider
+
+        return jsonify({'success': True, **result_data})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
