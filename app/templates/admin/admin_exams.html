@@ -4,55 +4,112 @@
 <article>
     <hgroup>
         <h1>模試情報管理</h1>
-        <a href="{{ url_for('main.new_exam') }}" role="button">新しい模試を追加</a>
+        <a href="{{ url_for('main.new_exam') }}" role="button" class="secondary outline">手動で模試を追加</a>
     </hgroup>
-    <p>以下のボタンを押すと、各サイトから最新の模試情報を自動で取得・登録します。</p>
+
+    <p>以下のボタンを押すと、AIが各サイトをスキャンし、模試の候補をリストアップします。</p>
     <div class="grid">
-        <form action="{{ url_for('main.import_exams', provider='kawai') }}" method="post" style="margin: 0;">
-             <button type="submit" class="secondary outline" aria-busy="false">河合塾の模試を取得</button>
-        </form>
-        <form action="{{ url_for('main.import_exams', provider='sundai') }}" method="post" style="margin: 0;">
-             <button type="submit" class="secondary outline" aria-busy="false">駿台の模試を取得</button>
-        </form>
-        <form action="{{ url_for('main.import_exams', provider='toshin') }}" method="post" style="margin: 0;">
-             <button type="submit" class="secondary outline" aria-busy="false">東進の模試を取得</button>
-        </form>
+        <button class="scan-btn" data-provider="kawai">河合塾をスキャン</button>
+        <button class="scan-btn" data-provider="sundai">駿台をスキャン</button>
+        <button class="scan-btn" data-provider="toshin">東進をスキャン</button>
     </div>
+
+    <div id="scan-results-container" style="margin-top: 2rem;"></div>
+
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         <div class="flash-messages">
           {% for message in messages %}
-            <p>{{ message }}</p>
+            <p><strong>{{ message }}</strong></p>
           {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
+
+    <h3 style="margin-top: 2rem;">登録済み模試一覧</h3>
     <table>
         <thead>
             <tr>
-                <th>提供元</th>
-                <th>模試名</th>
-                <th>実施日</th>
-                <th>申込締切</th>
-                <th>操作</th>
+                <th>提供元</th><th>模試名</th><th>実施日</th><th>申込締切</th><th>操作</th>
             </tr>
         </thead>
         <tbody>
             {% for exam in exams %}
             <tr>
                 <td>{{ exam.provider }}</td>
-                <td>{{ exam.name }}</td>
-                <td>{{ exam.exam_date.strftime('%Y-%m-%d') }}</td>
-                <td>{{ exam.app_end_date.strftime('%Y-%m-%d') }}</td>
+                <td><a href="{{ exam.url }}" target="_blank">{{ exam.name }}</a></td>
+                <td>{{ exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else '' }}</td>
+                <td>{{ exam.app_end_date.strftime('%Y-%m-%d') if exam.app_end_date else '' }}</td>
                 <td>
                     <a href="{{ url_for('main.edit_exam', exam_id=exam.id) }}">編集</a>
-                    <form action="{{ url_for('main.delete_exam', exam_id=exam.id) }}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="display: inline;">
-                        <button type="submit" class="secondary outline" style="padding: 2px 8px; margin-left: 1rem;">削除</button>
-                    </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </article>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const scanButtons = document.querySelectorAll('.scan-btn');
+    const resultsContainer = document.getElementById('scan-results-container');
+
+    scanButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const provider = e.target.dataset.provider;
+            
+            // 全てのボタンをローディング状態にする
+            scanButtons.forEach(btn => {
+                btn.setAttribute('aria-busy', 'true');
+                btn.disabled = true;
+            });
+            resultsContainer.innerHTML = '<p>AIが候補を探しています...（最大1分ほどかかる場合があります）</p>';
+
+            try {
+                const response = await fetch(`/admin/import/${provider}/scan`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.candidates && data.candidates.length > 0) {
+                    displayCandidatesForm(data.candidates, provider);
+                } else {
+                    resultsContainer.innerHTML = '<p>候補が見つかりませんでした。</p>';
+                }
+
+            } catch (error) {
+                resultsContainer.innerHTML = '<p>エラーが発生しました。</p>';
+                console.error('Scan failed:', error);
+            } finally {
+                // ローディング状態を解除
+                scanButtons.forEach(btn => {
+                    btn.removeAttribute('aria-busy');
+                    btn.disabled = false;
+                });
+            }
+        });
+    });
+
+    function displayCandidatesForm(candidates, provider) {
+        let formHTML = `
+            <form action="/admin/import/${provider}/execute" method="post">
+                <h4>候補リスト</h4>
+                <p>データベースに登録したい模試にチェックを入れてください。</p>
+                <fieldset>
+        `;
+        candidates.forEach((candidate, index) => {
+            formHTML += `
+                <label for="exam_${index}">
+                    <input type="checkbox" id="exam_${index}" name="exam_urls" value="${candidate.url}" checked>
+                    ${candidate.name}
+                </label>
+            `;
+        });
+        formHTML += `
+                </fieldset>
+                <button type="submit">選択した模試をインポート</button>
+            </form>
+        `;
+        resultsContainer.innerHTML = formHTML;
+    }
+});
+</script>
 {% endblock %}
