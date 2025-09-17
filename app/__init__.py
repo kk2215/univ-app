@@ -1,22 +1,17 @@
-# app/__init__.py
-
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 
-# 最初に拡張機能のインスタンスを作成します
+# 拡張機能のインスタンス化
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 login_manager.login_view = 'main.login'
 
 
-# app/__init__.py の create_app 関数
-
 def create_app():
-    print("--- 1. create_app() が呼び出されました ---")
     app = Flask(__name__, instance_relative_config=True)
     
     app.config.from_mapping(
@@ -25,10 +20,8 @@ def create_app():
         SQLALCHEMY_TRACK_MODIFICATIONS=False
     )
 
-    print("--- 2. db.init_app(app) を呼び出します ---")
+    # 拡張機能をアプリケーションに連携
     db.init_app(app)
-    print("--- 3. db.init_app(app) が完了しました ---")
-    
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
@@ -36,22 +29,27 @@ def create_app():
         from . import routes
         from . import models
 
+        # ユーザーローダーの登録
         @login_manager.user_loader
         def load_user(user_id):
-        # db.session.query() を使うことで、正しく初期化されたdbインスタンスを参照します
-         return db.session.query(models.User).get(int(user_id))
+            return db.session.query(models.User).get(int(user_id))
 
+        # Blueprintの登録
         app.register_blueprint(routes.bp)
 
+        # ビルドを確実にするための統一コマンドを登録
+        from flask_migrate import upgrade
         from seed_db import seed_database
         
-        print("--- 4. seed-db コマンドを登録します ---")
-        @app.cli.command('seed-db')
-        def seed_db_command():
-            """データベースに初期データを投入します。"""
-            print("--- 6. seed_db_command が実行されました ---")
+        @app.cli.command('setup-db')
+        def setup_db_command():
+            """データベースのテーブル作成と初期データの投入を両方行います。"""
+            print("--- Running database upgrade... ---")
+            upgrade()
+            print("--- Database upgrade finished. ---")
+            
+            print("--- Seeding database... ---")
             seed_database(db)
-            print('データベースの初期化が完了しました。')
+            print("--- Database seeding finished. ---")
 
-    print("--- 5. create_app() が完了します ---")
     return app
