@@ -57,6 +57,7 @@ class Book(db.Model):
     youtube_query = db.Column(db.String)
     duration_weeks = db.Column(db.Integer, nullable=False, default=1)
     task_type = db.Column(db.String, nullable=False, default='sequential')
+    url = db.Column(db.String(255), nullable=True)
 
 class Route(db.Model):
     __tablename__ = 'routes'

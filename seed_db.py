@@ -42,9 +42,9 @@ def seed_database(db):
     print("学部データを登録しました。")
 
     # --- 4. 参考書マスターデータ ---
-    for task_id, title, desc, yt, weeks, type in books_to_seed:
+    for task_id, title, desc, yt, weeks, type, url in books_to_seed:
         if not db.session.query(Book).filter_by(task_id=task_id).first():
-            db.session.add(Book(task_id=task_id, title=title, description=desc, youtube_query=yt, duration_weeks=weeks, task_type=type))
+            db.session.add(Book(task_id=task_id, title=title, description=desc, youtube_query=yt, duration_weeks=weeks, task_type=type, url=url))
     db.session.commit()
     print("参考書を登録しました。")
 

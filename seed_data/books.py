@@ -187,4 +187,14 @@ books_to_seed = [
     ('level_check_nittokomasen_geo_sci', '日東駒専レベル 突破テスト（地学）', '過去問サイトでこのレベルの大学の過去問を解き、7割以上正解できればクリアです。', '日東駒専 過去問', 1, 'sequential'),
     ('level_check_march_geo_sci', 'MARCH・関関同立レベル 突破テスト（地学）', '過去問サイトでこのレベルの大学の過去問を解き、7割以上正解できればクリアです。', 'MARCH 過去問', 1, 'sequential'),
     ('level_check_sokei_geo_sci', '早慶レベル 突破テスト（地学）', '過去問サイトでこのレベルの大学の過去問を解き、7割以上正解できればクリアです。', '早慶 過去問', 1, 'sequential'),
+    # 河合塾
+    ('moshi_kawai_zentou_kyotsu', '全統共通テスト模試', '河合塾の主要な共通テスト模試', '', 0, 'exam', 'https://www.kawai-juku.ac.jp/moshi/zento/kyotsu/'),
+    ('moshi_kawai_zentou_kijutsu', '全統記述模試', '河合塾の主要な記述模試', '', 0, 'exam', 'https://www.kawai-juku.ac.jp/moshi/zento/kijutsu/'),
+
+    # 駿台
+    ('moshi_sundai_atama', '駿台atama＋共通テスト模試', '駿台の主要な共通テスト模試', '', 0, 'exam', 'https://www.sundai.ac.jp/moshi/common/'),
+    ('moshi_sundai_zenkoku', '駿台全国模試', '駿台のハイレベル記述模試', '', 0, 'exam', 'https://www.sundai.ac.jp/moshi/high-level/'),
+
+    # 東進
+    ('moshi_toshin_zenkoku', '全国統一高校生テスト', '東進の全国統一模試', '', 0, 'exam', 'https://www.toshin.com/moshi/zenkoku/'),
 ]
