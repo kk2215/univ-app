@@ -134,12 +134,13 @@ class MockExam(db.Model):
     
 class OfficialMockExam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    provider = db.Column(db.String(50), nullable=False)  # 例: '河合塾', '駿台', '東進'
-    name = db.Column(db.String(150), nullable=False) # 例: '第1回 全統共通テスト模試'
-    exam_date = db.Column(db.Date, nullable=False) # 模試の実施日
-    app_start_date = db.Column(db.Date, nullable=False) # 申込開始日
-    app_end_date = db.Column(db.Date, nullable=False) # 申込締切日
-    url = db.Column(db.String(255), nullable=False) # 申込ページのURL
-
-    def __repr__(self):
-        return f'<OfficialMockExam {self.name}>'    
+    provider = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(150), nullable=False)
+    exam_date = db.Column(db.Date, nullable=False)
+    # ▼▼▼ nullable=False を True に変更 ▼▼▼
+    app_start_date = db.Column(db.Date, nullable=True) 
+    app_end_date = db.Column(db.Date, nullable=True)
+    # ▲▲▲ ここまで ▲▲▲
+    url = db.Column(db.String(255), nullable=False)
+    # ▼▼▼ この一行を追加 ▼▼▼
+    target_grade = db.Column(db.String(50)) # 例: "高3・卒", "高1・2", "全学年"
