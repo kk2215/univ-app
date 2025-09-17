@@ -757,16 +757,22 @@ from urllib.parse import urljoin
 import ssl
 from requests.adapters import HTTPAdapter
 from urllib3 import PoolManager
+from urllib3.util.ssl_ import create_urllib3_context
 
 # --- 共通ヘルパー (変更なし) ---
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context = create_urllib3_context()
         ssl_context.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
         self.poolmanager = PoolManager(
             ssl_context=ssl_context, num_pools=connections, maxsize=maxsize,
             block=block, **pool_kwargs)
 
+def _get_legacy_session():
+    """古いSSLリネゴシエーションを許可するrequests.Sessionオブジェクトを作成する"""
+    session = requests.Session()
+    session.mount("https://", LegacySSLAdapter())
+    return session
 # --- AIの役割定義 (思考ルーチンを強化) ---
 
 def _is_link_a_mock_exam(link_text: str, link_url: str) -> bool:
