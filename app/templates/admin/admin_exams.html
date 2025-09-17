@@ -4,17 +4,14 @@
 <article>
     <hgroup>
         <h1>模試情報管理</h1>
-        <a href="{{ url_for('main.new_exam') }}" role="button" class="secondary outline">手動で模試を追加</a>
-    </hgroup>
+        </hgroup>
 
-    <p>以下のボタンを押すと、AIが各サイトをスキャンし、模試の候補をリストアップします。</p>
+    <p>追加したい模試の提供元を選んでください。テンプレートが入力されたフォームが開きます。</p>
     <div class="grid">
-        <button class="scan-btn" data-provider="kawai">河合塾をスキャン</button>
-        <button class="scan-btn" data-provider="sundai">駿台をスキャン</button>
-        <button class="scan-btn" data-provider="toshin">東進をスキャン</button>
+        <a href="{{ url_for('main.new_exam', provider='河合塾') }}" role="button">河合塾の模試を追加</a>
+        <a href="{{ url_for('main.new_exam', provider='駿台') }}" role="button">駿台の模試を追加</a>
+        <a href="{{ url_for('main.new_exam', provider='東進') }}" role="button">東進の模試を追加</a>
     </div>
-
-    <div id="scan-results-container" style="margin-top: 2rem;"></div>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -37,102 +34,20 @@
             {% for exam in exams %}
             <tr>
                 <td>{{ exam.provider }}</td>
-                <td><a href="{{ exam.url }}" target="_blank">{{ exam.name }}</a></td>
+                <td><a href="{{ exam.url }}" target="_blank" rel="noopener noreferrer">{{ exam.name }}</a></td>
                 <td>{{ exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else '' }}</td>
                 <td>{{ exam.app_end_date.strftime('%Y-%m-%d') if exam.app_end_date else '' }}</td>
                 <td>
-                    <a href="{{ url_for('main.edit_exam', exam_id=exam.id) }}">編集</a>
+                    <div class="grid" style="margin-bottom: 0;">
+                        <a href="{{ url_for('main.edit_exam', exam_id=exam.id) }}" role="button" class="secondary" style="margin-bottom: 0;">編集</a>
+                        <form action="{{ url_for('main.delete_exam', exam_id=exam.id) }}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="margin: 0;">
+                            <button type="submit" class="secondary outline" style="margin-bottom: 0;">削除</button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </article>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const scanButtons = document.querySelectorAll('.scan-btn');
-    const resultsContainer = document.getElementById('scan-results-container');
-
-    scanButtons.forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const provider = e.target.dataset.provider;
-            
-            scanButtons.forEach(btn => { btn.setAttribute('aria-busy', 'true'); btn.disabled = true; });
-            resultsContainer.innerHTML = '<p>ステップ1/2: ページ内のリンクを収集中...</p>';
-
-            try {
-                // ステップ1: まず全リンクを高速で取得
-                const scanResponse = await fetch(`/admin/scan-links/${provider}`, { method: 'POST' });
-                const scanData = await scanResponse.json();
-
-                if (scanData.candidates && scanData.candidates.length > 0) {
-                    resultsContainer.innerHTML = `<p>ステップ2/2: ${scanData.candidates.length}件の候補をAIが鑑定中...</p><div id="verified-list"></div>`;
-                    const verifiedListDiv = document.getElementById('verified-list');
-                    let verifiedExams = [];
-
-                    // ステップ2: リンクを一つずつAIに問い合わせ
-                    for (const candidate of scanData.candidates) {
-                        const classifyResponse = await fetch('/api/classify-link', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(candidate)
-                        });
-                        const classifyData = await classifyResponse.json();
-                        
-                        // AIが「模試だ」と判断したら、画面にリアルタイムで追加
-                        if (classifyData.is_exam) {
-                            verifiedExams.push(classifyData);
-                            const p = document.createElement('p');
-                            p.textContent = `✅ ${classifyData.name}`;
-                            verifiedListDiv.appendChild(p);
-                        }
-                    }
-                    
-                    // 最終的なフォームを表示
-                    displayCandidatesForm(verifiedExams, provider);
-
-                } else {
-                    resultsContainer.innerHTML = '<p>候補が見つかりませんでした。</p>';
-                }
-
-            } catch (error) {
-                resultsContainer.innerHTML = '<p>エラーが発生しました。</p>';
-                console.error('Scan failed:', error);
-            } finally {
-                scanButtons.forEach(btn => { btn.removeAttribute('aria-busy'); btn.disabled = false; });
-            }
-        });
-    });
-
-    function displayCandidatesForm(candidates, provider) {
-        if (candidates.length === 0) {
-            resultsContainer.innerHTML += '<p>AIが鑑定した結果、登録可能な模試はありませんでした。</p>';
-            return;
-        }
-        let formHTML = `
-            <form action="/admin/import/${provider}/execute" method="post">
-                <h4>AIが発見した模試リスト</h4>
-                <p>データベースに登録したい模試にチェックを入れてください。</p>
-                <fieldset>
-        `;
-        candidates.forEach((candidate, index) => {
-            formHTML += `
-                <label for="exam_${index}">
-                    <input type="checkbox" id="exam_${index}" name="exam_urls" value="${candidate.url}" checked>
-                    ${candidate.name}
-                </label>
-            `;
-        });
-        formHTML += `
-                </fieldset>
-                <button type="submit">選択した模試をインポート</button>
-            </form>
-        `;
-        // 鑑定中メッセージをフォームに置き換え
-        const container = document.getElementById('scan-results-container');
-        container.innerHTML = formHTML;
-    }
-});
-</script>
 {% endblock %}

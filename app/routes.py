@@ -715,7 +715,23 @@ def new_exam():
         db.session.add(new_exam)
         db.session.commit()
         return redirect(url_for('main.admin_exams'))
-    return render_template('admin/admin_exam_form.html', user=current_user, exam=None)
+    
+    # ▼▼▼ GETリクエスト時にテンプレートを生成するロジックを追加 ▼▼▼
+    provider = request.args.get('provider')
+    exam_template = None
+    if provider:
+        provider_urls = {
+            '河合塾': 'https://www.kawai-juku.ac.jp/moshi/',
+            '駿台': 'https://www.sundai.ac.jp/moshi/',
+            '東進': 'https://www.toshin-moshi.com/'
+        }
+        exam_template = OfficialMockExam(
+            provider=provider,
+            name=f"【{provider}】第X回 〇〇模試",
+            url=provider_urls.get(provider, '')
+        )
+    return render_template('admin/admin_exam_form.html', user=current_user, exam=exam_template)
+
 
 @bp.route('/admin/exams/<int:exam_id>/edit', methods=['GET', 'POST'])
 @login_required
