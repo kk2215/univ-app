@@ -755,38 +755,32 @@ from datetime import date
 from urllib.parse import urljoin
 import ssl
 from requests.adapters import HTTPAdapter
-from urllib3.util.ssl_ import create_urllib3_context
+from urllib3 import PoolManager
 
-# --- SSL通信のカスタム設定 ---
-class CustomHttpAdapter(HTTPAdapter):
-    def __init__(self, ssl_context=None, **kwargs):
-        self.ssl_context = ssl_context
-        super().__init__(**kwargs)
-    def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = self.poolmanager_class(num_pools=connections, maxsize=maxsize, block=block, ssl_context=self.ssl_context)
-
-def _get_legacy_session():
-    """古いSSLリネゴシエーションを許可するrequests.Sessionオブジェクトを作成する"""
-    ctx = create_urllib3_context()
-    ctx.load_default_certs()
-    ctx.options |= 0x4  # OP_LEGACY_SERVER_CONNECT
-    session = requests.Session()
-    session.mount('https://', CustomHttpAdapter(ctx))
-    return session
+# ▼▼▼ SSL通信のカスタム設定（よりシンプルで確実なバージョン）▼▼▼
+class LegacySSLAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        # 古いサーバーとの接続を許可するオプション
+        ssl_context.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
+        self.poolmanager = PoolManager(
+            ssl_context=ssl_context,
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            **pool_kwargs
+        )
 
 # --- 統一されたAIスクレイパー関数 ---
 def _call_ai_scraper(url: str):
-    """
-    指定されたURLに安全に接続し、Gemini AIを使って模試情報を抽出する統一関数。
-    一覧ページか詳細ページかをAIが判断し、適切な形式で返す。
-    """
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set on server")
     genai.configure(api_key=api_key)
 
     # 安全な接続セッションを作成
-    session = _get_legacy_session()
+    session = requests.Session()
+    session.mount("https://", LegacySSLAdapter())
     response = session.get(url, timeout=15)
     response.raise_for_status()
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -832,18 +826,15 @@ def import_exams(provider):
         return redirect(url_for('main.admin_exams'))
 
     try:
-        # 1. AIで一覧ページを解析させ、個別の模試リンクを取得
         index_result = _call_ai_scraper(index_url)
         if not index_result.get('is_index') or not index_result.get('exams_found'):
             flash('一覧ページから模試のリンクを見つけられませんでした。')
             return redirect(url_for('main.admin_exams'))
 
         added_count = 0
-        # 2. 見つけたリンクを一つずつAIに再度解析させ、データベースに登録
         for exam in index_result['exams_found']:
             exam_url = exam['url']
             if not db.session.query(OfficialMockExam).filter_by(url=exam_url).first():
-                # 詳細ページの情報をAIで抽出
                 detail_result = _call_ai_scraper(exam_url)
                 if not detail_result.get('is_index') and detail_result.get('data'):
                     exam_data = detail_result['data']
