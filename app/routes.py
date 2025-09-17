@@ -824,31 +824,57 @@ def _extract_exam_details_with_ai(url: str, provider: str):
 
 # --- 管理者用ルート (重複チェックロジックを強化) ---
 
+# app/routes.py
+
 @bp.route('/admin/scan-links/<provider>', methods=['POST'])
 @login_required
 @admin_required
 def scan_links_for_provider(provider):
-    provider_urls = { 'toshin': 'https://www.toshin-moshi.com/lineup/', 'sundai': 'https://www.sundai.ac.jp/moshi/', 'kawai': 'https://www.kawai-juku.ac.jp/moshi/' }
+    """【探偵＆鑑定士】AIへの問い合わせを１回に減らした効率的なバージョン"""
+    provider_urls = {
+        'toshin': 'https://www.toshin-moshi.com/lineup/',
+        'sundai': 'https://www.sundai.ac.jp/moshi/',
+        'kawai': 'https://www.kawai-juku.ac.jp/moshi/'
+    }
     index_url = provider_urls.get(provider)
     if not index_url: return jsonify({'error': 'Invalid provider'}), 400
 
     try:
-        session = requests.Session()
-        session.mount("https://", LegacySSLAdapter())
+        session = _get_legacy_session()
         response = session.get(index_url, timeout=15)
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        candidate_links = []
-        for a in soup.find_all('a', href=True):
-            link_text = a.get_text(strip=True)
-            link_url = a['href']
-            if link_text and len(link_text) > 5 and (link_url.startswith('/') or link_url.startswith('http')):
-                full_url = urljoin(index_url, link_url)
-                if _is_link_a_mock_exam(link_text, full_url):
-                    candidate_links.append({'name': link_text, 'url': full_url})
+        # 探偵：ページ内の全てのリンクをテキストとして収集
+        all_links_text = "\n".join([
+            f"テキスト: \"{a.get_text(strip=True)}\", URL: \"{urljoin(index_url, a['href'])}\"" 
+            for a in soup.find_all('a', href=True) 
+            if a.get_text(strip=True) and len(a.get_text(strip=True)) > 5
+        ])
+
+        # 鑑定士：収集した全リンク情報を一度にAIに渡して鑑定させる
+        api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key: raise ValueError("GEMINI_API_KEY is not set")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        unique_links = list({v['url']: v for v in candidate_links}.values())
-        return jsonify({'candidates': unique_links})
+        prompt = f"""
+        あなたは、HTMLリンクのリストから大学受験の模試に関連するものだけをフィルタリングするエキスパートです。
+        以下のリンク情報リストから、個別の模試の詳細・申込ページへのリンクと思われるものだけを抽出してください。
+        一般的な案内ページ（「模試とは」「お申し込み方法」など）や無関係なものは除外してください。
+        結果はJSON形式のリスト [{"name": "模試の名称", "url": "完全なURL"}] で返してください。
+
+        リンク情報リスト：
+        {all_links_text}
+        """
+        
+        ai_response = model.generate_content(prompt, request_options={'timeout': 50})
+        json_text_match = re.search(r'```json\s*(\[.*?\])\s*```', ai_response.text, re.DOTALL)
+        if not json_text_match:
+            return jsonify({'candidates': []})
+        
+        candidates = json.loads(json_text_match.group(1))
+        return jsonify({'candidates': candidates})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
