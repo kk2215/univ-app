@@ -6,11 +6,27 @@
         <h1>模試情報管理</h1>
         <a href="{{ url_for('main.new_exam') }}" role="button">新しい模試を追加</a>
     </hgroup>
-    <div class="grid" style="margin-bottom: 1rem;">
-        <a href="https://www.kawai-juku.ac.jp/moshi/" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">河合塾</a>
-        <a href="https://www.sundai.ac.jp/moshi/" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">駿台</a>
-        <a href="https://www.toshin-moshi.com/" target="_blank" rel="noopener noreferrer" role="button" class="secondary outline">東進</a>
+    <p>以下のボタンを押すと、各サイトから最新の模試情報を自動で取得・登録します。</p>
+    <div class="grid">
+        <form action="{{ url_for('main.import_exams', provider='kawai') }}" method="post" style="margin: 0;">
+             <button type="submit" class="secondary outline" aria-busy="false">河合塾の模試を取得</button>
+        </form>
+        <form action="{{ url_for('main.import_exams', provider='sundai') }}" method="post" style="margin: 0;">
+             <button type="submit" class="secondary outline" aria-busy="false">駿台の模試を取得</button>
+        </form>
+        <form action="{{ url_for('main.import_exams', provider='toshin') }}" method="post" style="margin: 0;">
+             <button type="submit" class="secondary outline" aria-busy="false">東進の模試を取得</button>
+        </form>
     </div>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     <table>
         <thead>
             <tr>
