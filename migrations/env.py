@@ -2,7 +2,6 @@ from logging.config import fileConfig
 
 from flask import current_app
 from alembic import context
-from sqlalchemy import engine_from_config, pool
 
 # Alembic Configオブジェクト。iniファイルへのアクセスを提供します。
 config = context.config
