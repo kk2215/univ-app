@@ -743,201 +743,122 @@ def delete_exam(exam_id):
     db.session.commit()
     return redirect(url_for('main.admin_exams'))
 
-# app/routes.py の一番下に追加
+# app/routes.py の一番下
 
 import requests
 from bs4 import BeautifulSoup
 import os
 import google.generativeai as genai
 import json
+import re
+from datetime import date
 from urllib.parse import urljoin
+import ssl
+from requests.adapters import HTTPAdapter
+from urllib3.util.ssl_ import create_urllib3_context
 
-@bp.route('/api/scrape-exam-url', methods=['POST'])
-@login_required
-@admin_required
-def scrape_exam_url():
+# --- SSL通信のカスタム設定 ---
+class CustomHttpAdapter(HTTPAdapter):
+    def __init__(self, ssl_context=None, **kwargs):
+        self.ssl_context = ssl_context
+        super().__init__(**kwargs)
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = self.poolmanager_class(num_pools=connections, maxsize=maxsize, block=block, ssl_context=self.ssl_context)
+
+def _get_legacy_session():
+    """古いSSLリネゴシエーションを許可するrequests.Sessionオブジェクトを作成する"""
+    ctx = create_urllib3_context()
+    ctx.load_default_certs()
+    ctx.options |= 0x4  # OP_LEGACY_SERVER_CONNECT
+    session = requests.Session()
+    session.mount('https://', CustomHttpAdapter(ctx))
+    return session
+
+# --- 統一されたAIスクレイパー関数 ---
+def _call_ai_scraper(url: str):
     """
-    URLを受け取り、Gemini AIを使って模試情報を抽出するAPI。
+    指定されたURLに安全に接続し、Gemini AIを使って模試情報を抽出する統一関数。
     一覧ページか詳細ページかをAIが判断し、適切な形式で返す。
     """
-    # 1. APIキーを環境変数から読み込む
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
-        return jsonify({'error': 'GEMINI_API_KEY is not set on server'}), 500
+        raise ValueError("GEMINI_API_KEY is not set on server")
     genai.configure(api_key=api_key)
 
-    data = request.get_json()
-    url = data.get('url')
-    if not url:
-        return jsonify({'error': 'URL is required'}), 400
+    # 安全な接続セッションを作成
+    session = _get_legacy_session()
+    response = session.get(url, timeout=15)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.content, 'html.parser')
+    page_text = ' '.join(soup.get_text().split())[:8000]
 
-    try:
-        # 2. Webページの内容を取得
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-        # テキストを抽出し、余分な空白を削除して短縮
-        page_text = ' '.join(soup.get_text().split())[:8000]
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    prompt = f"""
+    あなたは、Webページから日本の大学受験の模試情報を抽出するエキスパートです。
+    以下のテキストは「{url}」から取得したものです。
 
-        # 3. AIモデルに情報を抽出させるための指示（プロンプト）を作成
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"""
-        あなたは、Webページから日本の大学受験の模試情報を抽出するエキスパートです。
-        以下のテキストは「{url}」から取得したものです。
+    手順：
+    1. まず、このページが「複数の模試がリストされている一覧ページ」か「単一の模試の詳細ページ」かを判断してください。
+    2. もし「一覧ページ」なら、ページ内にある全ての模試の名称(name)と、その詳細ページへの完全なURL(url)をリストアップしてください。URLは元のページのURLと結合して完全なものにしてください。
+    3. もし「詳細ページ」なら、その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)、そして【対象学年(target_grade)】（例：「高3・卒」「高2」「全学年」など）を抽出してください。
+    4. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
+    5. 結果を必ずJSON形式で返してください。一覧ページの場合は {{"is_index": true, "exams_found": [{{"name": ..., "url": ...}}]}} の形式で、詳細ページの場合は {{"is_index": false, "data": {{"name": ..., "target_grade": ...}}}} の形式で返してください。
 
-        手順：
-        1. まず、このページが「複数の模試がリストされている一覧ページ」か「単一の模試の詳細ページ」かを判断してください。
-        2. もし「一覧ページ」なら、ページ内にある全ての模試の名称(name)と、その詳細ページへの完全なURL(url)をリストアップしてください。URLは元のページのURLと結合して完全なものにしてください。
-        3. もし「詳細ページ」なら、その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)を抽出してください。
-        4. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
-        5. 結果を必ずJSON形式で返してください。一覧ページの場合は {{"is_index": true, "exams_found": [{{"name": ..., "url": ...}}]}} の形式で、詳細ページの場合は {{"is_index": false, "data": {{"name": ..., "exam_date": ...}}}} の形式で返してください。
-
-        テキスト：
-        {page_text}
-        """
-        
-        # 4. AIを実行し、回答を整形して返す
-        ai_response = model.generate_content(prompt)
-        # AIの回答からJSON部分だけを安全に抜き出す
-        json_text = re.search(r'```json\s*(\{.*?\})\s*```', ai_response.text, re.DOTALL)
-        if not json_text:
-            raise ValueError("AI did not return a valid JSON block.")
-        
-        extracted_data = json.loads(json_text.group(1))
-
-        # プロバイダー名を特定して追加
-        provider = None
-        if 'toshin' in url: provider = '東進'
-        elif 'sundai' in url: provider = '駿台'
-        elif 'kawai-juku' in url: provider = '河合塾'
-        
-        if not extracted_data.get('is_index'):
-            extracted_data['data']['provider'] = provider
-
-        return jsonify({'success': True, **extracted_data})
-
-    except Exception as e:
-        print(f"Scraping/AI error: {e}")
-        return jsonify({'error': str(e)}), 500
+    テキスト：
+    {page_text}
+    """
     
-# app/routes.py の一番下に追加
-def _find_exam_links(soup, base_url, pattern):
-    """一覧ページから正規表現パターンに一致する模試へのリンクを探す共通ロジック"""
-    exams_found = []
-    for a_tag in soup.find_all('a', href=True):
-        # リンクのテキストが5文字以上ある осн.なリンクのみを対象とする
-        name = a_tag.get_text(strip=True)
-        if name and len(name) > 5:
-            link = a_tag.get('href')
-            # パターンが指定されていればチェック、なければ全てのリンクを候補とする
-            if pattern == r'.*' or re.search(pattern, link):
-                full_url = urljoin(base_url, link)
-                exams_found.append({'name': name, 'url': full_url})
+    ai_response = model.generate_content(prompt)
+    json_text_match = re.search(r'```json\s*(\{.*?\})\s*```', ai_response.text, re.DOTALL)
+    if not json_text_match:
+        raise ValueError("AI did not return a valid JSON block.")
     
-    # URLの重複を削除して返す
-    return list({v['url']: v for v in exams_found}.values())
+    return json.loads(json_text_match.group(1))
 
-def _scrape_with_gemini(soup, url):
-    """Gemini AIにWebページを解析させ、詳細情報を抽出させる関数"""
-    try:
-        api_key = os.environ.get('GEMINI_API_KEY')
-        if not api_key:
-            return {'error': 'GEMINI_API_KEY is not set'}
-        genai.configure(api_key=api_key)
 
-        page_text = ' '.join(soup.get_text().split())
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        あなたは、Webページから日本の大学受験の模試情報を抽出するエキスパートです。
-        以下のテキストは「{url}」から取得したものです。
-
-        手順：
-        1. このページが「複数の模試がリストされている一覧ページ」か「単一の模試の詳細ページ」かを判断してください。
-        2. もし「一覧ページ」なら、ページ内にある全ての模試の名称(name)と、その詳細ページへの完全なURL(url)をリストアップしてください。
-        3. もし「詳細ページ」なら、その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)、そして【対象学年(target_grade)】（例：「高3・卒」「高2」「全学年」など）を抽出してください。
-        4. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
-        5. 結果を必ずJSON形式で返してください。一覧ページの場合は {{"is_index": true, "exams_found": [...]}} の形式で、詳細ページの場合は {{"is_index": false, "data": {{"name": ..., "target_grade": ...}}}} の形式で返してください。
-
-        テキスト：
-        {page_text[:8000]}
-        """
-        
-        ai_response = model.generate_content(prompt)
-        json_text = re.search(r'```json\s*(\{.*?\})\s*```', ai_response.text, re.DOTALL)
-        if not json_text:
-            # AIがJSONを返さなかった場合でも、基本的な情報を返せるようにする
-            return {"is_index": False, "data": {"name": soup.title.string.strip() if soup.title else "名称不明"}}
-
-        # is_index: false を明示的に追加して返す
-        return {"is_index": False, "data": json.loads(json_text.group(1))}
-
-    except Exception as e:
-        print(f"Gemini AI error: {e}")
-        return {'error': str(e)}
-    
-    
+# --- 「ワンクリック自動インポート」ルート ---
 @bp.route('/admin/import/<provider>', methods=['POST'])
 @login_required
 @admin_required
 def import_exams(provider):
-    # 各塾の模試一覧ページのURLをここで定義
     provider_urls = {
         'toshin': 'https://www.toshin-moshi.com/lineup/',
         'sundai': 'https://www.sundai.ac.jp/moshi/',
         'kawai': 'https://www.kawai-juku.ac.jp/moshi/'
     }
-    
     index_url = provider_urls.get(provider)
     if not index_url:
         flash('対応していない提供元です。')
         return redirect(url_for('main.admin_exams'))
 
     try:
-        # 1. まず一覧ページから、個別の模試へのリンクをすべて見つけ出す
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
-        response = requests.get(index_url, headers=headers, timeout=15)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # _find_exam_linksヘルパー関数を再利用してリンクを抽出
-        exam_links = _find_exam_links(soup, index_url, r'.*') # パターンは緩くして多くのリンクを拾う
-        
-        if not exam_links:
+        # 1. AIで一覧ページを解析させ、個別の模試リンクを取得
+        index_result = _call_ai_scraper(index_url)
+        if not index_result.get('is_index') or not index_result.get('exams_found'):
             flash('一覧ページから模試のリンクを見つけられませんでした。')
             return redirect(url_for('main.admin_exams'))
 
         added_count = 0
-        # 2. 見つけたリンクを一つずつAIに解析させ、データベースに登録
-        for exam in exam_links:
+        # 2. 見つけたリンクを一つずつAIに再度解析させ、データベースに登録
+        for exam in index_result['exams_found']:
             exam_url = exam['url']
-            
-            # すでに同じURLの模試が登録済みかチェック
-            existing = db.session.query(OfficialMockExam).filter_by(url=exam_url).first()
-            if existing:
-                continue # 登録済みならスキップ
-
-            # AIに詳細情報を抽出させる
-            response2 = requests.get(exam_url, headers=headers, timeout=15)
-            soup2 = BeautifulSoup(response2.content, 'html.parser')
-            ai_result = _scrape_with_gemini(soup2, exam_url) # 以前作ったGemini関数を再利用
-            
-            if ai_result and not ai_result.get('is_index') and ai_result.get('data'):
-                exam_data = ai_result['data']
-                # 必要な情報が揃っているか確認
-                if exam_data.get('name') and exam_data.get('exam_date'):
-                    new_exam_entry = OfficialMockExam(
-                        provider=exam_data.get('provider') or provider.capitalize(),
-                        name=exam_data.get('name'),
-                        exam_date=date.fromisoformat(exam_data['exam_date']),
-                        app_start_date=date.fromisoformat(exam_data['app_start_date']) if exam_data.get('app_start_date') else None,
-                        app_end_date=date.fromisoformat(exam_data['app_end_date']) if exam_data.get('app_end_date') else None,
-                        url=exam_url,
-                        target_grade=exam_data.get('target_grade') # ▼▼▼ この行を追加 ▼▼▼
-                    )
-                    db.session.add(new_exam_entry)
-                    added_count += 1
+            if not db.session.query(OfficialMockExam).filter_by(url=exam_url).first():
+                # 詳細ページの情報をAIで抽出
+                detail_result = _call_ai_scraper(exam_url)
+                if not detail_result.get('is_index') and detail_result.get('data'):
+                    exam_data = detail_result['data']
+                    if exam_data.get('name') and exam_data.get('exam_date'):
+                        new_exam_entry = OfficialMockExam(
+                            provider=provider.capitalize(),
+                            name=exam_data.get('name'),
+                            exam_date=date.fromisoformat(exam_data['exam_date']),
+                            app_start_date=date.fromisoformat(exam_data['app_start_date']) if exam_data.get('app_start_date') else None,
+                            app_end_date=date.fromisoformat(exam_data['app_end_date']) if exam_data.get('app_end_date') else None,
+                            url=exam_url,
+                            target_grade=exam_data.get('target_grade')
+                        )
+                        db.session.add(new_exam_entry)
+                        added_count += 1
 
         db.session.commit()
         flash(f'{added_count}件の新しい模試情報を自動で登録しました。')
@@ -945,4 +866,4 @@ def import_exams(provider):
     except Exception as e:
         flash(f'情報の取得中にエラーが発生しました: {e}')
     
-    return redirect(url_for('main.admin_exams'))    
+    return redirect(url_for('main.admin_exams'))
