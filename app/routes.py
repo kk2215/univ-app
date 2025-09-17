@@ -752,46 +752,41 @@ import os
 import google.generativeai as genai
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import urljoin
 import ssl
 from requests.adapters import HTTPAdapter
 from urllib3 import PoolManager
-from urllib3.util.ssl_ import create_urllib3_context
 
-# --- 共通ヘルパー ---
+# --- 共通ヘルパー (変更なし) ---
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        ssl_context = create_urllib3_context()
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         ssl_context.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
         self.poolmanager = PoolManager(
             ssl_context=ssl_context, num_pools=connections, maxsize=maxsize,
             block=block, **pool_kwargs)
 
-def _get_legacy_session():
-    """古いSSLリネゴシエーションを許可するrequests.Sessionオブジェクトを作成する"""
-    session = requests.Session()
-    session.mount("https://", LegacySSLAdapter())
-    return session
-# --- AIの役割定義 ---
+# --- AIの役割定義 (思考ルーチンを強化) ---
 
 def _is_link_a_mock_exam(link_text: str, link_url: str) -> bool:
-    """【鑑定士AI】与えられたリンクが模試詳細ページらしいか判定する"""
+    """【鑑定士AI - 強化版】与えられたリンクが模試詳細ページらしいか、より厳しく判定する"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"""
-        以下の情報を持つHTMLのリンクが、個別の大学受験模試の詳細ページへのリンクである可能性が高いですか？
+        以下のHTMLリンクは、特定の大学受験模試（例：「第1回全統共通テスト模試」）の詳細・申込ページへのリンクですか？
+        一般的な案内ページ（例：「模試一覧」「お申し込み方法」）や、模試と無関係なページは「いいえ」と判断してください。
         「はい」か「いいえ」だけで答えてください。
         リンクテキスト: "{link_text}"
         リンクURL: "{link_url}"
         """
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, request_options={'timeout': 20})
         return "はい" in response.text
     except Exception:
         return False
 
-def _extract_exam_details_with_ai(url: str):
-    """【書記AI】詳細ページから模試の情報をJSONで抽出する"""
+def _extract_exam_details_with_ai(url: str, provider: str):
+    """【書記AI - 強化版】詳細ページから文脈を読んで模試の情報をJSONで抽出する"""
     session = requests.Session()
     session.mount("https://", LegacySSLAdapter())
     response = session.get(url, timeout=15)
@@ -800,40 +795,46 @@ def _extract_exam_details_with_ai(url: str):
     page_text = ' '.join(soup.get_text().split())[:8000]
 
     model = genai.GenerativeModel('gemini-1.5-flash')
+    today = date.today().isoformat()
     prompt = f"""
-    以下のWebページテキストから模試情報を抽出してください。
-    - 正式名称(name)
-    - 実施日(exam_date)
-    - 申込開始日(app_start_date)
-    - 申込締切日(app_end_date)
-    - 対象学年(target_grade)
-    日付は「YYYY-MM-DD」形式、見つからない項目はnullにしてください。
-    結果は必ずJSON形式 {{"name": ..., "exam_date": ...}} で返してください。
-    テキスト：{page_text}
+    あなたはWebページから日本の大学受験模試の情報を抽出するエキスパートです。今日の日付は{today}です。
+    以下のテキストから、以下の項目を抽出してください。
+    - name: 模試の正式名称。「{provider}」という単語は含めないでください。
+    - target_grade: 対象学年（例：「高3・卒」）。
+    - exam_date: 実施日。
+    - app_start_date: 申込開始日。
+    - app_end_date: 申込締切日。
+    
+    重要：
+    - 日付は必ず「YYYY-MM-DD」形式にしてください。
+    - 実施日は、今日以降の最も可能性の高い日付を選んでください。
+    - 申込開始日と締切日は、「申込期間」などのキーワードの近くにある日付を優先してください。
+    - 情報が見つからない項目はnullにしてください。
+    - 結果は必ずJSON形式 {{"name": ..., "exam_date": ...}} で返してください。
+
+    テキスト：
+    {page_text}
     """
-    ai_response = model.generate_content(prompt)
+    
+    ai_response = model.generate_content(prompt, request_options={'timeout': 40})
     json_text_match = re.search(r'```json\s*(\{.*?\})\s*```', ai_response.text, re.DOTALL)
     if not json_text_match:
         raise ValueError("AI did not return a valid JSON block.")
     return json.loads(json_text_match.group(1))
 
-# --- 管理者用ルート ---
+# --- 管理者用ルート (重複チェックロジックを強化) ---
 
 @bp.route('/admin/scan-links/<provider>', methods=['POST'])
 @login_required
 @admin_required
 def scan_links_for_provider(provider):
-    """【探偵】指定された塾のサイトから、模試の可能性があるリンクを全てリストアップする"""
-    provider_urls = {
-        'toshin': 'https://www.toshin-moshi.com/lineup/',
-        'sundai': 'https://www.sundai.ac.jp/moshi/',
-        'kawai': 'https://www.kawai-juku.ac.jp/moshi/'
-    }
+    provider_urls = { 'toshin': 'https://www.toshin-moshi.com/lineup/', 'sundai': 'https://www.sundai.ac.jp/moshi/', 'kawai': 'https://www.kawai-juku.ac.jp/moshi/' }
     index_url = provider_urls.get(provider)
     if not index_url: return jsonify({'error': 'Invalid provider'}), 400
 
     try:
-        session = _get_legacy_session() # SSLエラー回避のため
+        session = requests.Session()
+        session.mount("https://", LegacySSLAdapter())
         response = session.get(index_url, timeout=15)
         soup = BeautifulSoup(response.content, 'html.parser')
         
@@ -843,55 +844,56 @@ def scan_links_for_provider(provider):
             link_url = a['href']
             if link_text and len(link_text) > 5 and (link_url.startswith('/') or link_url.startswith('http')):
                 full_url = urljoin(index_url, link_url)
-                candidate_links.append({'name': link_text, 'url': full_url})
-
+                if _is_link_a_mock_exam(link_text, full_url):
+                    candidate_links.append({'name': link_text, 'url': full_url})
+        
         unique_links = list({v['url']: v for v in candidate_links}.values())
         return jsonify({'candidates': unique_links})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@bp.route('/api/classify-link', methods=['POST'])
-@login_required
-@admin_required
-def classify_link_with_ai():
-    """【鑑定士】単一のリンクが模試のページかどうかをAIが判定する"""
-    data = request.get_json()
-    link_text = data.get('name')
-    link_url = data.get('url')
-    if not link_text or not link_url:
-        return jsonify({'is_exam': False})
-
-    is_exam = _is_link_a_mock_exam(link_text, link_url)
-    return jsonify({'is_exam': is_exam, 'name': link_text, 'url': link_url})
-
-
 @bp.route('/admin/import/<provider>/execute', methods=['POST'])
 @login_required
 @admin_required
 def execute_import(provider):
-    """【書記】ユーザーが選んだURLのリストを受け取り、詳細を解析してDBに保存する"""
     urls_to_import = request.form.getlist('exam_urls')
     added_count = 0
-    for url in urls_to_import:
-        if not db.session.query(OfficialMockExam).filter_by(url=url).first():
-            try:
-                # 書記AIが詳細情報を抽出
-                exam_data = _extract_exam_details_with_ai(url)
-                if exam_data.get('name') and exam_data.get('exam_date'):
-                    new_exam = OfficialMockExam(
-                        provider=provider.capitalize(),
-                        name=exam_data.get('name'),
-                        exam_date=date.fromisoformat(exam_data['exam_date']),
-                        app_start_date=date.fromisoformat(exam_data.get('app_start_date')) if exam_data.get('app_start_date') else None,
-                        app_end_date=date.fromisoformat(exam_data.get('app_end_date')) if exam_data.get('app_end_date') else None,
-                        url=url,
-                        target_grade=exam_data.get('target_grade')
-                    )
-                    db.session.add(new_exam)
-                    added_count += 1
-            except Exception as e:
-                print(f"Failed to process {url}: {e}")
+    errors = []
     
+    for url in urls_to_import:
+        try:
+            exam_data = _extract_exam_details_with_ai(url, provider.capitalize())
+            if not exam_data.get('name') or not exam_data.get('exam_date'): continue
+
+            exam_date_obj = date.fromisoformat(exam_data['exam_date'])
+            
+            # ▼▼▼ 重複チェックを「名称」と「実施日」で行うように強化 ▼▼▼
+            existing = db.session.query(OfficialMockExam).filter_by(
+                name=exam_data['name'], 
+                exam_date=exam_date_obj
+            ).first()
+            if existing: continue
+
+            new_exam = OfficialMockExam(
+                provider=provider.capitalize(),
+                name=exam_data.get('name'),
+                exam_date=exam_date_obj,
+                app_start_date=date.fromisoformat(exam_data['app_start_date']) if exam_data.get('app_start_date') else None,
+                app_end_date=date.fromisoformat(exam_data['app_end_date']) if exam_data.get('app_end_date') else None,
+                url=url,
+                target_grade=exam_data.get('target_grade')
+            )
+            db.session.add(new_exam)
+            added_count += 1
+        except Exception as e:
+            errors.append(f"Failed to process {url}: {e}")
+            print(f"Failed to process {url}: {e}")
+
     db.session.commit()
-    flash(f'{added_count}件の新しい模試情報を登録しました。')
+    
+    if errors:
+        flash(f'{added_count}件の模試を登録し、{len(errors)}件でエラーが発生しました。')
+    else:
+        flash(f'{added_count}件の新しい模試情報を登録しました。')
+        
     return redirect(url_for('main.admin_exams'))
