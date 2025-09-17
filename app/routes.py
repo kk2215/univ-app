@@ -266,11 +266,24 @@ def dashboard(user_id):
      
     seq_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
     
+    # ▼▼▼ upcoming_exams の取得ロジックを、以下のように変更 ▼▼▼
     today = date.today()
+    user_grade = user.grade # 'high1', 'high2', 'high3', 'ronin'
+    
+    # ユーザーの学年に応じて、表示すべき模試の対象学年を決定
+    grade_map = {
+        'high1': ['高1', '高1・2', '全学年'],
+        'high2': ['高2', '高1・2', '全学年'],
+        'high3': ['高3', '高3・卒', '全学年'],
+        'ronin': ['卒', '高3・卒', '全学年']
+    }
+    relevant_grades = grade_map.get(user_grade, ['全学年'])
+
+    # 実施日が未来で、かつ対象学年が合致する模試を検索
     upcoming_exams = db.session.query(OfficialMockExam).filter(
-        OfficialMockExam.app_start_date <= today,
-        OfficialMockExam.app_end_date >= today
-    ).order_by(OfficialMockExam.app_end_date.asc()).all()
+        OfficialMockExam.exam_date >= today,
+        OfficialMockExam.target_grade.in_(relevant_grades)
+    ).order_by(OfficialMockExam.exam_date.asc()).limit(5).all() # 5件まで表示
     
     dashboard_data = []
     for subject in user.subjects:
@@ -841,10 +854,11 @@ def _scrape_with_gemini(soup, url):
         以下のテキストは「{url}」から取得したものです。
 
         手順：
-        1. このページが「個別の模試の詳細ページ」であると仮定してください。
-        2. その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)を抽出してください。
-        3. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
-        4. 結果を必ずJSON形式で、{{"name": "...", "exam_date": "..."}} の形式で返してください。
+        1. このページが「複数の模試がリストされている一覧ページ」か「単一の模試の詳細ページ」かを判断してください。
+        2. もし「一覧ページ」なら、ページ内にある全ての模試の名称(name)と、その詳細ページへの完全なURL(url)をリストアップしてください。
+        3. もし「詳細ページ」なら、その模試の正式名称(name)、実施日(exam_date)、申込開始日(app_start_date)、申込締切日(app_end_date)、そして【対象学年(target_grade)】（例：「高3・卒」「高2」「全学年」など）を抽出してください。
+        4. 日付は必ず「YYYY-MM-DD」形式にしてください。情報が見つからない項目はnullにしてください。
+        5. 結果を必ずJSON形式で返してください。一覧ページの場合は {{"is_index": true, "exams_found": [...]}} の形式で、詳細ページの場合は {{"is_index": false, "data": {{"name": ..., "target_grade": ...}}}} の形式で返してください。
 
         テキスト：
         {page_text[:8000]}
@@ -919,7 +933,8 @@ def import_exams(provider):
                         exam_date=date.fromisoformat(exam_data['exam_date']),
                         app_start_date=date.fromisoformat(exam_data['app_start_date']) if exam_data.get('app_start_date') else None,
                         app_end_date=date.fromisoformat(exam_data['app_end_date']) if exam_data.get('app_end_date') else None,
-                        url=exam_url
+                        url=exam_url,
+                        target_grade=exam_data.get('target_grade') # ▼▼▼ この行を追加 ▼▼▼
                     )
                     db.session.add(new_exam_entry)
                     added_count += 1
