@@ -58,19 +58,40 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', async (e) => {
             const provider = e.target.dataset.provider;
             
-            // 全てのボタンをローディング状態にする
-            scanButtons.forEach(btn => {
-                btn.setAttribute('aria-busy', 'true');
-                btn.disabled = true;
-            });
-            resultsContainer.innerHTML = '<p>AIが候補を探しています...（最大1分ほどかかる場合があります）</p>';
+            scanButtons.forEach(btn => { btn.setAttribute('aria-busy', 'true'); btn.disabled = true; });
+            resultsContainer.innerHTML = '<p>ステップ1/2: ページ内のリンクを収集中...</p>';
 
             try {
-                const response = await fetch(`/admin/import/${provider}/scan`, { method: 'POST' });
-                const data = await response.json();
+                // ステップ1: まず全リンクを高速で取得
+                const scanResponse = await fetch(`/admin/scan-links/${provider}`, { method: 'POST' });
+                const scanData = await scanResponse.json();
 
-                if (data.candidates && data.candidates.length > 0) {
-                    displayCandidatesForm(data.candidates, provider);
+                if (scanData.candidates && scanData.candidates.length > 0) {
+                    resultsContainer.innerHTML = `<p>ステップ2/2: ${scanData.candidates.length}件の候補をAIが鑑定中...</p><div id="verified-list"></div>`;
+                    const verifiedListDiv = document.getElementById('verified-list');
+                    let verifiedExams = [];
+
+                    // ステップ2: リンクを一つずつAIに問い合わせ
+                    for (const candidate of scanData.candidates) {
+                        const classifyResponse = await fetch('/api/classify-link', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(candidate)
+                        });
+                        const classifyData = await classifyResponse.json();
+                        
+                        // AIが「模試だ」と判断したら、画面にリアルタイムで追加
+                        if (classifyData.is_exam) {
+                            verifiedExams.push(classifyData);
+                            const p = document.createElement('p');
+                            p.textContent = `✅ ${classifyData.name}`;
+                            verifiedListDiv.appendChild(p);
+                        }
+                    }
+                    
+                    // 最終的なフォームを表示
+                    displayCandidatesForm(verifiedExams, provider);
+
                 } else {
                     resultsContainer.innerHTML = '<p>候補が見つかりませんでした。</p>';
                 }
@@ -79,19 +100,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsContainer.innerHTML = '<p>エラーが発生しました。</p>';
                 console.error('Scan failed:', error);
             } finally {
-                // ローディング状態を解除
-                scanButtons.forEach(btn => {
-                    btn.removeAttribute('aria-busy');
-                    btn.disabled = false;
-                });
+                scanButtons.forEach(btn => { btn.removeAttribute('aria-busy'); btn.disabled = false; });
             }
         });
     });
 
     function displayCandidatesForm(candidates, provider) {
+        if (candidates.length === 0) {
+            resultsContainer.innerHTML += '<p>AIが鑑定した結果、登録可能な模試はありませんでした。</p>';
+            return;
+        }
         let formHTML = `
             <form action="/admin/import/${provider}/execute" method="post">
-                <h4>候補リスト</h4>
+                <h4>AIが発見した模試リスト</h4>
                 <p>データベースに登録したい模試にチェックを入れてください。</p>
                 <fieldset>
         `;
@@ -108,7 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="submit">選択した模試をインポート</button>
             </form>
         `;
-        resultsContainer.innerHTML = formHTML;
+        // 鑑定中メッセージをフォームに置き換え
+        const container = document.getElementById('scan-results-container');
+        container.innerHTML = formHTML;
     }
 });
 </script>

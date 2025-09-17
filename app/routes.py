@@ -757,16 +757,22 @@ from urllib.parse import urljoin
 import ssl
 from requests.adapters import HTTPAdapter
 from urllib3 import PoolManager
+from urllib3.util.ssl_ import create_urllib3_context
 
 # --- 共通ヘルパー ---
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context = create_urllib3_context()
         ssl_context.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
         self.poolmanager = PoolManager(
             ssl_context=ssl_context, num_pools=connections, maxsize=maxsize,
             block=block, **pool_kwargs)
 
+def _get_legacy_session():
+    """古いSSLリネゴシエーションを許可するrequests.Sessionオブジェクトを作成する"""
+    session = requests.Session()
+    session.mount("https://", LegacySSLAdapter())
+    return session
 # --- AIの役割定義 ---
 
 def _is_link_a_mock_exam(link_text: str, link_url: str) -> bool:
@@ -813,11 +819,11 @@ def _extract_exam_details_with_ai(url: str):
 
 # --- 管理者用ルート ---
 
-@bp.route('/admin/import/<provider>/scan', methods=['POST'])
+@bp.route('/admin/scan-links/<provider>', methods=['POST'])
 @login_required
 @admin_required
-def scan_provider_exams(provider):
-    """【探偵＆鑑定士】指定された塾のサイトをスキャンし、模試の候補リストを返す"""
+def scan_links_for_provider(provider):
+    """【探偵】指定された塾のサイトから、模試の可能性があるリンクを全てリストアップする"""
     provider_urls = {
         'toshin': 'https://www.toshin-moshi.com/lineup/',
         'sundai': 'https://www.sundai.ac.jp/moshi/',
@@ -826,25 +832,38 @@ def scan_provider_exams(provider):
     index_url = provider_urls.get(provider)
     if not index_url: return jsonify({'error': 'Invalid provider'}), 400
 
-    session = requests.Session()
-    session.mount("https://", LegacySSLAdapter())
-    response = session.get(index_url, timeout=15)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    
-    candidate_links = []
-    # 探偵：ページ内の全てのリンクをチェック
-    for a in soup.find_all('a', href=True):
-        link_text = a.get_text(strip=True)
-        link_url = a['href']
-        if link_text and len(link_text) > 4 and (link_url.startswith('/') or link_url.startswith('http')):
-            full_url = urljoin(index_url, link_url)
-            # 鑑定士：AIにリンクが模試らしいか判定させる
-            if _is_link_a_mock_exam(link_text, full_url):
+    try:
+        session = _get_legacy_session() # SSLエラー回避のため
+        response = session.get(index_url, timeout=15)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        candidate_links = []
+        for a in soup.find_all('a', href=True):
+            link_text = a.get_text(strip=True)
+            link_url = a['href']
+            if link_text and len(link_text) > 5 and (link_url.startswith('/') or link_url.startswith('http')):
+                full_url = urljoin(index_url, link_url)
                 candidate_links.append({'name': link_text, 'url': full_url})
 
-    # 重複を削除して返す
-    unique_links = list({v['url']: v for v in candidate_links}.values())
-    return jsonify({'candidates': unique_links})
+        unique_links = list({v['url']: v for v in candidate_links}.values())
+        return jsonify({'candidates': unique_links})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/classify-link', methods=['POST'])
+@login_required
+@admin_required
+def classify_link_with_ai():
+    """【鑑定士】単一のリンクが模試のページかどうかをAIが判定する"""
+    data = request.get_json()
+    link_text = data.get('name')
+    link_url = data.get('url')
+    if not link_text or not link_url:
+        return jsonify({'is_exam': False})
+
+    is_exam = _is_link_a_mock_exam(link_text, link_url)
+    return jsonify({'is_exam': is_exam, 'name': link_text, 'url': link_url})
+
 
 @bp.route('/admin/import/<provider>/execute', methods=['POST'])
 @login_required
