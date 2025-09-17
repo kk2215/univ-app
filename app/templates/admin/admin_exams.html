@@ -4,14 +4,8 @@
 <article>
     <hgroup>
         <h1>模試情報管理</h1>
+        <a href="{{ url_for('main.new_exam') }}" role="button">新しい模試を追加</a>
         </hgroup>
-
-    <p>追加したい模試の提供元を選んでください。テンプレートが入力されたフォームが開きます。</p>
-    <div class="grid">
-        <a href="{{ url_for('main.new_exam', provider='河合塾') }}" role="button">河合塾の模試を追加</a>
-        <a href="{{ url_for('main.new_exam', provider='駿台') }}" role="button">駿台の模試を追加</a>
-        <a href="{{ url_for('main.new_exam', provider='東進') }}" role="button">東進の模試を追加</a>
-    </div>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}

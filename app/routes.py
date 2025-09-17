@@ -945,3 +945,30 @@ def execute_import(provider):
         flash(f'{added_count}件の新しい模試情報を登録しました。')
         
     return redirect(url_for('main.admin_exams'))
+
+@bp.route('/api/exam-templates')
+@login_required
+@admin_required
+def get_exam_templates():
+    provider = request.args.get('provider', '')
+    if not provider:
+        return jsonify([])
+    
+    # プロバイダー名に応じて、Bookテーブルから模試のテンプレートを検索
+    # task_idが 'moshi_' で始まるものを模試テンプレートとみなす
+    provider_map = {
+        '河合塾': 'kawai',
+        '駿台': 'sundai',
+        '東進': 'toshin'
+    }
+    search_prefix = f"moshi_{provider_map.get(provider, '')}_"
+
+    # `task_id` に基づいてBookテーブルから模試の候補を検索
+    templates = db.session.query(Book.title, Book.url).filter(
+        Book.task_type == 'exam',
+        Book.task_id.like(f'{search_prefix}%')
+    ).all()
+    
+    # フロントエンドで使いやすいように整形
+    results = [{'name': t.title, 'url': t.url} for t in templates]
+    return jsonify(results)
