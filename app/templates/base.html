@@ -80,19 +80,27 @@
     {% if current_user.is_authenticated %}
     <nav class="footer-nav">
         <a href="{{ url_for('main.show_plan', user_id=current_user.id) }}">
-            <svg></svg>
+            <svg viewBox="0 0 24 24">
+                <path d="M9 19L4 21V5L9 3L15 6L20 4V19L15 21L9 18L9 19Z M9 5V18M15 6V21"></path>
+            </svg>
             <span>学習マップ</span>
         </a>
         <a href="{{ url_for('main.stats', user_id=current_user.id) }}">
-            <svg></svg>
+            <svg viewBox="0 0 24 24">
+                <path d="M8 18H4V8H8V18ZM14 18H10V4H14V18ZM20 18H16V11H20V18Z"></path>
+            </svg>
             <span>学習記録</span>
         </a>
-        <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}" class="active">
-            <svg></svg>
+        <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}">
+            <svg viewBox="0 0 24 24">
+                <path d="M3 9.18519L12 2L21 9.18519V22H15V15H9V22H3V9.18519Z"></path>
+            </svg>
             <span>ホーム</span>
         </a>
         <a href="{{ url_for('main.more', user_id=current_user.id) }}">
-            <svg></svg>
+            <svg viewBox="0 0 24 24">
+                 <path d="M12 12C12.5523 12 13 11.5523 13 11C13 10.4477 12.5523 10 12 10C11.4477 10 11 10.4477 11 11C11 11.5523 11.4477 12 12 12Z M19 12C19.5523 12 20 11.5523 20 11C20 10.4477 19.5523 10 19 10C18.4477 10 18 10.4477 18 11C18 11.5523 18.4477 12 19 12Z M5 12C5.55228 12 6 11.5523 6 11C6 10.4477 5.55228 10 5 10C4.44772 10 4 10.4477 4 11C4 11.5523 4.44772 12 5 12Z"></path>
+            </svg>
             <span>その他</span>
         </a>
     </nav>
