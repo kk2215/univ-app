@@ -1,0 +1,28 @@
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.calendar-header h3, .calendar-header a { margin: 0; }
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+.day-header {
+    text-align: center; font-weight: 500; font-size: 0.9rem; color: var(--secondary);
+}
+.day {
+    aspect-ratio: 1 / 1; border: 1px solid var(--border-color);
+    border-radius: 0.25rem; padding: 0.25rem; font-size: 0.8rem;
+    opacity: 0.5;
+}
+.day.is-this-month { opacity: 1; cursor: pointer; transition: transform 0.1s ease-in-out; }
+.day.is-this-month:hover { transform: scale(1.05); border-color: var(--primary); }
+.day.study-level-0 { background-color: #ebedf0; }
+.day.study-level-1 { background-color: #9be9a8; }
+.day.study-level-2 { background-color: #40c463; }
+.day.study-level-3 { background-color: #30a14e; }
+.day.study-level-4 { background-color: #216e39; }
+.day.study-level-5 { background: linear-gradient(135deg, #ffd700, #ffb300); }

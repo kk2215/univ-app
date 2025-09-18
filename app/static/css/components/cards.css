@@ -1,0 +1,8 @@
+article {
+    background-color: var(--card-background-color); 
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow); 
+    padding: 2rem; 
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
