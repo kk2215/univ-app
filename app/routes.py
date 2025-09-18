@@ -178,32 +178,30 @@ def show_plan(user_id):
 
     for subject in user.subjects:
         query_builder = db.session.query(
-            Subject.name.label('subject_name'), Book.task_id, Book.title.label('book'),
-            Book.description, Book.youtube_query, Book.task_type, RouteStep.level,
-            RouteStep.category, RouteStep.is_main, Book.duration_weeks
+            Book.task_id, Book.title.label('book_title'), Book.description, 
+            Book.youtube_query, Book.task_type, RouteStep.level,
+            RouteStep.category, RouteStep.is_main, Book.duration_weeks,
+            RouteStep.step_order
         ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
          .join(Book, RouteStep.book_id == Book.id)\
          .join(Subject, Route.subject_id == Subject.id)
 
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            subject_plan_rows = query_builder.filter(Route.name == route_name).all()
+            subject_plan_rows = query_builder.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
         else:
-            subject_plan_rows = query_builder.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).all()
+            subject_plan_rows = query_builder.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).order_by(RouteStep.step_order).all()
         
         subject_plan = [dict(row._mapping) for row in subject_plan_rows]
-        subject_plan.sort(key=lambda task: (level_hierarchy.get(task['level'], 99), task.get('step_order', 0)))
 
         if subject_plan:
-            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 0) <= target_level_value]
+            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
             
-            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
-            continuous_tasks = [task for task in filtered_plan if task['task_type'] == 'continuous']
-            
-            if continuous_tasks:
-                for task in continuous_tasks:
+            for task in filtered_plan:
+                if task['task_type'] == 'continuous':
                     continuous_tasks_by_subject_level_category[subject.name][task['level']][task['category']].append(task)
             
+            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
             if sequential_tasks:
                 today = date.today()
                 exam_date = user.target_exam_date if user.target_exam_date else date(today.year + 1, 2, 25)
@@ -244,9 +242,6 @@ def show_plan(user_id):
         title="学習マップ", completed_tasks=completed_tasks_set,
         strategies=strategies, subject_ids_map=subject_ids_map
     )
-
-
-# app/routes.py
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
