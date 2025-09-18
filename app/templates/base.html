@@ -46,7 +46,7 @@
                 <li><a href="{{ url_for('main.support', user_id=current_user.id) }}">支援制度</a></li>
                 <li><a href="{{ url_for('main.settings', user_id=current_user.id) }}" class="secondary">設定</a></li>
                 {% if current_user.is_admin %}
-  <li><a href="{{ url_for('main.admin_exams') }}" class="contrast outline">管理者</a></li>
+  <li><a href="{{ url_for('main.admin_dashboard') }}" class="contrast outline">管理者</a></li>
 {% endif %}
                 <li><a href="{{ url_for('main.logout') }}">ログアウト</a></li>
             {% else %}
