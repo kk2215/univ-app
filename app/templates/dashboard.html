@@ -164,7 +164,7 @@
         <article class="dashboard-card">
             <h3>学習スタイル診断</h3>
             <p>自分に合った学習法を見つけて、効率を最大化しよう。</p>
-            <a href="{{ url_for('main.quiz') }}" role="button">診断を受ける</a>
+            <a href="{{ url_for('main.quiz', user_id=user.id) }}" role="button">診断を受ける</a>
         </article>
         </div>
 </div>
