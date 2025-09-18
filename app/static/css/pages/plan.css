@@ -1,0 +1,107 @@
+/* static/css/pages/plan.css */
+
+/* --- タブUIのスタイル --- */
+.tabs {
+    display: flex;
+    flex-wrap: wrap; /* スマホで折り返すように */
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+.tab {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    color: var(--secondary);
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px; /* 下線を親要素の線と重ねる */
+}
+.tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* --- タブコンテンツ --- */
+.tab-content {
+    display: none; /* デフォルトでは非表示 */
+}
+.tab-content.active {
+    display: block; /* activeクラスがついたら表示 */
+}
+
+/* --- 学習計画の各セクション --- */
+.level-group {
+    margin-bottom: 3rem;
+}
+.level-group > h3 {
+    font-size: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+.category-group {
+    margin-bottom: 2rem;
+}
+.category-group > h4 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--secondary);
+    margin-bottom: 1rem;
+}
+
+/* --- タスクアイテム --- */
+.task-group {
+    padding: 1rem 1.5rem;
+    border-left: 4px solid var(--border-color);
+    margin-bottom: 1rem;
+    background-color: var(--background-color);
+}
+.task-group.is-completed {
+    border-left-color: #05c46b; /* 完了済みの色は緑 */
+    opacity: 0.7;
+}
+.task-group.is-completed .task-title {
+    text-decoration: line-through;
+}
+
+/* 選択肢がある場合のスタイル */
+.choice-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.choice-radio-label {
+    display: block;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+}
+.choice-radio-label:has(input:checked) {
+    border-color: var(--primary);
+    background-color: #eef9ff;
+}
+.choice-radio-label input {
+    display: none;
+}
+
+/* 確定済みのタスク表示 */
+.selected-task-view {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.change-selection-btn {
+    margin: 0;
+}
+
+/* --- 継続タスクカード --- */
+.continuous-tasks-card {
+    background-color: #eef9ff;
+    border-left: 5px solid var(--primary);
+    margin-bottom: 2rem;
+    padding: 1.5rem 2rem;
+}
+.continuous-tasks-card h4 { color: var(--primary); }

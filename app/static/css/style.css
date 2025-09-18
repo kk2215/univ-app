@@ -12,6 +12,8 @@
 
 /* ページごとのスタイル */
 @import url('pages/dashboard.css');
+@import url('pages/stats.css');
+@import url('pages/plan.css'); /* ← この行を追加 */
 
 /* ========================================
    スマホ用の上書きスタイル
