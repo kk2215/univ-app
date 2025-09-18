@@ -78,5 +78,25 @@
     <footer class="container">
         <small>&copy; 2025 大学受験サポートApp</small>
     </footer>
+    {% if current_user.is_authenticated %}
+    <nav class="footer-nav">
+        <a href="{{ url_for('main.show_plan', user_id=current_user.id) }}">
+            <svg></svg>
+            <span>学習マップ</span>
+        </a>
+        <a href="{{ url_for('main.stats', user_id=current_user.id) }}">
+            <svg></svg>
+            <span>学習記録</span>
+        </a>
+        <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}" class="active">
+            <svg></svg>
+            <span>ホーム</span>
+        </a>
+        <a href="{{ url_for('main.settings', user_id=current_user.id) }}">
+            <svg></svg>
+            <span>設定</span>
+        </a>
+    </nav>
+    {% endif %}
 </body>
 </html>
