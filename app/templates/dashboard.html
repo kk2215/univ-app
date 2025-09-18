@@ -3,21 +3,6 @@
 {% block title %}マイページ{% endblock %}
 
 {% block content %}
-<div id="welcome-modal-overlay" class="modal-overlay">
-    <div class="modal-container">
-        <span id="modal-close-button" class="modal-close-button">&times;</span>
-        <h2>ようこそ、みちしるべへ！</h2>
-        <p>あなたの目標達成を全力でサポートします。まずは基本的な使い方を覚えましょう！</p>
-        <hr>
-        <h4><span style="color: #007bff;">今日やること</span>：今日のフォーカス</h4>
-        <p>マイページ中央の「今日のフォーカス」には、あなたが今日取り組むべきタスクが表示されます。</p>
-        <h4><span style="color: #28a745;">今の実力</span>：学習進捗</h4>
-        <p>右側の「学習進捗」バーで、各科目の習熟度がひと目でわかります。</p>
-        <h4><span style="color: #ffc107;">全体の計画</span>：学習マップ</h4>
-        <p>上部メニューの「学習マップ」では、志望校合格までの全ステップを確認できます。</p>
-        <button id="modal-start-button" class="contrast">はじめる</button>
-    </div>
-</div>
 
 <article>
     <hgroup>
@@ -171,25 +156,6 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- チュートリアルモーダルのJavaScript ---
-    const modalOverlay = document.getElementById('welcome-modal-overlay');
-    const closeButton = document.getElementById('modal-close-button');
-    const startButton = document.getElementById('modal-start-button');
-
-    function openModal() {
-        if (modalOverlay) modalOverlay.style.display = 'flex';
-    }
-    function closeModal() {
-        if (modalOverlay) modalOverlay.style.display = 'none';
-    }
-
-    if(closeButton) closeButton.addEventListener('click', closeModal);
-    if(startButton) startButton.addEventListener('click', closeModal);
-    if(modalOverlay) {
-        modalOverlay.addEventListener('click', (event) => {
-            if (event.target === modalOverlay) closeModal();
-        });
-    }
 
     // --- 進捗更新用のJavaScript ---
     function handleProgressUpdate(button, isCompleted) {

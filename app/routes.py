@@ -110,7 +110,6 @@ def register():
             
             db.session.commit()
             login_user(new_user)
-            session['show_welcome_modal'] = True
             return redirect(url_for('main.dashboard', user_id=new_user.id))
 
     subjects = db.session.query(Subject).order_by(Subject.id).all()
@@ -250,10 +249,9 @@ def show_plan(user_id):
 @bp.route('/dashboard/<int:user_id>')
 @login_required
 def dashboard(user_id):
+    print(f"【健康診断】ユーザー '{current_user.username}' の登録科目: {[s.name for s in current_user.subjects]}")
     if user_id != current_user.id: abort(404)
     user = current_user # データベースへの再クエリ不要
-    
-    show_modal = session.pop('show_welcome_modal', False)
     
     university = db.session.query(University).filter_by(name=user.school).first()
     days_until_exam = "未設定"
@@ -376,8 +374,6 @@ def dashboard(user_id):
         days_until_exam=days_until_exam, 
         dashboard_data=dashboard_data,
         upcoming_exams=upcoming_exams,
-        # ▼▼▼ 剥がした付箋の状態をテンプレートに渡します ▼▼▼
-        show_welcome_modal=show_modal
     )
 
 @bp.route('/support/<int:user_id>')
