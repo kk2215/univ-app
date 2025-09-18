@@ -1,0 +1,107 @@
+/* static/css/pages/stats.css */
+
+/* --- 学習カレンダーのスタイル --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.calendar-header h3, .calendar-header a {
+    margin: 0;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+.day-header {
+    text-align: center;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--secondary);
+}
+.day {
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+    font-size: 0.8rem;
+    opacity: 0.5;
+}
+.day.is-this-month {
+    opacity: 1;
+    cursor: pointer;
+    transition: transform 0.1s ease-in-out;
+}
+.day.is-this-month:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+.day.is-today {
+    font-weight: bold;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+}
+
+/* 学習レベルごとの色 */
+.day.study-level-0 { background-color: #ebedf0; }
+.day.study-level-1 { background-color: #9be9a8; }
+.day.study-level-2 { background-color: #40c463; }
+.day.study-level-3 { background-color: #30a14e; }
+.day.study-level-4 { background-color: #216e39; }
+.day.study-level-5 { background: linear-gradient(135deg, #ffd700, #ffb300); }
+
+/* --- 学習記録モーダルのスタイル --- */
+dialog article {
+    min-width: 500px;
+}
+.subject-log-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+.time-controls {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 1rem;
+}
+.time-display {
+    min-width: 6rem; /* 表示幅を固定してガタつきを防ぐ */
+    text-align: right;
+}
+.button-group {
+    display: inline-flex;
+    gap: 0.5rem;
+}
+.time-btn {
+    margin: 0;
+}
+
+/* スマホ用のモーダルスタイル */
+@media (max-width: 768px) {
+    dialog article {
+        min-width: unset;
+        width: 90vw;
+    }
+    .subject-log-row {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    .time-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .time-display {
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+    .time-btn {
+        padding: 0.75rem;
+    }
+}
