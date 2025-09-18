@@ -73,15 +73,22 @@
     margin-top: 1rem;
 }
 .choice-radio-label {
+    position: relative;
     display: block;
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color); /* 枠線を少し太く */
     border-radius: var(--border-radius);
-    padding: 1rem;
+    padding: 1rem 1rem 1rem 3.5rem; /* アイコン用のスペースを確保 */
     cursor: pointer;
+    transition: all 0.2s ease-in-out;
 }
 .choice-radio-label:has(input:checked) {
     border-color: var(--primary);
-    background-color: #eef9ff;
+    background-color: var(--primary-light, #e6f2ff); /* 薄い青色の背景 */
+    color: var(--primary-dark, #0056b3); /* 少し濃い青色の文字 */
+    font-weight: bold; /* 文字を太く */
+}
+.choice-radio-label:has(input:checked)::before {
+    transform: translateY(-50%) scale(1.1); /* アイコンを少し大きく */
 }
 .choice-radio-label input {
     display: none;

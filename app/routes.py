@@ -110,7 +110,7 @@ def register():
             
             db.session.commit()
             login_user(new_user)
-            flash('show_welcome_modal', 'info')
+            session['show_welcome_modal'] = True
             return redirect(url_for('main.dashboard', user_id=new_user.id))
 
     subjects = db.session.query(Subject).order_by(Subject.id).all()
@@ -252,7 +252,8 @@ def show_plan(user_id):
 def dashboard(user_id):
     if user_id != current_user.id: abort(404)
     user = current_user # データベースへの再クエリ不要
-        
+    
+    show_modal = session.pop('show_welcome_modal', False)
     university = db.session.query(University).filter_by(name=user.school).first()
     days_until_exam = "未設定"
     if user.target_exam_date:
@@ -369,7 +370,7 @@ def dashboard(user_id):
         dashboard_data.append(subject)
     return render_template('dashboard.html', user=user, university=university, 
                            days_until_exam=days_until_exam, dashboard_data=dashboard_data,
-                           upcoming_exams=upcoming_exams)
+                           upcoming_exams=upcoming_exams, show_welcome_modal=show_modal)
 
 @bp.route('/support/<int:user_id>')
 @login_required

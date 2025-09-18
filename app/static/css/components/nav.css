@@ -45,3 +45,16 @@ nav .container {
     stroke-width: 2; stroke: currentColor; fill: none;
     stroke-linecap: round; stroke-linejoin: round;
 }
+/* static/css/components/nav.css の一番下に追加 */
+
+@media (max-width: 768px) {
+    /* PC用のトップナビゲーションのリンク部分を非表示に */
+    .primary-navigation {
+        display: none;
+    }
+    
+    /* フッターナビゲーションを表示状態に */
+    .footer-nav {
+        display: flex;
+    }
+}
