@@ -143,6 +143,13 @@ def logout():
     logout_user()
     return redirect(url_for('main.index'))
 
+@bp.route('/more/<int:user_id>')
+@login_required
+def more(user_id):
+    if user_id != current_user.id:
+        abort(404)
+    return render_template('more.html', user=current_user)
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
