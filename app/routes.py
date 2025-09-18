@@ -246,13 +246,15 @@ def show_plan(user_id):
     )
 
 
+# app/routes.py
+
 @bp.route('/dashboard/<int:user_id>')
 @login_required
 def dashboard(user_id):
-    print(f"【健康診断】ユーザー '{current_user.username}' の登録科目: {[s.name for s in current_user.subjects]}")
-    if user_id != current_user.id: abort(404)
-    user = current_user # データベースへの再クエリ不要
-    
+    if user_id != current_user.id:
+        abort(404)
+    user = current_user
+
     university = db.session.query(University).filter_by(name=user.school).first()
     days_until_exam = "未設定"
     if user.target_exam_date:
@@ -264,47 +266,35 @@ def dashboard(user_id):
 
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     
-    cont_selections = db.session.query(
-        UserContinuousTaskSelection.subject_id, UserContinuousTaskSelection.level,
-        UserContinuousTaskSelection.category, UserContinuousTaskSelection.selected_task_id,
-        Book.title
-    ).join(Book, UserContinuousTaskSelection.selected_task_id == Book.task_id)\
-     .filter(UserContinuousTaskSelection.user_id == user_id).all()
-     
+    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter(UserContinuousTaskSelection.user_id == user_id).all()
+    cont_selections = {(s.subject_id, s.level, s.category): s.selected_task_id for s in cont_selections_rows}
+    
     seq_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
     
-    # ▼▼▼ upcoming_exams の取得ロジックを、以下のように変更 ▼▼▼
     today = date.today()
-    user_grade = user.grade # 'high1', 'high2', 'high3', 'ronin'
-    
-    # ユーザーの学年に応じて、表示すべき模試の対象学年を決定
+    user_grade = user.grade
     grade_map = {
-        'high1': ['高1', '高1・2', '全学年'],
-        'high2': ['高2', '高1・2', '全学年'],
-        'high3': ['高3', '高3・卒', '全学年'],
-        'ronin': ['卒', '高3・卒', '全学年']
+        'high1': ['高1', '高1・2', '全学年'], 'high2': ['高2', '高1・2', '全学年'],
+        'high3': ['高3', '高3・卒', '全学年'], 'ronin': ['卒', '高3・卒', '全学年']
     }
     relevant_grades = grade_map.get(user_grade, ['全学年'])
-
-    # 実施日が未来で、かつ対象学年が合致する模試を検索
     upcoming_exams = db.session.query(OfficialMockExam).filter(
         OfficialMockExam.exam_date >= today,
         OfficialMockExam.target_grade.in_(relevant_grades)
-    ).order_by(OfficialMockExam.exam_date.asc()).limit(5).all() # 5件まで表示
+    ).order_by(OfficialMockExam.exam_date.asc()).limit(5).all()
     
     dashboard_data = []
-    print(f"【診断】ループ開始前の科目リスト: {[s.name for s in user.subjects]}")
-    
     for subject in user.subjects:
-        print(f"【診断】ループ処理中の科目: {subject.name}")
-        subject.next_task = None; subject.continuous_tasks = []; subject.progress = 0
-        subject.last_completed_task = None; subject.pending_selections = []
+        subject.next_task = None
+        subject.continuous_tasks = []
+        subject.progress = 0
+        subject.last_completed_task = None
+        subject.pending_selections = []
         
         base_query = db.session.query(
             Book.task_id, Book.title, Book.youtube_query, Book.task_type, 
             RouteStep.level, RouteStep.category, RouteStep.is_main
-        ).join(RouteStep, Book.id == RouteStep.book_id)\
-         .join(Route, RouteStep.route_id == Route.id)
+        ).join(RouteStep, Book.id == RouteStep.book_id).join(Route, RouteStep.route_id == Route.id)
 
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
@@ -317,10 +307,12 @@ def dashboard(user_id):
         if full_plan:
             sequential_plan = [task for task in full_plan if task['task_type'] == 'sequential']
             if sequential_plan:
-                task_groups = []; temp_group = []
+                task_groups = []
+                temp_group = []
                 for task in sequential_plan:
                     if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group); temp_group = []
+                        task_groups.append(temp_group)
+                        temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
@@ -335,6 +327,8 @@ def dashboard(user_id):
                                 subject.next_task = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject.name}
                             else:
                                 subject.next_task = potential_next_task
+                        
+                        # ▼▼▼ このbreakが、内側の「groupを探すループ」だけを抜けるように、正しくインデントされています ▼▼▼
                         break
                 
                 plan_task_ids_in_groups = [seq_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), g[0]['task_id']) for g in task_groups]
@@ -361,26 +355,21 @@ def dashboard(user_id):
                 if not current_level: continue
                 tasks_in_current_level = [t for t in tasks if t['level'] == current_level]
                 if not tasks_in_current_level: continue
-                user_selection = next((s for s in cont_selections if s.subject_id == subject.id and s.level == current_level and s.category == category), None)
+                user_selection = cont_selections.get((subject.id, current_level, category))
                 if len(tasks_in_current_level) > 1:
                     if user_selection:
-                        tasks_to_display.append({'title': user_selection.title})
+                        selected_book = db.session.query(Book.title).filter(Book.task_id == user_selection).first()
+                        if selected_book: tasks_to_display.append({'title': selected_book.title})
                     else:
                         subject.pending_selections.append(f"{current_level}の{category}")
                 else: tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
             subject.continuous_tasks = tasks_to_display
+        
         dashboard_data.append(subject)
-        
-        print(f"【診断】ループ完了後のdashboard_data: {[s.name for s in dashboard_data]}")
-        
-        return render_template(
-        'dashboard.html', 
-        user=user, 
-        university=university, 
-        days_until_exam=days_until_exam, 
-        dashboard_data=dashboard_data,
-        upcoming_exams=upcoming_exams,
-    )
+
+    return render_template('dashboard.html', user=user, university=university, 
+                           days_until_exam=days_until_exam, dashboard_data=dashboard_data,
+                           upcoming_exams=upcoming_exams, today=date.today())
 
 @bp.route('/support/<int:user_id>')
 @login_required
