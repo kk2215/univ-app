@@ -1,12 +1,12 @@
 # seed_db.py
 
+from datetime import date
 from app.models import Subject, University, Faculty, Book, Route, RouteStep, SubjectStrategy, OfficialMockExam
 from seed_data.universities import universities_to_seed
 from seed_data.books import books_to_seed
 from seed_data.routes import routes_to_seed, route_steps_human_readable
 from seed_data.faculties import faculties_to_seed
 from seed_data.strategies import strategy_data
-from datetime import date
 
 def seed_database(db):
     """データベースに初期データを投入する関数"""
