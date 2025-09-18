@@ -254,6 +254,7 @@ def dashboard(user_id):
     user = current_user # データベースへの再クエリ不要
     
     show_modal = session.pop('show_welcome_modal', False)
+    
     university = db.session.query(University).filter_by(name=user.school).first()
     days_until_exam = "未設定"
     if user.target_exam_date:
@@ -368,9 +369,16 @@ def dashboard(user_id):
                 else: tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
             subject.continuous_tasks = tasks_to_display
         dashboard_data.append(subject)
-    return render_template('dashboard.html', user=user, university=university, 
-                           days_until_exam=days_until_exam, dashboard_data=dashboard_data,
-                           upcoming_exams=upcoming_exams, show_welcome_modal=show_modal)
+        return render_template(
+        'dashboard.html', 
+        user=user, 
+        university=university, 
+        days_until_exam=days_until_exam, 
+        dashboard_data=dashboard_data,
+        upcoming_exams=upcoming_exams,
+        # ▼▼▼ 剥がした付箋の状態をテンプレートに渡します ▼▼▼
+        show_welcome_modal=show_modal
+    )
 
 @bp.route('/support/<int:user_id>')
 @login_required

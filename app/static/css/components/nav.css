@@ -1,4 +1,6 @@
-/* PC用トップナビゲーション */
+/* static/css/components/nav.css の全内容 */
+
+/* --- PC用トップナビゲーション --- */
 nav.container-fluid {
     border-bottom: 1px solid var(--border-color); 
     background-color: rgba(255, 255, 255, 0.95);
@@ -13,10 +15,18 @@ nav .container {
     align-items: center;
     max-width: 1000px;
 }
+.primary-navigation {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+}
 
-/* スマホ用フッターナビゲーション */
+
+/* --- スマホ用フッターナビゲーション --- */
 .footer-nav {
-    display: none;
+    display: none; /* PCでは非表示 */
     position: fixed;
     bottom: 0;
     left: 0;
@@ -45,15 +55,16 @@ nav .container {
     stroke-width: 2; stroke: currentColor; fill: none;
     stroke-linecap: round; stroke-linejoin: round;
 }
-/* static/css/components/nav.css の一番下に追加 */
 
+
+/* --- レスポンシブ切り替え --- */
 @media (max-width: 768px) {
     /* PC用のトップナビゲーションのリンク部分を非表示に */
     .primary-navigation {
         display: none;
     }
     
-    /* フッターナビゲーションを表示状態に */
+    /* スマホ用のフッターナビゲーションを表示する */
     .footer-nav {
         display: flex;
     }
