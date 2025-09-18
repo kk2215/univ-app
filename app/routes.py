@@ -293,7 +293,10 @@ def dashboard(user_id):
     ).order_by(OfficialMockExam.exam_date.asc()).limit(5).all() # 5件まで表示
     
     dashboard_data = []
+    print(f"【診断】ループ開始前の科目リスト: {[s.name for s in user.subjects]}")
+    
     for subject in user.subjects:
+        print(f"【診断】ループ処理中の科目: {subject.name}")
         subject.next_task = None; subject.continuous_tasks = []; subject.progress = 0
         subject.last_completed_task = None; subject.pending_selections = []
         
@@ -367,6 +370,9 @@ def dashboard(user_id):
                 else: tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
             subject.continuous_tasks = tasks_to_display
         dashboard_data.append(subject)
+        
+        print(f"【診断】ループ完了後のdashboard_data: {[s.name for s in dashboard_data]}")
+        
         return render_template(
         'dashboard.html', 
         user=user, 
