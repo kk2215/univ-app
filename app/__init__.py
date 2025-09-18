@@ -44,4 +44,5 @@ def create_app():
             print("--- Seeding database... ---")
             seed_database(db)
             print("--- Database seeding finished. ---")
+            
     return app

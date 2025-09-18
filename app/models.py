@@ -2,7 +2,7 @@ from datetime import datetime
 from . import db
 from flask_login import UserMixin
 
-# ユーザーと科目を繋ぐための中間テーブル
+# ユーザーと科目を繋ぐための中間テーブル（多対多リレーションシップ用）
 user_subjects_table = db.Table('user_subjects',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('subject_id', db.Integer, db.ForeignKey('subjects.id'), primary_key=True)
@@ -136,4 +136,4 @@ class OfficialMockExam(db.Model):
     app_start_date = db.Column(db.Date, nullable=True) 
     app_end_date = db.Column(db.Date, nullable=True)
     url = db.Column(db.String(255), nullable=False)
-    target_grade = db.Column(db.String(50))
+    target_grade = db.Column(db.String(50), nullable=True)
