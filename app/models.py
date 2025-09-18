@@ -1,12 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from . import db
-from flask_login import UserMixin # ★ 1. UserMixinをインポート
+from flask_login import UserMixin
 
-
-db = SQLAlchemy()
-
-# ユーザーと科目を繋ぐための中間テーブル（多対多リレーションシップ用）
+# ユーザーと科目を繋ぐための中間テーブル
 user_subjects_table = db.Table('user_subjects',
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('subject_id', db.Integer, db.ForeignKey('subjects.id'), primary_key=True)
@@ -25,8 +21,8 @@ class User(db.Model, UserMixin):
     prefecture = db.Column(db.String)
     target_exam_date = db.Column(db.Date)
     learning_style = db.Column(db.String)
-    subjects = db.relationship('Subject', secondary=user_subjects_table, back_populates='users')
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    subjects = db.relationship('Subject', secondary=user_subjects_table, back_populates='users')
     
 class Subject(db.Model):
     __tablename__ = 'subjects'
@@ -53,9 +49,9 @@ class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String, unique=True, nullable=False)
     title = db.Column(db.String, nullable=False)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.String)
     youtube_query = db.Column(db.String)
-    duration_weeks = db.Column(db.Integer, nullable=False, default=1)
+    duration_weeks = db.Column(db.Integer, default=1)
     task_type = db.Column(db.String, nullable=False, default='sequential')
     url = db.Column(db.String(255), nullable=True)
 
@@ -76,14 +72,12 @@ class RouteStep(db.Model):
     category = db.Column(db.String, nullable=False)
     is_main = db.Column(db.Integer, nullable=False, default=1)
 
-# app/models.py
-
 class Progress(db.Model):
     __tablename__ = 'progress'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     task_id = db.Column(db.String, nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False) # <-- この行を追加
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     is_completed = db.Column(db.Integer, nullable=False)
 
 class UserContinuousTaskSelection(db.Model):
@@ -131,17 +125,15 @@ class MockExam(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     exam_name = db.Column(db.String, nullable=False)
     exam_date = db.Column(db.Date, nullable=False)
-    results_url = db.Column(db.String) # 結果ページのURLなど    
+    results_url = db.Column(db.String) 
     
 class OfficialMockExam(db.Model):
+    __tablename__ = 'official_mock_exam'
     id = db.Column(db.Integer, primary_key=True)
     provider = db.Column(db.String(50), nullable=False)
     name = db.Column(db.String(150), nullable=False)
     exam_date = db.Column(db.Date, nullable=False)
-    # ▼▼▼ nullable=False を True に変更 ▼▼▼
     app_start_date = db.Column(db.Date, nullable=True) 
     app_end_date = db.Column(db.Date, nullable=True)
-    # ▲▲▲ ここまで ▲▲▲
     url = db.Column(db.String(255), nullable=False)
-    # ▼▼▼ この一行を追加 ▼▼▼
-    target_grade = db.Column(db.String(50)) # 例: "高3・卒", "高1・2", "全学年"
+    target_grade = db.Column(db.String(50))
