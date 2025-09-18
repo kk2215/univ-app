@@ -13,7 +13,7 @@ from . import db
 # データベースモデルをインポートします
 from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam
 from functools import wraps
-from flask_login import current_user
+from flask_login import current_user, login_user, logout_user, login_required
 import re
 
 def admin_required(f):
@@ -140,7 +140,7 @@ def login():
 
 @bp.route('/logout')
 def logout():
-    session.clear()
+    logout_user()
     return redirect(url_for('main.index'))
 
 @bp.route('/plan/<int:user_id>')
@@ -243,8 +243,8 @@ def show_plan(user_id):
 @bp.route('/dashboard/<int:user_id>')
 @login_required
 def dashboard(user_id):
-    user = db.session.query(User).get(user_id)
-    if not user or user.id != current_user.id: abort(404)
+    if user_id != current_user.id: abort(404)
+    user = current_user # データベースへの再クエリ不要
         
     university = db.session.query(University).filter_by(name=user.school).first()
     days_until_exam = "未設定"
@@ -778,7 +778,7 @@ from urllib3.util.ssl_ import create_urllib3_context
 # --- 共通ヘルパー (変更なし) ---
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        ssl_context = create_urllib3_context()
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         ssl_context.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
         self.poolmanager = PoolManager(
             ssl_context=ssl_context, num_pools=connections, maxsize=maxsize,
@@ -951,8 +951,7 @@ def execute_import(provider):
 @admin_required
 def get_exam_templates():
     provider = request.args.get('provider', '')
-    if not provider:
-        return jsonify([])
+    if not provider: return jsonify([])
     
     provider_map = {'河合塾': 'kawai', '駿台': 'sundai', '東進': 'toshin'}
     search_prefix = f"moshi_{provider_map.get(provider, '')}_"
