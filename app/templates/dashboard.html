@@ -21,7 +21,7 @@
 
 <article>
     <hgroup>
-        <h1>マイページ - 同期確認テスト</h1>
+        <h1>マイページ</h1>
         <h2>こんにちは、{{ user.username }}さん！</h2>
         <h2>あなたの目標は <strong>{{ user.school }} {{ user.faculty }}</strong> です。</h2>
         {% if days_until_exam != "未設定" and days_until_exam >= 0 %}
@@ -190,10 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target === modalOverlay) closeModal();
         });
     }
-
-    // ▼▼▼ チュートリアル表示のトリガー ▼▼▼
-    {% if show_welcome_modal %}
-        openModal();
     {% endif %}
 
     // --- 進捗更新用のJavaScript ---

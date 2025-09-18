@@ -59,7 +59,7 @@ nav .container {
 
 /* --- レスポンシブ切り替え --- */
 @media (max-width: 768px) {
-    /* PC用のトップナビゲーションのリンク部分を非表示に */
+    /* ▼▼▼ PC用のトップナビゲーションのリンク部分を非表示に ▼▼▼ */
     .primary-navigation {
         display: none;
     }
