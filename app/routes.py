@@ -152,9 +152,9 @@ def more(user_id):
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
-    # (以降、このファイル内の全ての .query を db.session.query() に変更)
-    user = db.session.query(User).get(user_id)
-    if not user or user.id != current_user.id: abort(404)
+    if user_id != current_user.id:
+        abort(404)
+    user = current_user
 
     target_school = db.session.query(University).filter_by(name=user.school).first()
     target_level_name = target_school.level if target_school else None
