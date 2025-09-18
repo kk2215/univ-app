@@ -209,7 +209,8 @@ def show_plan(user_id):
                 task_groups, temp_group = [], []
                 for task in sequential_tasks:
                     if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group); temp_group = []
+                        task_groups.append(temp_group)
+                        temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
 
@@ -239,8 +240,9 @@ def show_plan(user_id):
         'plan.html', user=user, plan_data=plan_by_subject_level, 
         continuous_tasks_data=continuous_tasks_by_subject_level_category,
         user_selections=user_selections, sequential_selections=sequential_selections,
-        title="学習マップ", completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map
+        completed_tasks=completed_tasks_set,
+        strategies=strategies, subject_ids_map=subject_ids_map,
+        title="学習マップ"
     )
 
 @bp.route('/dashboard/<int:user_id>')
