@@ -62,7 +62,7 @@
                             <small>「{{ subject.pending_selections | join(', ') }}」の参考書を選んでください</small>
                         </div>
                         <div class="task-actions">
-                            <a href="{{ url_for('main.show_plan', user_id=user.id, subject_name=subject.name) }}" role="button" class="contrast">選択する</a>
+                            <a href="{{ url_for('main.show_plan', user_id=user.id, subject_name=subject.name, _anchor=subject.pending_selections[0]) }}" role="button" class="contrast">選択する</a>
                         </div>
                     </div>
                     {% endif %}
