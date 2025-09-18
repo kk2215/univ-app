@@ -149,6 +149,8 @@ def more(user_id):
         abort(404)
     return render_template('more.html', user=current_user)
 
+# app/routes.py
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -178,7 +180,9 @@ def show_plan(user_id):
 
     for subject in user.subjects:
         query_builder = db.session.query(
-            Book.task_id, Book.title.label('book_title'), Book.description, 
+            # ▼▼▼ ここの名前を 'book_title' から 'book' に修正しました ▼▼▼
+            Book.title.label('book'), 
+            Book.task_id, Book.description, 
             Book.youtube_query, Book.task_type, RouteStep.level,
             RouteStep.category, RouteStep.is_main, Book.duration_weeks,
             RouteStep.step_order
