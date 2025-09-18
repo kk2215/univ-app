@@ -33,4 +33,37 @@
         grid-template-columns: 1fr;
         gap: 1rem;
     }
+    /* ▼▼▼ 学習記録モーダルのスマホ用スタイルを追加 ▼▼▼ */
+    .subject-log-row {
+        grid-template-columns: 1fr; /* 1列レイアウトに変更 */
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    .subject-label {
+        margin-bottom: 0;
+    }
+    .time-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .time-display {
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+    .time-btn {
+        padding: 0.75rem; /* ボタンを大きくする */
+    }
+
+    /* ▲▲▲ ここまで ▲▲▲ */
+
+/* static/css/style.css に追加 */
+
+/* カレンダーで「今日」の日付をハイライトするスタイル */
+.day.is-today {
+    font-weight: bold;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+}
+
 }

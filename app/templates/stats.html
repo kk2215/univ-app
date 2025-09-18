@@ -243,6 +243,20 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.textContent = 'この日の記録を保存';
         }
     });
+    // ▼▼▼ ここから「今日」をハイライトする処理を追加 ▼▼▼
+    // ユーザーのブラウザのタイムゾーンで「今日」の日付をYYYY-MM-DD形式で取得
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    // カレンダーの中から今日の日付に一致する要素を探す
+    const todayElement = document.querySelector(`.day[data-date="${todayStr}"]`);
+    if (todayElement) {
+        // is-todayクラスを追加してハイライト
+        todayElement.classList.add('is-today');
+    }
 });
 </script>
 {% endblock %}
