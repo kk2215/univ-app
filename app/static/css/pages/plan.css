@@ -1,11 +1,9 @@
-/* static/css/pages/plan.css */
-
-/* --- タブUIのスタイル --- */
+/* --- 科目タブのスタイル --- */
 .tabs {
     display: flex;
-    flex-wrap: wrap; /* スマホで折り返すように */
+    flex-wrap: wrap;
     border-bottom: 2px solid var(--border-color);
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 .tab {
     padding: 0.75rem 1.25rem;
@@ -15,121 +13,92 @@
     color: var(--secondary);
     font-weight: 500;
     border-bottom: 2px solid transparent;
-    margin-bottom: -2px; /* 下線を親要素の線と重ねる */
+    margin-bottom: -2px;
 }
 .tab.active {
     color: var(--primary);
     border-bottom-color: var(--primary);
 }
-
-/* --- タブコンテンツ --- */
 .tab-content {
-    display: none; /* デフォルトでは非表示 */
+    display: none;
 }
 .tab-content.active {
-    display: block; /* activeクラスがついたら表示 */
+    display: block;
 }
 
-/* --- 学習計画の各セクション --- */
+/* --- タイムライン全体のスタイル --- */
+.plan-timeline-article {
+    padding: 0.5rem;
+}
 .level-group {
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
+    padding-top: 1rem;
 }
 .level-group > h3 {
     font-size: 1.5rem;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 1.5rem;
+    position: sticky;
+    top: 65px; /* ヘッダーの高さに合わせて調整 */
+    background: var(--background-color);
+    z-index: 10;
+    padding-top: 1rem;
+    padding-left: 1rem;
+    margin-left: -1rem;
+    margin-right: -1rem;
 }
-.category-group {
-    margin-bottom: 2rem;
-}
-.category-group > h4 {
-    font-size: 1.1rem;
-    font-weight: 500;
+.category-heading {
+    font-size: 1rem;
+    font-weight: 700;
     color: var(--secondary);
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
 }
 
-/* --- タスクアイテム --- */
-.task-group {
-    padding: 1rem 1.5rem;
-    border-left: 4px solid var(--border-color);
-    margin-bottom: 1rem;
-    background-color: var(--background-color);
-}
-.task-group.is-completed {
-    border-left-color: #05c46b; /* 完了済みの色は緑 */
-    opacity: 0.7;
-}
-.task-group.is-completed .task-title {
-    text-decoration: line-through;
-}
-
-/* 選択肢がある場合のスタイル */
-.choice-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-.choice-radio-label {
+/* --- タイムラインの線と丸 --- */
+.timeline-container {
     position: relative;
-    display: block;
-    border: 2px solid var(--border-color); /* 枠線を少し太く */
+    padding-left: 2rem;
+    border-left: 3px solid var(--border-color);
+}
+.timeline-node {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+.timeline-node::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0.5rem;
+    transform: translateX(-50%);
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: var(--border-color);
+}
+.timeline-node.is-completed::before {
+    background-color: var(--primary);
+}
+.timeline-content {
+    background: var(--card-background-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 1rem 1rem 1rem 3.5rem; /* アイコン用のスペースを確保 */
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    padding: 1.5rem;
+}
+.single-task {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* (継続タスクや選択肢UIのスタイルは、前の回答から変更ありません) */
+.continuous-tasks-card {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--primary);
+    padding: 1.5rem;
 }
 .choice-radio-label:has(input:checked) {
     border-color: var(--primary);
-    background-color: var(--primary-light, #e6f2ff); /* 薄い青色の背景 */
-    color: var(--primary-dark, #0056b3); /* 少し濃い青色の文字 */
-    font-weight: bold; /* 文字を太く */
-}
-.choice-radio-label:has(input:checked)::before {
-    transform: translateY(-50%) scale(1.1); /* アイコンを少し大きく */
-}
-.choice-radio-label input {
-    display: none;
-}
-
-/* 確定済みのタスク表示 */
-.selected-task-view {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.change-selection-btn {
-    margin: 0;
-}
-
-/* --- 継続タスクカード --- */
-.continuous-tasks-card {
     background-color: #eef9ff;
-    border-left: 5px solid var(--primary);
-    margin-bottom: 2rem;
-    padding: 1.5rem 2rem;
-}
-.continuous-tasks-card h4 { color: var(--primary); }
-
-/* static/css/pages/plan.css の一番下に追加 */
-
-.level-tabs {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    border-bottom-color: #e0e0e0; /* 科目タブより少し薄い線 */
-}
-
-.level-tab {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-}
-
-.level-tab-content {
-    display: none; /* レベルタブのコンテンツもデフォルトで非表示 */
-}
-
-.level-tab-content.active {
-    display: block; /* activeクラスで表示 */
 }

@@ -65,66 +65,59 @@
                 </article>
             {% endif %}
             
-            <article>
+            <article class="plan-timeline-article">
                 {% if not levels %}
                     <p>この科目の学習ステップは、現在準備中です。</p>
                 {% else %}
-                    <nav class="tabs level-tabs">
-                        {% for level in levels.keys()|sort %}
-                            <button class="tab level-tab" data-target="level-{{ subject_name }}-{{ loop.index }}">{{ level }}</button>
-                        {% endfor %}
-                    </nav>
-
                     {% for level, categories in levels.items()|sort %}
-                        <div id="level-{{ subject_name }}-{{ loop.index }}" class="tab-content level-tab-content">
-                            <section class="level-group">
-                                {% for category, task_groups in categories.items()|sort %}
-                                    <h4 class="category-heading">{{ category }}</h4>
-                                    <div class="timeline-container">
-                                        {% for group in task_groups %}
-                                            {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
-                                            {% set selected_id = sequential_selections.get(group_id, group_id) %}
-                                            {% set is_group_completed = selected_id in completed_tasks %}
-                                            <div class="timeline-node {% if is_group_completed %}is-completed{% endif %}">
-                                                <div class="timeline-content">
-                                                    {% if group|length > 1 %}
-                                                        <div class="sequential-category-group {% if selected_id %}is-selected{% endif %}">
-                                                            <div class="selected-task-view">
-                                                                <div class="task-details">
-                                                                    {% for task in group %}{% if task.task_id == selected_id %}
-                                                                        <strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small>
-                                                                    {% endif %}{% endfor %}
-                                                                </div>
-                                                                <button class="secondary outline change-sequential-btn">変更</button>
+                        <section class="level-group">
+                            <h3>{{ level }}</h3>
+                            {% for category, task_groups in categories.items()|sort %}
+                                <h4 class="category-heading">{{ category }}</h4>
+                                <div class="timeline-container">
+                                    {% for group in task_groups %}
+                                        {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
+                                        {% set selected_id = sequential_selections.get(group_id, group_id) %}
+                                        {% set is_group_completed = selected_id in completed_tasks %}
+                                        <div class="timeline-node {% if is_group_completed %}is-completed{% endif %}">
+                                            <div class="timeline-content">
+                                                {% if group|length > 1 %}
+                                                    <div class="sequential-category-group {% if selected_id %}is-selected{% endif %}">
+                                                        <div class="selected-task-view">
+                                                            <div class="task-details">
+                                                                {% for task in group %}{% if task.task_id == selected_id %}
+                                                                    <strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small>
+                                                                {% endif %}{% endfor %}
                                                             </div>
-                                                            <div class="choice-options-view">
-                                                                <p class="choice-prompt">▼ 以下のうち1冊を選択してください</p>
-                                                                <div class="choice-options">
-                                                                    {% for task in group %}
-                                                                        <label class="choice-radio-label">
-                                                                            <input type="radio" class="sequential-task-radio" name="choice-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
-                                                                            {% if selected_id == task.task_id %} checked {% endif %}>
-                                                                            <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
-                                                                        </label>
-                                                                    {% endfor %}
-                                                                </div>
+                                                            <button class="secondary outline change-sequential-btn">変更</button>
+                                                        </div>
+                                                        <div class="choice-options-view">
+                                                            <p class="choice-prompt">▼ 以下のうち1冊を選択してください</p>
+                                                            <div class="choice-options">
+                                                                {% for task in group %}
+                                                                    <label class="choice-radio-label">
+                                                                        <input type="radio" class="sequential-task-radio" name="choice-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
+                                                                        {% if selected_id == task.task_id %} checked {% endif %}>
+                                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
+                                                                    </label>
+                                                                {% endfor %}
                                                             </div>
                                                         </div>
-                                                    {% else %}
-                                                        {% set task = group[0] %}
-                                                        <div class="single-task">
-                                                            <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
-                                                            <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
+                                                    </div>
+                                                {% else %}
+                                                    {% set task = group[0] %}
+                                                    <div class="single-task">
+                                                        <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
+                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
+                                                    </div>
+                                                {% endif %}
                                             </div>
-                                            {% if not loop.last %} <div class="timeline-connector"></div> {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                {% endfor %}
-                            </section>
-                        </div>
+                                        </div>
+                                        {% if not loop.last %} <div class="timeline-connector"></div> {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </section>
                     {% endfor %}
                 {% endif %}
             </article>
@@ -136,35 +129,28 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- UI要素をまとめて取得 ---
     const subjectTabs = document.querySelectorAll('.subject-tab');
     const subjectContents = document.querySelectorAll('.subject-tab-content');
-    const levelTabs = document.querySelectorAll('.level-tab');
-    
-    // --- 機能1: 科目タブの切り替え ---
+
     function switchSubjectTab(targetTab) {
         if (!targetTab) return;
-        
         subjectTabs.forEach(t => t.classList.remove('active'));
         subjectContents.forEach(c => c.classList.remove('active'));
-        
         targetTab.classList.add('active');
         const subjectName = targetTab.dataset.subject;
         const targetContent = document.getElementById(`tab-content-${subjectName}`);
-        
         if (targetContent) {
             targetContent.classList.add('active');
-            // 表示された科目内のレベルタブの最初のものをアクティブにする
-            const firstLevelTab = targetContent.querySelector('.level-tab');
-            if(firstLevelTab) {
-                switchLevelTab(firstLevelTab);
-            }
         }
     }
 
     subjectTabs.forEach(tab => {
         tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
     });
+
+    if (subjectTabs.length > 0) {
+        switchSubjectTab(subjectTabs[0]);
+    }
 
     // --- 機能2: レベルタブの切り替え ---
     function switchLevelTab(targetTab) {
