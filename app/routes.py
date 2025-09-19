@@ -151,6 +151,8 @@ def more(user_id):
 
 # app/routes.py
 
+# app/routes.py
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -166,84 +168,53 @@ def show_plan(user_id):
     subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
     subject_ids_map = {v: k for k, v in subjects_map.items()}
     
-    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
-    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
-    
-    seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
-    sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
-    
+    cont_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()}
+    sequential_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
     
-    plan_by_subject_level = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_by_subject_level_category = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in user.subjects:
-        query_builder = db.session.query(
-            # ▼▼▼ ここの名前を 'book_title' から 'book' に修正しました ▼▼▼
-            Book.title.label('book'), 
-            Book.task_id, Book.description, 
-            Book.youtube_query, Book.task_type, RouteStep.level,
-            RouteStep.category, RouteStep.is_main, Book.duration_weeks,
-            RouteStep.step_order
-        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
-         .join(Book, RouteStep.book_id == Book.id)\
-         .join(Subject, Route.subject_id == Subject.id)
-
+        route_query = db.session.query(Route)
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            subject_plan_rows = query_builder.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
+            route = route_query.filter_by(name=route_name).first()
         else:
-            subject_plan_rows = query_builder.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).order_by(RouteStep.step_order).all()
+            route_name_candidate = subject.name.lower().replace('・', '_').replace(' ', '_') + '_standard'
+            route = route_query.filter_by(name=route_name_candidate).first()
+            if not route:
+                route = route_query.filter_by(subject_id=subject.id, plan_type='standard').first()
         
-        subject_plan = [dict(row._mapping) for row in subject_plan_rows]
+        if not route: continue
 
-        if subject_plan:
-            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
-            
-            for task in filtered_plan:
-                if task['task_type'] == 'continuous':
-                    continuous_tasks_by_subject_level_category[subject.name][task['level']][task['category']].append(task)
-            
-            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
-            if sequential_tasks:
-                today = date.today()
-                exam_date = user.target_exam_date if user.target_exam_date else date(today.year + 1, 2, 25)
-                
-                task_groups, temp_group = [], []
-                for task in sequential_tasks:
-                    if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group)
-                        temp_group = []
-                    temp_group.append(task)
-                if temp_group: task_groups.append(temp_group)
+        steps_query = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id).filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order)
+        all_steps = steps_query.all()
+        
+        filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
 
-                main_tasks_in_groups = [sequential_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), next((t['task_id'] for t in g if t['is_main']), g[0]['task_id'])) for g in task_groups]
-                main_tasks_details = [task for task in sequential_tasks if task['task_id'] in main_tasks_in_groups]
-                total_duration = sum(t['duration_weeks'] for t in main_tasks_details if t['duration_weeks'] is not None)
-                weeks_until_exam = max(1, (exam_date - today).days / 7)
-                pace_factor = weeks_until_exam / total_duration if total_duration > 0 else 1
-                
-                current_deadline = exam_date
-                deadlines = {}
-                for task in reversed(main_tasks_details):
-                    duration = task['duration_weeks'] if task['duration_weeks'] is not None else 1
-                    adjusted_duration = duration * pace_factor
-                    days_to_subtract = max(7, round(adjusted_duration * 7))
-                    current_deadline -= timedelta(days=days_to_subtract)
-                    deadlines[task['task_id']] = current_deadline.strftime('%Y-%m-%d')
-                
-                for group in task_groups:
-                    main_task_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
-                    deadline_for_group = deadlines.get(main_task_id, exam_date.strftime('%Y-%m-%d'))
-                    for task in group:
-                        task['deadline'] = deadline_for_group
-                    plan_by_subject_level[subject.name][group[0]['level']][group[0]['category']].append(group)
-    
+        for step, book in filtered_steps:
+            if book.task_type == 'continuous':
+                continuous_tasks_data[subject.name][step.level][step.category].append(book)
+
+        sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
+        if sequential_steps:
+            task_groups, temp_group = [], []
+            for step, book in sequential_steps:
+                if step.is_main == 1 and temp_group:
+                    task_groups.append(temp_group)
+                    temp_group = []
+                temp_group.append(book)
+            if temp_group: task_groups.append(temp_group)
+
+            for group in task_groups:
+                plan_data[subject.name][group[0].level][group[0].category].append(group)
+
     return render_template(
-        'plan.html', user=user, plan_data=plan_by_subject_level, 
-        continuous_tasks_data=continuous_tasks_by_subject_level_category,
-        user_selections=user_selections, sequential_selections=sequential_selections,
+        'plan.html', user=user, plan_data=plan_data, 
+        continuous_tasks_data=continuous_tasks_data,
+        user_selections=cont_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
         strategies=strategies, subject_ids_map=subject_ids_map,
         title="学習マップ"
