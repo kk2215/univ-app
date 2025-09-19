@@ -151,6 +151,8 @@ def more(user_id):
 
 
 
+# app/routes.py の show_plan 関数
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -158,97 +160,74 @@ def show_plan(user_id):
         abort(404)
     user = current_user
 
+    # --- 1. ユーザーと目標に関する基本情報を準備 ---
     target_school = db.session.query(University).filter_by(name=user.school).first()
     target_level_name = target_school.level if target_school else None
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     target_level_value = level_hierarchy.get(target_level_name, 99)
     
+    # --- 2. ユーザーの学習状況データを準備 ---
     subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
     subject_ids_map = {v: k for k, v in subjects_map.items()}
-    
-    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
-    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
-    
-    seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
-    sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
-    
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
-    
-    plan_by_subject_level = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_by_subject_level_category = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    sequential_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
+    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
+    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
 
+    # --- 3. 表示用データを格納する変数を準備 ---
+    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+
+    # --- 4. ユーザーの各科目について、学習計画を生成 ---
     for subject in user.subjects:
-        query_builder = db.session.query(
-            Book.task_id, Book.title, Book.description, Book.url,
-            Book.youtube_query, Book.task_type, RouteStep.level,
-            RouteStep.category, RouteStep.is_main, Book.duration_weeks
-        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
-         .join(Book, RouteStep.book_id == Book.id)\
-         .join(Subject, Route.subject_id == Subject.id)
-
+        # 正しいルート名でルートを検索
+        route_query = db.session.query(Route)
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            subject_plan_rows = query_builder.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
+            route = route_query.filter_by(name=route_name).first()
         else:
-            route_name_candidate = subject.name.lower().replace('・', '_').replace(' ', '_') + '_standard'
-            route = db.session.query(Route).filter_by(name=route_name_candidate).first()
-            if route:
-                subject_plan_rows = query_builder.filter(Route.id == route.id).order_by(RouteStep.step_order).all()
-            else:
-                subject_plan_rows = []
+            route = route_query.filter_by(subject_id=subject.id, plan_type='standard').first()
         
-        subject_plan = [dict(row._mapping) for row in subject_plan_rows]
+        if not route: continue
 
-        if subject_plan:
-            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
-            
-            for task in filtered_plan:
-                if task['task_type'] == 'continuous':
-                    continuous_tasks_by_subject_level_category[subject.name][task['level']][task['category']].append(task)
-            
-            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
-            if sequential_tasks:
-                today = date.today()
-                exam_date = user.target_exam_date if user.target_exam_date else date(today.year + 1, 2, 25)
-                
-                task_groups, temp_group = [], []
-                for task in sequential_tasks:
-                    if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group)
-                        temp_group = []
-                    temp_group.append(task)
-                if temp_group: task_groups.append(temp_group)
+        # ルートに紐づく参考書を全て取得
+        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+        
+        # ユーザーの目標レベルに合わせて絞り込み
+        filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
 
-                main_tasks_in_groups = [sequential_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), next((t['task_id'] for t in g if t['is_main']), g[0]['task_id'])) for g in task_groups]
-                main_tasks_details = [task for task in sequential_tasks if task['task_id'] in main_tasks_in_groups]
-                total_duration = sum(t['duration_weeks'] for t in main_tasks_details if t['duration_weeks'] is not None)
-                weeks_until_exam = max(1, (exam_date - today).days / 7)
-                pace_factor = weeks_until_exam / total_duration if total_duration > 0 else 1
-                
-                current_deadline = exam_date
-                deadlines = {}
-                for task in reversed(main_tasks_details):
-                    duration = task['duration_weeks'] if task['duration_weeks'] is not None else 1
-                    adjusted_duration = duration * pace_factor
-                    days_to_subtract = max(7, round(adjusted_duration * 7))
-                    current_deadline -= timedelta(days=days_to_subtract)
-                    deadlines[task['task_id']] = current_deadline.strftime('%Y-%m-%d')
-                
-                for group in task_groups:
-                    main_task_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
-                    deadline_for_group = deadlines.get(main_task_id, exam_date.strftime('%Y-%m-%d'))
-                    for task in group:
-                        task['deadline'] = deadline_for_group
-                    plan_by_subject_level[subject.name][group[0]['level']][group[0]['category']].append(group)
-    
+        # 継続タスクと通常タスクに分類
+        for step, book in filtered_steps:
+            if book.task_type == 'continuous':
+                continuous_tasks_data[subject.name][step.level][step.category].append(book)
+        
+        sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
+        if sequential_steps:
+            # タスクをグループ化
+            task_groups, temp_group = [], []
+            for step, book in sequential_steps:
+                if step.is_main == 1 and temp_group:
+                    task_groups.append(temp_group)
+                    temp_group = []
+                temp_group.append(book)
+            if temp_group: task_groups.append(temp_group)
+
+            # 各グループをレベルとカテゴリで分類して格納
+            for group in task_groups:
+                first_book_in_group = group[0]
+                # Bookオブジェクトから対応するStep情報を再検索してlevelとcategoryを取得
+                corresponding_step = next((s for s, b in sequential_steps if b.id == first_book_in_group.id), None)
+                if corresponding_step:
+                    plan_data[subject.name][corresponding_step.level][corresponding_step.category].append(group)
+
     return render_template(
-        'plan.html', user=user, plan_data=plan_by_subject_level, 
-        continuous_tasks_data=continuous_tasks_by_subject_level_category,
+        'plan.html', user=user, plan_data=plan_data, 
+        continuous_tasks_data=continuous_tasks_data,
         user_selections=user_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map,
-        title="学習マップ"
+        strategies=strategies, subject_ids_map=subject_ids_map
     )
 
 @bp.route('/dashboard/<int:user_id>')
