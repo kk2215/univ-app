@@ -151,8 +151,6 @@ def more(user_id):
 
 
 
-# app/routes.py
-
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -160,41 +158,13 @@ def show_plan(user_id):
         abort(404)
     user = current_user
 
-    target_school = db.session.query(University).filter_by(name=user.school).first()
-    target_level_name = target_school.level if target_school else None
+    # --- 必要なデータを準備 ---
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
-    target_level_value = level_hierarchy.get(target_level_name, 99)
-    
-    subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
-    subject_ids_map = {v: k for k, v in subjects_map.items()}
-    
-    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
-    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
-    
-    seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
-    sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
-    
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
-    strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
     
-    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    plan_data = {} # 科目ごとのMermaidテキストを保存する辞書
 
     for subject in user.subjects:
-        query_builder = db.session.query(
-            Book.task_id,
-            Book.title,
-            Book.description,
-            Book.url,
-            Book.youtube_query,
-            Book.task_type,
-            RouteStep.level,
-            RouteStep.category,
-            RouteStep.is_main
-        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
-         .join(Book, RouteStep.book_id == Book.id)\
-         .join(Subject, Route.subject_id == Subject.id)
-
         route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
@@ -202,45 +172,66 @@ def show_plan(user_id):
         else:
             route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
         
-        if not route:
-            continue
+        if not route: continue
 
-        subject_plan_rows = query_builder.filter(Route.id == route.id).order_by(RouteStep.step_order).all()
-        subject_plan = [dict(row._mapping) for row in subject_plan_rows]
+        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+        
+        # --- Mermaidテキスト生成ロジック ---
+        mermaid_string = "gantt\n"
+        mermaid_string += "    dateFormat  YYYY-MM-DD\n"
+        mermaid_string += f"    title {subject.name}の学習計画\n"
+        mermaid_string += "    axisFormat %-m月\n\n"
 
-        if subject_plan:
-            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
+        start_date = date(date.today().year, 4, 1) # 4月1日を開始日と仮定
+
+        # 継続タスク（単語帳など）
+        continuous_tasks = [(s,b) for s,b in all_steps if b.task_type == 'continuous']
+        if continuous_tasks:
+            mermaid_string += "    section 継続タスク\n"
+            for step, book in continuous_tasks:
+                safe_title = book.title.replace(':', '').replace(',', '').replace('"', '')
+                status = "done" if book.task_id in completed_tasks_set else "active"
+                end_date = date(start_date.year + 1, 2, 28)
+                mermaid_string += f'    "{safe_title}" :{status}, {start_date.strftime("%Y-%m-%d")}, {end_date.strftime("%Y-%m-%d")}\n'
+            mermaid_string += "\n"
+
+        # レベルごとのセクション
+        sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
+        levels = sorted(list(set([s.level for s,b in sequential_steps])), key=lambda l: level_hierarchy.get(l, 99))
+        
+        level_start_date = start_date
+        for level in levels:
+            mermaid_string += f"    section {level}\n"
+            level_steps_in_level = [(s,b) for s,b in sequential_steps if s.level == level]
             
-            for task in filtered_plan:
-                if task['task_type'] == 'continuous':
-                    continuous_tasks_data[subject.name][task['level']][task['category']].append(task)
-            
-            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
-            if sequential_tasks:
-                task_groups, temp_group = [], []
-                for task in sequential_tasks:
-                    if task['is_main'] == 1 and temp_group:
-                        task_groups.append(temp_group)
-                        temp_group = []
-                    temp_group.append(task)
-                if temp_group:
-                    task_groups.append(temp_group)
+            tasks_by_category = defaultdict(list)
+            for step, book in level_steps_in_level:
+                tasks_by_category[step.category].append((step, book))
 
-                for group in task_groups:
-                    if group: # グループが空でないことを確認
-                        plan_data[subject.name][group[0]['level']][group[0]['category']].append(group)
-    
+            max_weeks_in_level = 0
+            for category, steps_in_cat in tasks_by_category.items():
+                safe_category = category.replace(':', '').replace(',', '').replace('"', '')
+                duration_weeks = sum(b.duration_weeks for s, b in steps_in_cat if b.duration_weeks)
+                if duration_weeks == 0: duration_weeks = 1
+                
+                is_cat_done = all(b.task_id in completed_tasks_set for s, b in steps_in_cat)
+                status = "done" if is_cat_done else "active"
+                
+                mermaid_string += f'    "{safe_category}" :{status}, {level_start_date.strftime("%Y-%m-%d")}, {duration_weeks}w\n'
+                
+                if duration_weeks > max_weeks_in_level:
+                    max_weeks_in_level = duration_weeks
+
+            if max_weeks_in_level > 0:
+                level_start_date += timedelta(weeks=max_weeks_in_level)
+
+        plan_data[subject.name] = mermaid_string
+
     return render_template(
-        'plan.html',
-        user=user,
-        plan_data=plan_data,
-        continuous_tasks_data=continuous_tasks_data,
-        user_selections=user_selections,
-        sequential_selections=sequential_selections,
-        completed_tasks=completed_tasks_set,
-        strategies=strategies,
-        subject_ids_map=subject_ids_map,
-        today=date.today()
+        'plan.html', 
+        user=user, 
+        plan_data=plan_data
     )
 
 @bp.route('/dashboard/<int:user_id>')

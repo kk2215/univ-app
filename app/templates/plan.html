@@ -17,9 +17,9 @@
     {% for subject_name, mermaid_text in plan_data.items()|sort %}
         <div id="tab-content-{{ subject_name }}" class="tab-content subject-tab-content">
             <article class="plan-graph-container">
-                <pre class="mermaid">
+                <div class="mermaid">
                     {{ mermaid_text|safe }}
-                </pre>
+                </div>
             </article>
         </div>
     {% endfor %}
@@ -27,147 +27,33 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const subjectTabs = document.querySelectorAll('.subject-tab');
-    const subjectContents = document.querySelectorAll('.subject-tab-content');
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
 
-    function switchSubjectTab(targetTab) {
-        if (!targetTab) return;
-        subjectTabs.forEach(t => t.classList.remove('active'));
-        subjectContents.forEach(c => c.classList.remove('active'));
-        targetTab.classList.add('active');
-        const subjectName = targetTab.dataset.subject;
-        const targetContent = document.getElementById(`tab-content-${subjectName}`);
-        if (targetContent) {
-            targetContent.classList.add('active');
-        }
-    }
-    mermaid.initialize({ startOnLoad: true, theme: 'base', gantt: { axisFormat: '%Y年%m月' } });
-    subjectTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
-    });
+    document.addEventListener('DOMContentLoaded', () => {
+        const subjectTabs = document.querySelectorAll('.subject-tab');
+        const subjectContents = document.querySelectorAll('.subject-tab-content');
 
-    if (subjectTabs.length > 0) {
-        switchSubjectTab(subjectTabs[0]);
-    }
-
-    // --- 機能2: レベルタブの切り替え ---
-    function switchLevelTab(targetTab) {
-        if (!targetTab) return;
-
-        const parentContent = targetTab.closest('.tab-content');
-        parentContent.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
-        parentContent.querySelectorAll('.level-tab-content').forEach(c => c.classList.remove('active'));
-
-        targetTab.classList.add('active');
-        const targetId = targetTab.dataset.target;
-        const targetContent = document.getElementById(targetId);
-        if(targetContent) {
-            targetContent.classList.add('active');
-        }
-    }
-    
-    levelTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => switchLevelTab(e.currentTarget));
-    });
-
-    // --- 機能3: 初期表示（URLの解釈） ---
-    function handleInitialDisplay() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const subjectNameToOpen = urlParams.get('subject_name');
-        const anchor = window.location.hash.substring(1);
-        let initialTab = subjectTabs[0];
-
-        if (subjectNameToOpen) {
-            const foundTab = Array.from(subjectTabs).find(tab => tab.textContent.trim() === subjectNameToOpen.trim());
-            if (foundTab) initialTab = foundTab;
-        }
-        
-        if(initialTab) {
-            switchSubjectTab(initialTab);
-        }
-
-        if (anchor) {
-            const decodedAnchor = decodeURIComponent(anchor);
-            setTimeout(() => {
-                const element = document.getElementById(decodedAnchor);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 100);
-        }
-    }
-
-    if (subjectTabs.length > 0) {
-        handleInitialDisplay();
-    }
-    
-    // --- 機能4: 参考書選択の自動保存 ---
-    function handleSelectionChange(radio, apiUrl) {
-        const group = radio.closest('.continuous-category-group, .sequential-category-group');
-        if (!group) return;
-
-        const selectedBookLabel = radio.closest('.choice-radio-label').querySelector('.task-details');
-        const selectedViewDetails = group.querySelector('.selected-task-view .task-details');
-        
-        if (selectedViewDetails && selectedBookLabel) {
-            selectedViewDetails.innerHTML = selectedBookLabel.innerHTML;
-            group.classList.add('is-selected');
-        }
-
-        const payload = {
-            subject_id: radio.dataset.subjectId,
-            level: radio.dataset.level,
-            category: radio.dataset.category,
-            task_id: radio.value,
-            group_id: radio.dataset.groupId
-        };
-        
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).catch(err => console.error("Selection save failed:", err));
-    }
-
-    document.querySelectorAll('.continuous-task-radio').forEach(radio => {
-        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_continuous_task') }}"));
-    });
-
-    document.querySelectorAll('.sequential-task-radio').forEach(radio => {
-        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_sequential_task') }}"));
-    });
-
-    // --- 機能5: 「変更」ボタンの処理 ---
-    document.querySelectorAll('.change-selection-btn, .change-sequential-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.target.closest('.continuous-category-group, .sequential-category-group')?.classList.remove('is-selected');
-        });
-    });
-
-    // --- 機能6: 進捗チェックボックスの自動保存 ---
-    document.querySelectorAll('.progress-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', async (e) => {
-            const taskId = e.target.dataset.taskId;
-            const subjectId = e.target.dataset.subjectId;
-            const isCompleted = e.target.checked;
-            try {
-                const response = await fetch("{{ url_for('main.update_progress') }}", { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ task_id: taskId, subject_id: subjectId, is_completed: isCompleted }) 
-                });
-                if (!response.ok) { 
-                    console.error('進捗の保存に失敗しました。'); 
-                    e.target.checked = !isCompleted; 
-                }
-            } catch (error) { 
-                console.error('通信エラー:', error); 
-                e.target.checked = !isCompleted; 
+        function switchSubjectTab(targetTab) {
+            if (!targetTab) return;
+            subjectTabs.forEach(t => t.classList.remove('active'));
+            subjectContents.forEach(c => c.classList.remove('active'));
+            targetTab.classList.add('active');
+            const subjectName = targetTab.dataset.subject;
+            const targetContent = document.getElementById(`tab-content-${subjectName}`);
+            if (targetContent) {
+                targetContent.classList.add('active');
             }
+        }
+
+        subjectTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
         });
+
+        if (subjectTabs.length > 0) {
+            switchSubjectTab(subjectTabs[0]);
+        }
     });
-});
 </script>
 {% endblock %}
