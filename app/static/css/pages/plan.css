@@ -112,3 +112,24 @@
     padding: 1.5rem 2rem;
 }
 .continuous-tasks-card h4 { color: var(--primary); }
+
+/* static/css/pages/plan.css の一番下に追加 */
+
+.level-tabs {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom-color: #e0e0e0; /* 科目タブより少し薄い線 */
+}
+
+.level-tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.level-tab-content {
+    display: none; /* レベルタブのコンテンツもデフォルトで非表示 */
+}
+
+.level-tab-content.active {
+    display: block; /* activeクラスで表示 */
+}
