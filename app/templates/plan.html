@@ -9,7 +9,7 @@
     </hgroup>
     
     <nav class="tabs subject-tabs">
-        {% for subject_name in plan_data.keys()|sort %}
+        {% for subject_name in plan_data.keys() %}
             <button class="tab subject-tab" data-subject="{{ subject_name }}">{{ subject_name }}</button>
         {% endfor %}
     </nav>
@@ -69,7 +69,7 @@
                 {% if not levels %}
                     <p>この科目の学習ステップは、現在準備中です。</p>
                 {% else %}
-                    {% for level, categories in levels.items()|sort %}
+                    {% for level, categories in levels.items() %}
                         <details class="level-group" {% if level == current_level_name %}open{% endif %}>
                             <summary><h3>{{ level }}</h3></summary>
                             <div class="accordion-content">
