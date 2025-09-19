@@ -165,6 +165,7 @@ def show_plan(user_id):
         abort(404)
     user = current_user
 
+    
     # --- 必要なデータを準備 ---
     target_school = db.session.query(University).filter_by(name=user.school).first()
     target_level_name = target_school.level if target_school else None
@@ -177,16 +178,19 @@ def show_plan(user_id):
     cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
     user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
     
+    subject_priority = ['英語', '数学', '現代文', '古文', '漢文', '日本史', '世界史', '地理', '政治・経済', '倫理', '物理', '化学', '生物', '地学', '小論文']
+    sorted_subjects = sorted(user.subjects, key=lambda s: subject_priority.index(s.name) if s.name in subject_priority else 99)
+
     seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
     sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
     
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
     
-    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    plan_data = {}
+    continuous_tasks_data = {}
 
-    for subject in user.subjects:
+    for subject in sorted_subjects:
         # 正しいルートを検索
         route = None
         if subject.name == '数学':
@@ -202,6 +206,16 @@ def show_plan(user_id):
         all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
                       .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
         
+        # 取得したレベルを難易度順に並び替える
+        levels_in_subject = sorted(list(set([s.level for s,b in all_steps if b.task_type == 'sequential'])), key=lambda l: level_hierarchy.get(l, 99))
+        
+        # データを格納
+        subject_plan_data = defaultdict(lambda: defaultdict(list))
+        
+        # 並び替えたレベルの順に辞書を再構築
+        if subject_plan_data:
+            plan_data[subject.name] = {level: subject_plan_data[level] for level in levels_in_subject}
+            
         # ユーザーの目標レベルに合わせて絞り込み
         filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
 
