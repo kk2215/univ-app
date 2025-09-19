@@ -153,8 +153,6 @@ def more(user_id):
 
 # app/routes.py
 
-# app/routes.py
-
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -183,6 +181,20 @@ def show_plan(user_id):
     continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in user.subjects:
+        query_builder = db.session.query(
+            Book.task_id,
+            Book.title,
+            Book.description,
+            Book.url,
+            Book.youtube_query,
+            Book.task_type,
+            RouteStep.level,
+            RouteStep.category,
+            RouteStep.is_main
+        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
+         .join(Book, RouteStep.book_id == Book.id)\
+         .join(Subject, Route.subject_id == Subject.id)
+
         route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
@@ -193,48 +205,41 @@ def show_plan(user_id):
         if not route:
             continue
 
-        # ▼▼▼ ここの RouteStep と Book の順番を修正しました ▼▼▼
-        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
-        
-        filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
+        subject_plan_rows = query_builder.filter(Route.id == route.id).order_by(RouteStep.step_order).all()
+        subject_plan = [dict(row._mapping) for row in subject_plan_rows]
 
-        for step, book in filtered_steps:
-            if book.task_type == 'continuous':
-                continuous_tasks_data[subject.name][step.level][step.category].append(book)
-        
-        sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
-        if sequential_steps:
-            task_groups, temp_group = [], []
-            for step, book in sequential_steps:
-                if step.is_main == 1 and temp_group:
+        if subject_plan:
+            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
+            
+            for task in filtered_plan:
+                if task['task_type'] == 'continuous':
+                    continuous_tasks_data[subject.name][task['level']][task['category']].append(task)
+            
+            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
+            if sequential_tasks:
+                task_groups, temp_group = [], []
+                for task in sequential_tasks:
+                    if task['is_main'] == 1 and temp_group:
+                        task_groups.append(temp_group)
+                        temp_group = []
+                    temp_group.append(task)
+                if temp_group:
                     task_groups.append(temp_group)
-                    temp_group = []
-                
-                task_info = {
-                    'task_id': book.task_id, 'title': book.title, 'description': book.description,
-                    'url': book.url, 'youtube_query': book.youtube_query,
-                    'is_main': step.is_main, 'task_type': book.task_type
-                }
-                temp_group.append(task_info)
-            if temp_group: task_groups.append(temp_group)
 
-            for group in task_groups:
-                # グループのレベルとカテゴリは、そのグループの最初のタスクのものを代表として使用
-                first_task_info = group[0]
-                first_book_task_id = first_task_info['task_id']
-                
-                # step情報を再取得
-                first_step = next((s for s, b in all_steps if b.task_id == first_book_task_id), None)
-                if first_step:
-                    plan_data[subject.name][first_step.level][first_step.category].append(group)
-
+                for group in task_groups:
+                    if group: # グループが空でないことを確認
+                        plan_data[subject.name][group[0]['level']][group[0]['category']].append(group)
+    
     return render_template(
-        'plan.html', user=user, plan_data=plan_data, 
+        'plan.html',
+        user=user,
+        plan_data=plan_data,
         continuous_tasks_data=continuous_tasks_data,
-        user_selections=user_selections, sequential_selections=sequential_selections,
+        user_selections=user_selections,
+        sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map,
+        strategies=strategies,
+        subject_ids_map=subject_ids_map,
         today=date.today()
     )
 
