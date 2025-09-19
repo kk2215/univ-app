@@ -6,6 +6,11 @@
         <h1>管理者ダッシュボード</h1>
         <p>ようこそ、{{ user.username }}さん。ここは管理者専用ページです。</p>
     </hgroup>
-    <p>今後、このページに新しい管理機能を追加していくことができます。</p>
+    <nav>
+    <ul>
+        <li><a href="{{ url_for('main.admin_universities') }}"><strong>大学・学部を管理する</strong></a></li>
+        <li><a href="{{ url_for('main.admin_exams') }}"><strong>模試情報を管理する</strong></a></li>
+        </ul>
+</nav>
 </article>
 {% endblock %}

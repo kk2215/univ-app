@@ -879,3 +879,57 @@ def _extract_exam_details_with_ai(url: str, provider: str):
 def admin_dashboard():
     # 将来、ここに管理者用の機能を追加していく
     return render_template('admin/admin_dashboard.html', user=current_user)
+
+# app/routes.py
+
+# ... (既存のadmin_dashboardルートなどの後に追加)
+
+@bp.route('/admin/universities')
+@login_required
+@admin_required
+def admin_universities():
+    universities = db.session.query(University).order_by(University.kana_name).all()
+    return render_template('admin/admin_universities.html', universities=universities, user=current_user)
+
+@bp.route('/admin/universities/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_university():
+    if request.method == 'POST':
+        new_uni = University(
+            name=request.form['name'],
+            kana_name=request.form['kana_name'],
+            level=request.form['level'],
+            info_url=request.form['info_url']
+        )
+        db.session.add(new_uni)
+        db.session.commit()
+        flash('新しい大学を登録しました。')
+        return redirect(url_for('main.admin_universities'))
+    return render_template('admin/admin_university_form.html', user=current_user, university=None)
+
+@bp.route('/admin/universities/<int:uni_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_university(uni_id):
+    university = db.session.query(University).get_or_404(uni_id)
+    if request.method == 'POST':
+        university.name = request.form['name']
+        university.kana_name = request.form['kana_name']
+        university.level = request.form['level']
+        university.info_url = request.form['info_url']
+        db.session.commit()
+        flash('大学情報を更新しました。')
+        return redirect(url_for('main.admin_universities'))
+    return render_template('admin/admin_university_form.html', user=current_user, university=university)
+
+@bp.route('/admin/universities/<int:uni_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_university(uni_id):
+    university = db.session.query(University).get_or_404(uni_id)
+    # TODO: この大学に関連する学部も削除するロジックを追加すると、より丁寧です。
+    db.session.delete(university)
+    db.session.commit()
+    flash('大学を削除しました。')
+    return redirect(url_for('main.admin_universities'))

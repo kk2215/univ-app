@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{% if university %}大学の編集{% else %}新しい大学の追加{% endif %}{% endblock %}
+{% block content %}
+<article>
+    <h1>{% if university %}大学の編集{% else %}新しい大学の追加{% endif %}</h1>
+    <form method="post">
+        <label for="name">大学名</label>
+        <input type="text" id="name" name="name" value="{{ university.name if university else '' }}" required>
+        
+        <label for="kana_name">ふりがな</label>
+        <input type="text" id="kana_name" name="kana_name" value="{{ university.kana_name if university else '' }}" required>
+
+        <label for="level">レベル</label>
+        <select id="level" name="level" required>
+            {% set levels = ['日東駒専レベル', 'MARCHレベル', '早慶レベル', '難関国公立・東大・早慶レベル'] %}
+            {% for lvl in levels %}
+                <option value="{{ lvl }}" {% if university and university.level == lvl %}selected{% endif %}>{{ lvl }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="info_url">情報URL (パスナビなど)</label>
+        <input type="url" id="info_url" name="info_url" value="{{ university.info_url if university else '' }}">
+        
+        <button type="submit">{% if university %}更新する{% else %}登録する{% endif %}</button>
+    </form>
+    
+    {% if university %}
+    <form action="{{ url_for('main.delete_university', uni_id=university.id) }}" method="post" onsubmit="return confirm('本当にこの大学を削除しますか？関連する学部もすべて削除されます。');" style="margin-top: 2rem;">
+        <button type="submit" class="secondary outline">この大学を削除する</button>
+    </form>
+    {% endif %}
+</article>
+{% endblock %}
