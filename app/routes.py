@@ -151,6 +151,8 @@ def more(user_id):
 
 
 
+# app/routes.py
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -179,86 +181,45 @@ def show_plan(user_id):
     continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in user.subjects:
+        # データベースから必要な情報を全て結合して取得
         query_builder = db.session.query(
-            Book.task_id, Book.title, Book.description, Book.url,
-            Book.youtube_query, Book.task_type, RouteStep.level,
-            RouteStep.category, RouteStep.is_main, Book.duration_weeks
-        ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
-         .join(Book, RouteStep.book_id == Book.id)\
-         .join(Subject, Route.subject_id == Subject.id)
+            Book, RouteStep
+        ).join(RouteStep, Book.id == RouteStep.book_id)\
+         .join(Route, RouteStep.route_id == Route.id)\
+         .filter(Route.subject_id == subject.id)
 
-        route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            route = db.session.query(Route).filter_by(name=route_name).first()
+            all_steps = query_builder.join(Subject, Route.subject_id == Subject.id).filter(Route.name == route_name).order_by(RouteStep.step_order).all()
         else:
-            # subject.id に基づいてルートを検索
-            route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-        
-        if not route: continue
-        
-        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+            all_steps = query_builder.filter(Route.plan_type == 'standard').order_by(RouteStep.step_order).all()
 
-        # --- ここからMermaidテキスト生成ロジック ---
-        mermaid_string = "gantt\n"
-        mermaid_string += "    dateFormat  YYYY-MM-DD\n"
-        mermaid_string += f"    title {subject.name}の学習計画\n\n"
-        
-        continuous_tasks = [(s,b) for s,b in all_steps if b.task_type == 'continuous']
-        if continuous_tasks:
-            mermaid_string += "    section 継続タスク\n"
-            for step, book in continuous_tasks:
-                 # 完了済みのタスクは done, それ以外は active とする
-                status = "done" if book.task_id in completed_tasks_set else "active"
-                mermaid_string += f"    {book.title.replace(':', '')} :{status}, 2025-04-01, 2026-02-28\n"
-            mermaid_string += "\n"
-        
-        # レベルごとにセクションを作成
-        levels = sorted(list(set([s.level for s,b in all_steps if b.task_type == 'sequential'])), key=lambda l: level_hierarchy.get(l, 99))
-        
-        week_counter = 0
-        for level in levels:
-            mermaid_string += f"    section {level}\n"
+        if all_steps:
+            # ユーザーの目標レベルに合わせて絞り込み
+            filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
             
-            level_steps = [(s,b) for s,b in all_steps if s.level == level and b.task_type == 'sequential']
+            # 継続タスクと通常タスクに分類
+            for step, book in filtered_steps:
+                if book.task_type == 'continuous':
+                    continuous_tasks_data[subject.name][step.level][step.category].append(book)
             
-            # カテゴリごとにタスクをグループ化
-            tasks_by_category = defaultdict(list)
-            for step, book in level_steps:
-                tasks_by_category[step.category].append(book)
-        
-            for category, books in tasks_by_category.items():
-                duration = sum(b.duration_weeks for b in books if b.duration_weeks)
-                status = "done" if all(b.task_id in completed_tasks_set for b in books) else "active"
-                mermaid_string += f"    {category} :{status}, {week_counter}w, {duration}w\n"
-            
-            # 次のレベルの開始週を計算
-            max_duration_in_level = max([sum(b.duration_weeks for b in books if b.duration_weeks) for books in tasks_by_category.values()], default=0)
-            week_counter += max_duration_in_level
-        
-        plan_data[subject.name] = mermaid_string
-
-        subject_plan_rows = query_builder.filter(Route.id == route.id).order_by(RouteStep.step_order).all()
-        subject_plan = [dict(row._mapping) for row in subject_plan_rows]
-
-        if subject_plan:
-            filtered_plan = [task for task in subject_plan if level_hierarchy.get(task['level'], 99) <= target_level_value]
-            
-            for task in filtered_plan:
-                if task['task_type'] == 'continuous':
-                    continuous_tasks_data[subject.name][task['level']][task['category']].append(task)
-            
-            sequential_tasks = [task for task in filtered_plan if task['task_type'] == 'sequential']
-            if sequential_tasks:
+            sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
+            if sequential_steps:
+                # タスクをグループ化（この時、stepとbookの両方を保持する）
                 task_groups, temp_group = [], []
-                for task in sequential_tasks:
-                    if task['is_main'] == 1 and temp_group:
+                for step, book in sequential_steps:
+                    if step.is_main == 1 and temp_group:
                         task_groups.append(temp_group)
                         temp_group = []
-                    temp_group.append(task)
+                    # bookだけでなくstepの情報も辞書として格納
+                    task_info = {
+                        'task_id': book.task_id, 'title': book.title, 'description': book.description,
+                        'level': step.level, 'category': step.category, 'is_main': step.is_main
+                    }
+                    temp_group.append(task_info)
                 if temp_group: task_groups.append(temp_group)
 
+                # 各グループをレベルとカテゴリで分類して格納
                 for group in task_groups:
                     plan_data[subject.name][group[0]['level']][group[0]['category']].append(group)
     
@@ -267,8 +228,7 @@ def show_plan(user_id):
         continuous_tasks_data=continuous_tasks_data,
         user_selections=user_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map,
-        title="学習マップ", today=date.today()
+        strategies=strategies, subject_ids_map=subject_ids_map
     )
 
 @bp.route('/dashboard/<int:user_id>')
