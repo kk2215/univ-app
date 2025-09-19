@@ -933,3 +933,11 @@ def delete_university(uni_id):
     db.session.commit()
     flash('大学を削除しました。')
     return redirect(url_for('main.admin_universities'))
+
+@bp.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    users = db.session.query(User).order_by(User.id.desc()).all()
+    user_count = len(users)
+    return render_template('admin/admin_users.html', users=users, user_count=user_count, user=current_user)
