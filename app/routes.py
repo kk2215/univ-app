@@ -164,6 +164,10 @@ def show_plan(user_id):
     if user_id != current_user.id:
         abort(404)
     user = current_user
+    
+    subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
+    subject_ids_map = {v: k for k, v in subjects_map.items()}
+
 
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
@@ -218,7 +222,8 @@ def show_plan(user_id):
     return render_template(
         'plan.html', 
         user=user, 
-        plan_data=plan_data
+        plan_data=plan_data,
+        subject_ids_map=subject_ids_map
     )
 
 @bp.route('/dashboard/<int:user_id>')
