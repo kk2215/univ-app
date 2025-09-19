@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+import click
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -39,4 +40,20 @@ def create_app():
             upgrade()
             seed_database(db)
             
+         # ▼▼▼ このブロックを追加 ▼▼▼
+        from werkzeug.security import generate_password_hash
+
+        @app.cli.command('reset-password')
+        @click.argument('username')
+        @click.argument('new_password')
+        def reset_password_command(username, new_password):
+            """指定されたユーザーのパスワードをリセットします。"""
+            user = db.session.query(models.User).filter_by(username=username).first()
+            if user:
+                user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+                db.session.commit()
+                print(f"ユーザー '{username}' のパスワードが正常にリセットされました。")
+            else:
+                print(f"ユーザー '{username}' が見つかりませんでした。")
+        # ▲▲▲ ここまで ▲▲▲    
     return app
