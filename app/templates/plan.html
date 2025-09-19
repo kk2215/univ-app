@@ -25,8 +25,9 @@
             {% endif %}
 
             {% if continuous_tasks_data.get(subject_name) %}
-                <article class="continuous-tasks-card">
+                <details class="continuous-tasks-accordion">
                     <h4>毎日やるタスク ✍️</h4>
+                    <div class="accordion-content">
                     <p>単語帳など、ルート本体とは別に毎日少しずつ進める参考書です。</p>
                     {% for level, categories in continuous_tasks_data[subject_name].items()|sort %}
                     <div class="continuous-level-section">
@@ -62,16 +63,16 @@
                         {% endfor %}
                     </div>
                     {% endfor %}
-                </article>
+                </details>
             {% endif %}
             
-            <article class="plan-timeline-article">
                 {% if not levels %}
                     <p>この科目の学習ステップは、現在準備中です。</p>
                 {% else %}
                     {% for level, categories in levels.items()|sort %}
-                        <section id="{{ subject_name }}-{{ level|replace(' ', '-') }}" class="level-group" style="scroll-margin-top: 80px;">
-                            <h3>{{ level }}</h3>
+                        <details class="level-group" {% if level == current_level_name %}open{% endif %}>
+                            <summary><h3>{{ level }}</h3></summary>
+                            <div class="accordion-content">
                             {% for category, task_groups in categories.items()|sort %}
                                 <h4 class="category-heading">{{ category }}</h4>
                                 <div class="timeline-container">
@@ -117,7 +118,7 @@
                                     {% endfor %}
                                 </div>
                             {% endfor %}
-                        </section>
+                        </details>
                     {% endfor %}
                 {% endif %}
             </article>

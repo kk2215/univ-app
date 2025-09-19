@@ -17,6 +17,7 @@
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     margin-bottom: 1rem;
+    background-color: var(--card-background-color);
 }
 .level-group[open], .continuous-tasks-accordion[open] {
     border-color: var(--pico-primary-border-hover);
@@ -27,9 +28,12 @@
     align-items: center;
     padding: 1.5rem;
     cursor: pointer;
-    list-style: none; /* 三角マークを消す */
+    list-style: none; /* 標準の三角マークを消す */
 }
-.level-group summary::-webkit-details-marker { display: none; } /* Safari用の三角マーク消し */
+.level-group summary::-webkit-details-marker,
+.continuous-tasks-accordion summary::-webkit-details-marker {
+     display: none; /* Safari用の三角マーク消し */
+}
 
 .level-group h3, .continuous-tasks-accordion h4 { margin: 0; }
 .level-group summary::after, .continuous-tasks-accordion summary::after {
@@ -43,9 +47,8 @@
 }
 .accordion-content {
     padding: 0 1.5rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--border-color);
 }
-
-/* (タイムラインや継続タスクの内部スタイルは、前の回答から変更ありません) */
 
 /* --- タイムライン全体のスタイル --- */
 .plan-timeline-article {
@@ -75,8 +78,9 @@
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--secondary);
+    margin-top: 1.5rem;
     margin-bottom: 1rem;
-    margin-left: -2.5rem; /* タイムラインの線の外側に配置 */
+    margin-left: -2.5rem;
     padding: 0.25rem 0.5rem;
 }
 .timeline-node {
