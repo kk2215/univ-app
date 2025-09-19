@@ -151,6 +151,8 @@ def more(user_id):
 
 
 
+# app/routes.py の show_plan 関数をまるごと置き換え
+
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -158,73 +160,93 @@ def show_plan(user_id):
         abort(404)
     user = current_user
 
-    # --- 必要なデータを準備 ---
+    # --- 1. 必要なデータを準備 (変更なし) ---
+    target_school = db.session.query(University).filter_by(name=user.school).first()
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
+    target_level_value = level_hierarchy.get(target_school.level if target_school else '', 99)
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
+    cont_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()}
+    sequential_selections = {row.group_id: row.selected_task_id for row in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
     
-    plan_data = {} # 科目ごとのMermaidテキストを保存する辞書
+    plan_data = {} # 科目ごとのMermaidテキストを保存
 
     for subject in user.subjects:
+        # --- 2. 科目ごとの全ステップを取得 (変更なし) ---
         route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
             route = db.session.query(Route).filter_by(name=route_name).first()
         else:
             route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-        
         if not route: continue
 
         all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
                       .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
         
-        # --- Mermaidテキスト生成ロジック ---
-        mermaid_string = "gantt\n"
-        mermaid_string += "    dateFormat  YYYY-MM-DD\n"
-        mermaid_string += f"    title {subject.name}の学習計画\n"
-        mermaid_string += "    axisFormat %-m月\n\n"
+        filtered_steps = [(s,b) for s,b in all_steps if level_hierarchy.get(s.level, 99) <= target_level_value]
 
-        start_date = date(date.today().year, 4, 1) # 4月1日を開始日と仮定
+        # --- 3. Mermaidガントチャートの設計図を生成 ---
+        mermaid_string = f"""
+gantt
+    dateFormat  YYYY-MM-DD
+    title {subject.name} の学習工程表
+    axisFormat %-m月
+"""
+        # 継続タスク（単語帳など）を処理
+        start_date = date(date.today().year, 4, 1)
+        mermaid_string += "\n    section 継続タスク（通期）\n"
+        continuous_tasks = [(s,b) for s,b in filtered_steps if b.task_type == 'continuous']
+        tasks_by_category = defaultdict(list)
+        for step, book in continuous_tasks:
+            tasks_by_category[step.category].append((step, book))
+        
+        for category, steps_in_cat in tasks_by_category.items():
+            selection_key = (subject.id, steps_in_cat[0][0].level, category)
+            selected_task_id = cont_selections.get(selection_key)
+            
+            task_to_display = None
+            if len(steps_in_cat) == 1:
+                task_to_display = steps_in_cat[0][1]
+            elif selected_task_id:
+                task_to_display = next((b for s,b in steps_in_cat if b.task_id == selected_task_id), None)
 
-        # 継続タスク（単語帳など）
-        continuous_tasks = [(s,b) for s,b in all_steps if b.task_type == 'continuous']
-        if continuous_tasks:
-            mermaid_string += "    section 継続タスク\n"
-            for step, book in continuous_tasks:
-                safe_title = book.title.replace(':', '').replace(',', '').replace('"', '')
-                status = "done" if book.task_id in completed_tasks_set else "active"
-                end_date = date(start_date.year + 1, 2, 28)
-                mermaid_string += f'    "{safe_title}" :{status}, {start_date.strftime("%Y-%m-%d")}, {end_date.strftime("%Y-%m-%d")}\n'
-            mermaid_string += "\n"
+            if task_to_display:
+                safe_title = task_to_display.title.replace(':', '').replace('"', '')
+                status = "done" if task_to_display.task_id in completed_tasks_set else "active"
+                mermaid_string += f'    "{safe_title}" :{status}, 2025-04-01, 2026-02-28\n'
 
-        # レベルごとのセクション
-        sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
+        # Sequentialタスクをレベルごとに処理
+        sequential_steps = [(s,b) for s,b in filtered_steps if b.task_type == 'sequential']
         levels = sorted(list(set([s.level for s,b in sequential_steps])), key=lambda l: level_hierarchy.get(l, 99))
         
-        level_start_date = start_date
+        # カテゴリごとの進捗を管理
+        category_end_week = defaultdict(int)
+        
         for level in levels:
-            mermaid_string += f"    section {level}\n"
+            mermaid_string += f"\n    section {level}\n"
             level_steps_in_level = [(s,b) for s,b in sequential_steps if s.level == level]
             
-            tasks_by_category = defaultdict(list)
+            # タスクをグループ化
+            task_groups, temp_group = [], []
             for step, book in level_steps_in_level:
-                tasks_by_category[step.category].append((step, book))
+                if step.is_main == 1 and temp_group:
+                    task_groups.append(temp_group)
+                    temp_group = []
+                temp_group.append((step, book))
+            if temp_group: task_groups.append(temp_group)
 
-            max_weeks_in_level = 0
-            for category, steps_in_cat in tasks_by_category.items():
-                safe_category = category.replace(':', '').replace(',', '').replace('"', '')
-                duration_weeks = sum(b.duration_weeks for s, b in steps_in_cat if b.duration_weeks)
-                if duration_weeks == 0: duration_weeks = 1
+            for group in task_groups:
+                group_id = next((b.task_id for s,b in group if s.is_main), group[0][1].task_id)
+                selected_task_id = sequential_selections.get(group_id, group_id)
                 
-                is_cat_done = all(b.task_id in completed_tasks_set for s, b in steps_in_cat)
-                status = "done" if is_cat_done else "active"
+                selected_step, selected_book = next(((s,b) for s,b in group if b.task_id == selected_task_id), group[0])
                 
-                mermaid_string += f'    "{safe_category}" :{status}, {level_start_date.strftime("%Y-%m-%d")}, {duration_weeks}w\n'
-                
-                if duration_weeks > max_weeks_in_level:
-                    max_weeks_in_level = duration_weeks
+                safe_title = selected_book.title.replace(':', '').replace('"', '')
+                status = "done" if selected_book.task_id in completed_tasks_set else "crit" if date.today() > start_date + timedelta(weeks=category_end_week[selected_step.category] + selected_book.duration_weeks) else "active"
+                duration = selected_book.duration_weeks or 1
 
-            if max_weeks_in_level > 0:
-                level_start_date += timedelta(weeks=max_weeks_in_level)
+                mermaid_string += f'    "{safe_title}" :{status}, {category_end_week[selected_step.category]}w, {duration}w\n'
+                category_end_week[selected_step.category] += duration
 
         plan_data[subject.name] = mermaid_string
 
