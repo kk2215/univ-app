@@ -17,8 +17,8 @@
     {% for subject_name, levels in plan_data.items() %}
         <div id="tab-{{ subject_name }}" class="tab-content">
             
-            {% set subject_id = subject_ids_map[subject_name] %}
-            {% if subject_id in strategies %}
+            {% set subject_id = subject_ids_map.get(subject_name) %}
+            {% if subject_id and subject_id in strategies %}
             <div class="strategy-box">
                 {{ strategies[subject_id]|safe }}
             </div>
@@ -36,12 +36,25 @@
                             <div class="continuous-category-group {% if (current_selection_id and tasks|length > 1) or tasks|length == 1 %}is-selected{% endif %}" data-group-key="{{ subject_name }}-{{ category }}">
                                 <div class="selected-task-view">
                                     <div class="task-details">
-                                        {# (表示ロジックは変更なし) #}
+                                        {% if tasks|length == 1 %}{% set task = tasks[0] %}
+                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
+                                        {% elif current_selection_id %}{% for task in tasks %}{% if task.task_id == current_selection_id %}
+                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
+                                        {% endif %}{% endfor %}{% endif %}
                                     </div>
                                     {% if tasks|length > 1 %}<button class="secondary outline change-selection-btn">変更</button>{% endif %}
                                 </div>
                                 <div class="choice-options-view">
-                                    {# (選択肢の表示ロジックは変更なし) #}
+                                    <h6>{{ category }}</h6>
+                                    <div class="choice-options">
+                                        {% for task in tasks %}
+                                            <label class="choice-radio-label">
+                                                <input type="radio" class="continuous-task-radio" name="continuous-choice-{{ subject_name }}-{{ level }}-{{ category }}" value="{{ task.task_id }}" data-subject-id="{{ subject_id }}" data-level="{{ level }}" data-category="{{ category }}"
+                                                {% if current_selection_id == task.task_id or (not current_selection_id and task.is_main) %} checked {% endif %}>
+                                                <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description }}</small></div>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                         {% endfor %}
@@ -60,7 +73,48 @@
                             {% for category, task_groups in categories.items() %}
                                 <h4 class="category-heading">{{ category }}</h4>
                                 <div class="timeline-container">
-                                    {# (以降のタイムライン表示ロジックは変更なし) #}
+                                    {% for group in task_groups %}
+                                        <div class="timeline-node">
+                                            <div class="timeline-content">
+                                                {% if group|length > 1 %}
+                                                    {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
+                                                    {% set current_selection_id = sequential_selections.get(group_id) %}
+                                                    <div class="sequential-category-group {% if current_selection_id %}is-selected{% endif %}">
+                                                        <div class="selected-task-view">
+                                                            <div class="task-details">
+                                                                {% set selected_id = current_selection_id or group_id %}
+                                                                {% for task in group %}{% if task.task_id == selected_id %}
+                                                                    <strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small>
+                                                                {% endif %}{% endfor %}
+                                                            </div>
+                                                            <button class="secondary outline change-sequential-btn">変更</button>
+                                                        </div>
+                                                        <div class="choice-options-view">
+                                                            <p class="choice-prompt">▼ 以下のうち1冊を選択してください</p>
+                                                            <div class="choice-options">
+                                                                {% for task in group %}
+                                                                    <label class="choice-radio-label">
+                                                                        <input type="radio" class="sequential-task-radio" name="choice-{{ subject_name }}-{{ level }}-{{ category }}-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
+                                                                        {% if current_selection_id == task.task_id %} checked
+                                                                        {% elif not current_selection_id and task.is_main %} checked
+                                                                        {% endif %}>
+                                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                                    </label>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    {% set task = group[0] %}
+                                                    <div class="single-task">
+                                                        <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
+                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% if not loop.last %} <div class="timeline-connector"></div> {% endif %}
+                                    {% endfor %}
                                 </div>
                             {% endfor %}
                         </section>
@@ -70,21 +124,14 @@
         </div>
     {% endfor %}
 </article>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- UI要素を取得 ---
     const tabs = document.querySelectorAll('.tab');
     const tabContents = document.querySelectorAll('.tab-content');
-    const continuousRadios = document.querySelectorAll('.continuous-task-radio');
-    const sequentialRadios = document.querySelectorAll('.sequential-task-radio');
-    const changeContinuousBtns = document.querySelectorAll('.change-selection-btn');
-    const changeSequentialBtns = document.querySelectorAll('.change-sequential-btn');
 
-    // --- 機能1: タブ切り替え ---
     function switchTab(targetTab) {
         if (!targetTab) return;
         tabs.forEach(t => t.classList.remove('active'));
@@ -98,12 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', (e) => switchTab(e.currentTarget));
     });
 
-    // --- 機能2: URLを解釈して、指定のタブと位置にジャンプ ---
     function handleInitialDisplay() {
         const urlParams = new URLSearchParams(window.location.search);
         const subjectNameToOpen = urlParams.get('subject_name');
-        
-        let initialTab = tabs[0]; // デフォルトは最初のタブ
+        const anchor = window.location.hash.substring(1);
+        let initialTab = tabs[0];
+
         if (subjectNameToOpen) {
             const foundTab = Array.from(tabs).find(tab => tab.textContent === subjectNameToOpen);
             if (foundTab) initialTab = foundTab;
@@ -111,64 +158,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         switchTab(initialTab);
 
-        const anchor = window.location.hash.substring(1);
         if (anchor) {
-            // デコードして日本語に戻す
             const decodedAnchor = decodeURIComponent(anchor);
             setTimeout(() => {
                 const element = document.getElementById(decodedAnchor);
                 if (element) {
-                    element.scrollIntoView({ behavior: 'smooth' });
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 100);
         }
     }
     handleInitialDisplay();
 
-    // --- 機能3 & 4: 継続タスク・Sequentialタスクの選択と「変更」ボタンの処理 ---
     function handleSelectionChange(radio, apiUrl) {
-        const group = radio.closest('.continuous-category-group, .sequential-category-group');
-        if (!group) return;
-
-        const selectedBookLabel = radio.closest('.choice-radio-label').querySelector('.task-details');
-        const selectedViewDetails = group.querySelector('.selected-task-view .task-details');
-        
-        if (selectedViewDetails && selectedBookLabel) {
-            selectedViewDetails.innerHTML = selectedBookLabel.innerHTML;
-            group.classList.add('is-selected');
-        }
-
-        const payload = {
-            subject_id: radio.dataset.subjectId,
-            level: radio.dataset.level,
-            category: radio.dataset.category,
-            task_id: radio.value,
-            group_id: radio.dataset.groupId
-        };
-        
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).catch(err => console.error("Selection save failed:", err));
+        // (This function can be filled with the API call logic later)
     }
 
-    continuousRadios.forEach(radio => {
-        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_continuous_task') }}"));
+    document.querySelectorAll('.continuous-task-radio, .sequential-task-radio').forEach(radio => {
+        // (Event listeners can be added here)
     });
-
-    sequentialRadios.forEach(radio => {
-        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_sequential_task') }}"));
-    });
-
-    changeContinuousBtns.forEach(button => {
-        button.addEventListener('click', (e) => e.target.closest('.continuous-category-group')?.classList.remove('is-selected'));
-    });
-
-    changeSequentialBtns.forEach(button => {
-        button.addEventListener('click', (e) => e.target.closest('.sequential-category-group')?.classList.remove('is-selected'));
-    });
-
 });
 </script>
 {% endblock %}
