@@ -70,11 +70,11 @@
                     <p>この科目の学習ステップは、現在準備中です。</p>
                 {% else %}
                     {% for level, categories in levels.items()|sort %}
-                        <section class="level-group">
+                        <section id="{{ subject_name }}-{{ level|replace(' ', '-') }}" class="level-group" style="scroll-margin-top: 80px;">
                             <h3>{{ level }}</h3>
                             {% for category, task_groups in categories.items()|sort %}
+                                <h4 class="category-heading">{{ category }}</h4>
                                 <div class="timeline-container">
-                                    <h4 class="category-heading">{{ category }}</h4>
                                     {% for group in task_groups %}
                                         {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
                                         {% set selected_id = sequential_selections.get(group_id, group_id) %}
@@ -113,6 +113,7 @@
                                                 {% endif %}
                                             </div>
                                         </div>
+                                        {% if not loop.last %} <div class="timeline-connector"></div> {% endif %}
                                     {% endfor %}
                                 </div>
                             {% endfor %}
@@ -128,9 +129,11 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // --- UI要素をまとめて取得 ---
     const subjectTabs = document.querySelectorAll('.subject-tab');
     const subjectContents = document.querySelectorAll('.subject-tab-content');
 
+    // --- 機能1: 科目タブの切り替え ---
     function switchSubjectTab(targetTab) {
         if (!targetTab) return;
         subjectTabs.forEach(t => t.classList.remove('active'));
@@ -147,11 +150,98 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
     });
 
+    // --- 機能2: 初期表示（URLの解釈） ---
+    function handleInitialDisplay() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const subjectNameToOpen = urlParams.get('subject_name');
+        const anchor = window.location.hash.substring(1);
+        let initialTab = subjectTabs[0];
+
+        if (subjectNameToOpen) {
+            const foundTab = Array.from(subjectTabs).find(tab => tab.textContent.trim() === subjectNameToOpen.trim());
+            if (foundTab) initialTab = foundTab;
+        }
+        
+        if(initialTab) {
+            switchSubjectTab(initialTab);
+        }
+
+        if (anchor) {
+            const decodedAnchor = decodeURIComponent(anchor);
+            setTimeout(() => {
+                const element = document.getElementById(decodedAnchor);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    }
+
     if (subjectTabs.length > 0) {
-        switchSubjectTab(subjectTabs[0]);
+        handleInitialDisplay();
     }
     
-    // (以降のタスク選択や進捗更新のJavaScriptは、前の回答から変更ありません)
+    // --- 機能3: タスク選択の自動保存 ---
+    function handleSelectionChange(radio, apiUrl) {
+        const group = radio.closest('.continuous-category-group, .sequential-category-group');
+        if (!group) return;
+        const selectedBookLabel = radio.closest('.choice-radio-label').querySelector('.task-details');
+        const selectedViewDetails = group.querySelector('.selected-task-view .task-details');
+        if (selectedViewDetails && selectedBookLabel) {
+            selectedViewDetails.innerHTML = selectedBookLabel.innerHTML;
+            group.classList.add('is-selected');
+        }
+        const payload = {
+            subject_id: radio.dataset.subjectId,
+            level: radio.dataset.level,
+            category: radio.dataset.category,
+            task_id: radio.value,
+            group_id: radio.dataset.groupId
+        };
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(err => console.error("Selection save failed:", err));
+    }
+
+    document.querySelectorAll('.continuous-task-radio').forEach(radio => {
+        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_continuous_task') }}"));
+    });
+
+    document.querySelectorAll('.sequential-task-radio').forEach(radio => {
+        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_sequential_task') }}"));
+    });
+
+    // --- 機能4: 「変更」ボタンの処理 ---
+    document.querySelectorAll('.change-selection-btn, .change-sequential-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.target.closest('.continuous-category-group, .sequential-category-group')?.classList.remove('is-selected');
+        });
+    });
+
+    // --- 機能5: 進捗チェックボックスの自動保存 ---
+    document.querySelectorAll('.progress-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async (e) => {
+            const taskId = e.target.dataset.taskId;
+            const subjectId = e.target.dataset.subjectId;
+            const isCompleted = e.target.checked;
+            try {
+                const response = await fetch("{{ url_for('main.update_progress') }}", { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ task_id: taskId, subject_id: subjectId, is_completed: isCompleted }) 
+                });
+                if (!response.ok) { 
+                    console.error('進捗の保存に失敗しました。'); 
+                    e.target.checked = !isCompleted; 
+                }
+            } catch (error) { 
+                console.error('通信エラー:', error); 
+                e.target.checked = !isCompleted; 
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

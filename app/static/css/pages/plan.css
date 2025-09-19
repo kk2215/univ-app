@@ -1,30 +1,51 @@
-/* --- 科目タブのスタイル --- */
+/* --- 科目タブのスタイル (変更なし) --- */
 .tabs {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 2px solid var(--border-color);
+    display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color);
     margin-bottom: 1.5rem;
 }
 .tab {
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 1.25rem; cursor: pointer; border: none;
+    background-color: transparent; color: var(--secondary); font-weight: 500;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* --- アコーディオンのスタイル --- */
+.level-group, .continuous-tasks-accordion {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+.level-group[open], .continuous-tasks-accordion[open] {
+    border-color: var(--pico-primary-border-hover);
+}
+.level-group summary, .continuous-tasks-accordion summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
     cursor: pointer;
-    border: none;
-    background-color: transparent;
+    list-style: none; /* 三角マークを消す */
+}
+.level-group summary::-webkit-details-marker { display: none; } /* Safari用の三角マーク消し */
+
+.level-group h3, .continuous-tasks-accordion h4 { margin: 0; }
+.level-group summary::after, .continuous-tasks-accordion summary::after {
+    content: '▼';
+    font-size: 0.8em;
     color: var(--secondary);
-    font-weight: 500;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
+    transition: transform 0.2s ease-in-out;
 }
-.tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
+.level-group[open] summary::after, .continuous-tasks-accordion[open] summary::after {
+    transform: rotate(180deg);
 }
-.tab-content {
-    display: none;
+.accordion-content {
+    padding: 0 1.5rem 1.5rem 1.5rem;
 }
-.tab-content.active {
-    display: block;
-}
+
+/* (タイムラインや継続タスクの内部スタイルは、前の回答から変更ありません) */
 
 /* --- タイムライン全体のスタイル --- */
 .plan-timeline-article {

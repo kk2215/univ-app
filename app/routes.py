@@ -233,13 +233,15 @@ def show_plan(user_id):
                     if corresponding_step:
                         plan_data[subject.name][corresponding_step.level][corresponding_step.category].append(group)
     
+    current_level_name = None
+    
     return render_template(
         'plan.html', user=user, plan_data=plan_data, 
         continuous_tasks_data=continuous_tasks_data,
         user_selections=user_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
         strategies=strategies, subject_ids_map=subject_ids_map,
-        today=date.today()
+        today=date.today(), current_level_name=current_level_name
     )
 
 @bp.route('/dashboard/<int:user_id>')
