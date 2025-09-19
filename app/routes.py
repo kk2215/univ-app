@@ -187,8 +187,8 @@ def show_plan(user_id):
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
     
-    plan_data = {}
-    continuous_tasks_data = {}
+    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in sorted_subjects:
         # 正しいルートを検索
