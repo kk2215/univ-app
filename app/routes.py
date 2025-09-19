@@ -180,19 +180,21 @@ def show_plan(user_id):
 
     for subject in user.subjects:
         query_builder = db.session.query(
-            Book.title.label('book'), Book.task_id, Book.description, 
+            Book.task_id, Book.title, Book.description, Book.url,
             Book.youtube_query, Book.task_type, RouteStep.level,
             RouteStep.category, RouteStep.is_main, Book.duration_weeks
         ).select_from(Route).join(RouteStep, Route.id == RouteStep.route_id)\
          .join(Book, RouteStep.book_id == Book.id)\
          .join(Subject, Route.subject_id == Subject.id)
 
-        route_name_candidate = subject.name.lower().replace('・', '_').replace(' ', '_') + '_standard'
-        route = db.session.query(Route).filter_by(name=route_name_candidate).first()
+        route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
             route = db.session.query(Route).filter_by(name=route_name).first()
-
+        else:
+            # subject.id に基づいてルートを検索
+            route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
+        
         if not route:
             continue
 
@@ -215,9 +217,7 @@ def show_plan(user_id):
                         temp_group = []
                     temp_group.append(task)
                 if temp_group: task_groups.append(temp_group)
-                
-                # Deadline calculation logic can be added back here if needed
-                
+
                 for group in task_groups:
                     plan_data[subject.name][group[0]['level']][group[0]['category']].append(group)
     
@@ -226,7 +226,8 @@ def show_plan(user_id):
         continuous_tasks_data=continuous_tasks_data,
         user_selections=user_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map
+        strategies=strategies, subject_ids_map=subject_ids_map,
+        title="学習マップ", today=date.today()
     )
 
 @bp.route('/dashboard/<int:user_id>')

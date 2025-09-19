@@ -9,38 +9,40 @@
     </hgroup>
     
     <nav class="tabs">
-        {% for subject_name in plan_data.keys() %}
+        {% for subject_name in plan_data.keys()|sort %}
             <button class="tab" data-target="tab-{{ subject_name }}">{{ subject_name }}</button>
         {% endfor %}
     </nav>
 
-    {% for subject_name, levels in plan_data.items() %}
+    {% for subject_name, levels in plan_data.items()|sort %}
         <div id="tab-{{ subject_name }}" class="tab-content">
             
             {% set subject_id = subject_ids_map.get(subject_name) %}
             {% if subject_id and subject_id in strategies %}
-            <div class="strategy-box">
+            <article class="strategy-box">
                 {{ strategies[subject_id]|safe }}
-            </div>
+            </article>
             {% endif %}
 
             {% if continuous_tasks_data.get(subject_name) %}
                 <article class="continuous-tasks-card">
                     <h4>毎日やるタスク ✍️</h4>
                     <p>単語帳など、ルート本体とは別に毎日少しずつ進める参考書です。</p>
-                    {% for level, categories in continuous_tasks_data[subject_name].items() %}
+                    {% for level, categories in continuous_tasks_data[subject_name].items()|sort %}
                     <div class="continuous-level-section">
                         <h5>{{ level }}</h5>
-                        {% for category, tasks in categories.items() %}
+                        {% for category, tasks in categories.items()|sort %}
                             {% set current_selection_id = user_selections.get((subject_id, level, category)) %}
                             <div class="continuous-category-group {% if (current_selection_id and tasks|length > 1) or tasks|length == 1 %}is-selected{% endif %}" data-group-key="{{ subject_name }}-{{ category }}">
                                 <div class="selected-task-view">
                                     <div class="task-details">
                                         {% if tasks|length == 1 %}{% set task = tasks[0] %}
-                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
                                         {% elif current_selection_id %}{% for task in tasks %}{% if task.task_id == current_selection_id %}
-                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
-                                        {% endif %}{% endfor %}{% endif %}
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
+                                        {% endif %}{% endfor %}{% else %}
+                                            <strong>未選択</strong><small>{{ category }}の参考書を選択してください</small>
+                                        {% endif %}
                                     </div>
                                     {% if tasks|length > 1 %}<button class="secondary outline change-selection-btn">変更</button>{% endif %}
                                 </div>
@@ -51,7 +53,7 @@
                                             <label class="choice-radio-label">
                                                 <input type="radio" class="continuous-task-radio" name="continuous-choice-{{ subject_name }}-{{ level }}-{{ category }}" value="{{ task.task_id }}" data-subject-id="{{ subject_id }}" data-level="{{ level }}" data-category="{{ category }}"
                                                 {% if current_selection_id == task.task_id or (not current_selection_id and task.is_main) %} checked {% endif %}>
-                                                <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description }}</small></div>
+                                                <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description }}</small></div>
                                             </label>
                                         {% endfor %}
                                     </div>
@@ -67,24 +69,24 @@
                 {% if not levels %}
                     <p>この科目の学習ステップは、現在準備中です。</p>
                 {% else %}
-                    {% for level, categories in levels.items() %}
+                    {% for level, categories in levels.items()|sort %}
                         <section id="{{ subject_name }}-{{ level }}" class="level-group" style="scroll-margin-top: 80px;">
                             <h3>{{ level }}</h3>
-                            {% for category, task_groups in categories.items() %}
+                            {% for category, task_groups in categories.items()|sort %}
                                 <h4 class="category-heading">{{ category }}</h4>
                                 <div class="timeline-container">
                                     {% for group in task_groups %}
-                                        <div class="timeline-node">
+                                        {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
+                                        {% set selected_id = sequential_selections.get(group_id, group_id) %}
+                                        {% set is_group_completed = selected_id in completed_tasks %}
+                                        <div class="timeline-node {% if is_group_completed %}is-completed{% endif %}">
                                             <div class="timeline-content">
                                                 {% if group|length > 1 %}
-                                                    {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
-                                                    {% set current_selection_id = sequential_selections.get(group_id) %}
-                                                    <div class="sequential-category-group {% if current_selection_id %}is-selected{% endif %}">
+                                                    <div class="sequential-category-group {% if selected_id %}is-selected{% endif %}">
                                                         <div class="selected-task-view">
                                                             <div class="task-details">
-                                                                {% set selected_id = current_selection_id or group_id %}
                                                                 {% for task in group %}{% if task.task_id == selected_id %}
-                                                                    <strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small>
+                                                                    <strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small>
                                                                 {% endif %}{% endfor %}
                                                             </div>
                                                             <button class="secondary outline change-sequential-btn">変更</button>
@@ -94,11 +96,9 @@
                                                             <div class="choice-options">
                                                                 {% for task in group %}
                                                                     <label class="choice-radio-label">
-                                                                        <input type="radio" class="sequential-task-radio" name="choice-{{ subject_name }}-{{ level }}-{{ category }}-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
-                                                                        {% if current_selection_id == task.task_id %} checked
-                                                                        {% elif not current_selection_id and task.is_main %} checked
-                                                                        {% endif %}>
-                                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                                        <input type="radio" class="sequential-task-radio" name="choice-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
+                                                                        {% if selected_id == task.task_id %} checked {% endif %}>
+                                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
                                                                     </label>
                                                                 {% endfor %}
                                                             </div>
@@ -108,7 +108,7 @@
                                                     {% set task = group[0] %}
                                                     <div class="single-task">
                                                         <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
-                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
                                                     </div>
                                                 {% endif %}
                                             </div>
@@ -152,11 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let initialTab = tabs[0];
 
         if (subjectNameToOpen) {
-            const foundTab = Array.from(tabs).find(tab => tab.textContent === subjectNameToOpen);
+            const foundTab = Array.from(tabs).find(tab => tab.textContent.trim() === subjectNameToOpen.trim());
             if (foundTab) initialTab = foundTab;
         }
         
-        switchTab(initialTab);
+        if(initialTab) {
+            switchTab(initialTab);
+        }
 
         if (anchor) {
             const decodedAnchor = decodeURIComponent(anchor);
@@ -168,14 +170,71 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
         }
     }
-    handleInitialDisplay();
-
-    function handleSelectionChange(radio, apiUrl) {
-        // (This function can be filled with the API call logic later)
+    if (tabs.length > 0) {
+        handleInitialDisplay();
     }
 
-    document.querySelectorAll('.continuous-task-radio, .sequential-task-radio').forEach(radio => {
-        // (Event listeners can be added here)
+    function handleSelectionChange(radio, apiUrl) {
+        const group = radio.closest('.continuous-category-group, .sequential-category-group');
+        if (!group) return;
+
+        const selectedBookLabel = radio.closest('.choice-radio-label').querySelector('.task-details');
+        const selectedViewDetails = group.querySelector('.selected-task-view .task-details');
+        
+        if (selectedViewDetails && selectedBookLabel) {
+            selectedViewDetails.innerHTML = selectedBookLabel.innerHTML;
+            group.classList.add('is-selected');
+        }
+
+        const payload = {
+            subject_id: radio.dataset.subjectId,
+            level: radio.dataset.level,
+            category: radio.dataset.category,
+            task_id: radio.value,
+            group_id: radio.dataset.groupId
+        };
+        
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(err => console.error("Selection save failed:", err));
+    }
+
+    document.querySelectorAll('.continuous-task-radio').forEach(radio => {
+        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_continuous_task') }}"));
+    });
+
+    document.querySelectorAll('.sequential-task-radio').forEach(radio => {
+        radio.addEventListener('click', (e) => handleSelectionChange(e.target, "{{ url_for('main.select_sequential_task') }}"));
+    });
+
+    document.querySelectorAll('.change-selection-btn, .change-sequential-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.target.closest('.continuous-category-group, .sequential-category-group')?.classList.remove('is-selected');
+        });
+    });
+
+    document.querySelectorAll('.progress-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async (e) => {
+            const taskId = e.target.dataset.taskId;
+            const subjectId = e.target.dataset.subjectId;
+            const isCompleted = e.target.checked;
+            try {
+                const response = await fetch("{{ url_for('main.update_progress') }}", { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ task_id: taskId, subject_id: subjectId, is_completed: isCompleted }) 
+                });
+                if (!response.ok) { 
+                    console.error('進捗の保存に失敗しました。'); 
+                    e.target.checked = !isCompleted; 
+                }
+            } catch (error) { 
+                console.error('通信エラー:', error); 
+                e.target.checked = !isCompleted; 
+            }
+        });
     });
 });
 </script>
