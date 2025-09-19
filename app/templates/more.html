@@ -12,9 +12,6 @@
     <nav>
         <ul>
             <li><a href="{{ url_for('main.settings', user_id=user.id) }}"><strong>アカウント設定</strong><br><small>ユーザー名や志望校、学習科目の変更</small></a></li>
-            {% if user.is_admin %}
-            <li><a href="{{ url_for('main.admin_exams') }}"><strong>管理者ページ</strong><br><small>模試情報の管理</small></a></li>
-            {% endif %}
             <li><a href="{{ url_for('main.logout') }}"><strong>ログアウト</strong></a></li>
         </ul>
     </nav>

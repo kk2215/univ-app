@@ -6,10 +6,8 @@
     <form method="post">
         <label for="name">大学名</label>
         <input type="text" id="name" name="name" value="{{ university.name if university else '' }}" required>
-        
         <label for="kana_name">ふりがな</label>
         <input type="text" id="kana_name" name="kana_name" value="{{ university.kana_name if university else '' }}" required>
-
         <label for="level">レベル</label>
         <select id="level" name="level" required>
             {% set levels = ['日東駒専レベル', 'MARCHレベル', '早慶レベル', '難関国公立・東大・早慶レベル'] %}
@@ -17,14 +15,46 @@
                 <option value="{{ lvl }}" {% if university and university.level == lvl %}selected{% endif %}>{{ lvl }}</option>
             {% endfor %}
         </select>
-        
         <label for="info_url">情報URL (パスナビなど)</label>
         <input type="url" id="info_url" name="info_url" value="{{ university.info_url if university else '' }}">
-        
-        <button type="submit">{% if university %}更新する{% else %}登録する{% endif %}</button>
+        <button type="submit">{% if university %}大学情報を更新する{% else %}登録する{% endif %}</button>
     </form>
     
     {% if university %}
+    <hr>
+    
+    <hgroup>
+        <h2>学部管理</h2>
+        <h3>{{ university.name }}</h3>
+    </hgroup>
+    
+    {% if faculties %}
+        <figure>
+            <table>
+                <tbody>
+                {% for faculty in faculties %}
+                    <tr>
+                        <td>{{ faculty.name }}</td>
+                        <td style="text-align: right;">
+                            <form action="{{ url_for('main.delete_faculty', faculty_id=faculty.id) }}" method="post" onsubmit="return confirm('本当にこの学部を削除しますか？');">
+                                <button type="submit" class="secondary outline" style="margin-bottom: 0;">削除</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+    {% else %}
+        <p>まだ学部が登録されていません。</p>
+    {% endif %}
+
+    <form action="{{ url_for('main.add_faculty', uni_id=university.id) }}" method="post">
+        <div class="grid">
+            <input type="text" name="faculty_name" placeholder="新しい学部名" required>
+            <button type="submit">学部を追加</button>
+        </div>
+    </form>
     <form action="{{ url_for('main.delete_university', uni_id=university.id) }}" method="post" onsubmit="return confirm('本当にこの大学を削除しますか？関連する学部もすべて削除されます。');" style="margin-top: 2rem;">
         <button type="submit" class="secondary outline">この大学を削除する</button>
     </form>

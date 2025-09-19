@@ -920,8 +920,37 @@ def edit_university(uni_id):
         university.info_url = request.form['info_url']
         db.session.commit()
         flash('大学情報を更新しました。')
-        return redirect(url_for('main.admin_universities'))
-    return render_template('admin/admin_university_form.html', user=current_user, university=university)
+        return redirect(url_for('main.edit_university', uni_id=uni_id))
+    
+    # ▼▼▼ この大学に所属する学部リストを取得する処理を追加 ▼▼▼
+    faculties = db.session.query(Faculty).filter_by(university_id=uni_id).order_by(Faculty.name).all()
+    return render_template('admin/admin_university_form.html', user=current_user, university=university, faculties=faculties)
+
+# ▼▼▼ 新しい学部を追加するためのルート ▼▼▼
+@bp.route('/admin/universities/<int:uni_id>/faculties/add', methods=['POST'])
+@login_required
+@admin_required
+def add_faculty(uni_id):
+    university = db.session.query(University).get_or_404(uni_id)
+    faculty_name = request.form.get('faculty_name')
+    if faculty_name:
+        new_faculty = Faculty(university_id=university.id, name=faculty_name)
+        db.session.add(new_faculty)
+        db.session.commit()
+        flash(f"学部「{faculty_name}」を追加しました。")
+    return redirect(url_for('main.edit_university', uni_id=uni_id))
+
+# ▼▼▼ 学部を削除するためのルート ▼▼▼
+@bp.route('/admin/faculties/<int:faculty_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_faculty(faculty_id):
+    faculty = db.session.query(Faculty).get_or_404(faculty_id)
+    uni_id = faculty.university_id
+    db.session.delete(faculty)
+    db.session.commit()
+    flash(f"学部「{faculty.name}」を削除しました。")
+    return redirect(url_for('main.edit_university', uni_id=uni_id))
 
 @bp.route('/admin/universities/<int:uni_id>/delete', methods=['POST'])
 @login_required
