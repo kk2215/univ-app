@@ -195,8 +195,49 @@ def show_plan(user_id):
             # subject.id に基づいてルートを検索
             route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
         
-        if not route:
-            continue
+        if not route: continue
+        
+        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+
+        # --- ここからMermaidテキスト生成ロジック ---
+        mermaid_string = "gantt\n"
+        mermaid_string += "    dateFormat  YYYY-MM-DD\n"
+        mermaid_string += f"    title {subject.name}の学習計画\n\n"
+        
+        continuous_tasks = [(s,b) for s,b in all_steps if b.task_type == 'continuous']
+        if continuous_tasks:
+            mermaid_string += "    section 継続タスク\n"
+            for step, book in continuous_tasks:
+                 # 完了済みのタスクは done, それ以外は active とする
+                status = "done" if book.task_id in completed_tasks_set else "active"
+                mermaid_string += f"    {book.title.replace(':', '')} :{status}, 2025-04-01, 2026-02-28\n"
+            mermaid_string += "\n"
+        
+        # レベルごとにセクションを作成
+        levels = sorted(list(set([s.level for s,b in all_steps if b.task_type == 'sequential'])), key=lambda l: level_hierarchy.get(l, 99))
+        
+        week_counter = 0
+        for level in levels:
+            mermaid_string += f"    section {level}\n"
+            
+            level_steps = [(s,b) for s,b in all_steps if s.level == level and b.task_type == 'sequential']
+            
+            # カテゴリごとにタスクをグループ化
+            tasks_by_category = defaultdict(list)
+            for step, book in level_steps:
+                tasks_by_category[step.category].append(book)
+        
+            for category, books in tasks_by_category.items():
+                duration = sum(b.duration_weeks for b in books if b.duration_weeks)
+                status = "done" if all(b.task_id in completed_tasks_set for b in books) else "active"
+                mermaid_string += f"    {category} :{status}, {week_counter}w, {duration}w\n"
+            
+            # 次のレベルの開始週を計算
+            max_duration_in_level = max([sum(b.duration_weeks for b in books if b.duration_weeks) for books in tasks_by_category.values()], default=0)
+            week_counter += max_duration_in_level
+        
+        plan_data[subject.name] = mermaid_string
 
         subject_plan_rows = query_builder.filter(Route.id == route.id).order_by(RouteStep.step_order).all()
         subject_plan = [dict(row._mapping) for row in subject_plan_rows]

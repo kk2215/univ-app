@@ -1,4 +1,4 @@
-/* --- 科目タブのスタイル --- */
+/* --- 科目タブのスタイル (変更なし) --- */
 .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -26,79 +26,12 @@
     display: block;
 }
 
-/* --- タイムライン全体のスタイル --- */
-.plan-timeline-article {
-    padding: 0.5rem;
+/* --- Mermaidグラフコンテナのスタイル --- */
+.plan-graph-container {
+    padding: 1rem;
+    background-color: #fff;
+    overflow-x: auto; /* 横に長いグラフもスクロールして見れるように */
 }
-.level-group {
-    margin-bottom: 2.5rem;
-    padding-top: 1rem;
-}
-.level-group > h3 {
-    font-size: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 1.5rem;
-    position: sticky;
-    top: 65px; /* ヘッダーの高さに合わせて調整 */
-    background: var(--background-color);
-    z-index: 10;
-    padding-top: 1rem;
-    padding-left: 1rem;
-    margin-left: -1rem;
-    margin-right: -1rem;
-}
-.category-heading {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--secondary);
-    margin-bottom: 1.5rem;
-    padding-left: 1rem;
-}
-
-/* --- タイムラインの線と丸 --- */
-.timeline-container {
-    position: relative;
-    padding-left: 2rem;
-    border-left: 3px solid var(--border-color);
-}
-.timeline-node {
-    position: relative;
-    margin-bottom: 1.5rem;
-}
-.timeline-node::before {
-    content: '';
-    position: absolute;
-    left: -2rem;
-    top: 0.5rem;
-    transform: translateX(-50%);
-    width: 1rem;
-    height: 1rem;
-    border-radius: 50%;
-    background-color: var(--border-color);
-}
-.timeline-node.is-completed::before {
-    background-color: var(--primary);
-}
-.timeline-content {
-    background: var(--card-background-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-}
-.single-task {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-/* (継続タスクや選択肢UIのスタイルは、前の回答から変更ありません) */
-.continuous-tasks-card {
-    background-color: #f8f9fa;
-    border-left: 4px solid var(--primary);
-    padding: 1.5rem;
-}
-.choice-radio-label:has(input:checked) {
-    border-color: var(--primary);
-    background-color: #eef9ff;
+.mermaid {
+    text-align: center;
 }
