@@ -26,3 +26,11 @@
 .day.study-level-3 { background-color: #30a14e; }
 .day.study-level-4 { background-color: #216e39; }
 .day.study-level-5 { background: linear-gradient(135deg, #ffd700, #ffb300); }
+
+/* static/css/components/calendar.css の一番下に追加 */
+@media (max-width: 768px) {
+    .day {
+        padding: 0.15rem;
+        font-size: 0.7rem;
+    }
+}

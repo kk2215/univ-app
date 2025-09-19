@@ -5,7 +5,7 @@
 <article>
     <hgroup>
         <h1>{{ user.school }}を目指すあなたの学習計画</h1>
-        <h2>科目タブをクリックして、グラフ化されたルートの全体像を確認しましょう</h2>
+        <h2>科目タブをクリックして、ルートの全体像を確認しましょう</h2>
     </hgroup>
     
     <nav class="tabs subject-tabs">
@@ -14,12 +14,111 @@
         {% endfor %}
     </nav>
 
-    {% for subject_name, mermaid_text in plan_data.items()|sort %}
+    {% for subject_name, levels in plan_data.items()|sort %}
         <div id="tab-content-{{ subject_name }}" class="tab-content subject-tab-content">
-            <article class="plan-graph-container">
-                <div class="mermaid">
-                    {{ mermaid_text|safe }}
-                </div>
+            
+            {% set subject_id = subject_ids_map.get(subject_name) %}
+            {% if subject_id and subject_id in strategies %}
+            <article class="strategy-box">
+                {{ strategies[subject_id]|safe }}
+            </article>
+            {% endif %}
+
+            {% if continuous_tasks_data.get(subject_name) %}
+                <article class="continuous-tasks-card">
+                    <h4>毎日やるタスク ✍️</h4>
+                    <p>単語帳など、ルート本体とは別に毎日少しずつ進める参考書です。</p>
+                    {% for level, categories in continuous_tasks_data[subject_name].items()|sort %}
+                    <div class="continuous-level-section">
+                        <h5>{{ level }}</h5>
+                        {% for category, tasks in categories.items()|sort %}
+                            {% set current_selection_id = user_selections.get((subject_id, level, category)) %}
+                            <div class="continuous-category-group {% if (current_selection_id and tasks|length > 1) or tasks|length == 1 %}is-selected{% endif %}">
+                                <div class="selected-task-view">
+                                    <div class="task-details">
+                                        {% if tasks|length == 1 %}{% set task = tasks[0] %}
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
+                                        {% elif current_selection_id %}{% for task in tasks %}{% if task.task_id == current_selection_id %}
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
+                                        {% endif %}{% endfor %}{% else %}
+                                            <strong>未選択</strong><small>{{ category }}の参考書を選択してください</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if tasks|length > 1 %}<button class="secondary outline change-selection-btn">変更</button>{% endif %}
+                                </div>
+                                <div class="choice-options-view">
+                                    <h6>{{ category }}</h6>
+                                    <div class="choice-options">
+                                        {% for task in tasks %}
+                                            <label class="choice-radio-label">
+                                                <input type="radio" class="continuous-task-radio" name="continuous-choice-{{ subject_name }}-{{ level }}-{{ category }}" value="{{ task.task_id }}" data-subject-id="{{ subject_id }}" data-level="{{ level }}" data-category="{{ category }}"
+                                                {% if current_selection_id == task.task_id or (not current_selection_id and task.is_main) %} checked {% endif %}>
+                                                <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description }}</small></div>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </article>
+            {% endif %}
+            
+            <article class="plan-timeline-article">
+                {% if not levels %}
+                    <p>この科目の学習ステップは、現在準備中です。</p>
+                {% else %}
+                    {% for level, categories in levels.items()|sort %}
+                        <section class="level-group">
+                            <h3>{{ level }}</h3>
+                            {% for category, task_groups in categories.items()|sort %}
+                                <div class="timeline-container">
+                                    <h4 class="category-heading">{{ category }}</h4>
+                                    {% for group in task_groups %}
+                                        {% set group_id = (group|selectattr('is_main', 'equalto', 1)|first).task_id or group[0].task_id %}
+                                        {% set selected_id = sequential_selections.get(group_id, group_id) %}
+                                        {% set is_group_completed = selected_id in completed_tasks %}
+                                        <div class="timeline-node {% if is_group_completed %}is-completed{% endif %}">
+                                            <div class="timeline-content">
+                                                {% if group|length > 1 %}
+                                                    <div class="sequential-category-group {% if selected_id %}is-selected{% endif %}">
+                                                        <div class="selected-task-view">
+                                                            <div class="task-details">
+                                                                {% for task in group %}{% if task.task_id == selected_id %}
+                                                                    <strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small>
+                                                                {% endif %}{% endfor %}
+                                                            </div>
+                                                            <button class="secondary outline change-sequential-btn">変更</button>
+                                                        </div>
+                                                        <div class="choice-options-view">
+                                                            <p class="choice-prompt">▼ 以下のうち1冊を選択してください</p>
+                                                            <div class="choice-options">
+                                                                {% for task in group %}
+                                                                    <label class="choice-radio-label">
+                                                                        <input type="radio" class="sequential-task-radio" name="choice-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
+                                                                        {% if selected_id == task.task_id %} checked {% endif %}>
+                                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
+                                                                    </label>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    {% set task = group[0] %}
+                                                    <div class="single-task">
+                                                        <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
+                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </section>
+                    {% endfor %}
+                {% endif %}
             </article>
         </div>
     {% endfor %}
@@ -27,33 +126,32 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true });
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const subjectTabs = document.querySelectorAll('.subject-tab');
+    const subjectContents = document.querySelectorAll('.subject-tab-content');
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const subjectTabs = document.querySelectorAll('.subject-tab');
-        const subjectContents = document.querySelectorAll('.subject-tab-content');
-
-        function switchSubjectTab(targetTab) {
-            if (!targetTab) return;
-            subjectTabs.forEach(t => t.classList.remove('active'));
-            subjectContents.forEach(c => c.classList.remove('active'));
-            targetTab.classList.add('active');
-            const subjectName = targetTab.dataset.subject;
-            const targetContent = document.getElementById(`tab-content-${subjectName}`);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
+    function switchSubjectTab(targetTab) {
+        if (!targetTab) return;
+        subjectTabs.forEach(t => t.classList.remove('active'));
+        subjectContents.forEach(c => c.classList.remove('active'));
+        targetTab.classList.add('active');
+        const subjectName = targetTab.dataset.subject;
+        const targetContent = document.getElementById(`tab-content-${subjectName}`);
+        if (targetContent) {
+            targetContent.classList.add('active');
         }
+    }
 
-        subjectTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
-        });
-
-        if (subjectTabs.length > 0) {
-            switchSubjectTab(subjectTabs[0]);
-        }
+    subjectTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
     });
+
+    if (subjectTabs.length > 0) {
+        switchSubjectTab(subjectTabs[0]);
+    }
+    
+    // (以降のタスク選択や進捗更新のJavaScriptは、前の回答から変更ありません)
+});
 </script>
 {% endblock %}

@@ -1,4 +1,4 @@
-/* --- 科目タブのスタイル (変更なし) --- */
+/* --- 科目タブのスタイル --- */
 .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -26,12 +26,91 @@
     display: block;
 }
 
-/* --- Mermaidグラフコンテナのスタイル --- */
-.plan-graph-container {
-    padding: 1rem;
-    background-color: #fff;
-    overflow-x: auto; /* 横に長いグラフもスクロールして見れるように */
+/* --- タイムライン全体のスタイル --- */
+.plan-timeline-article {
+    padding: 0.5rem;
+    border: none;
+    box-shadow: none;
 }
-.mermaid {
-    text-align: center;
+.level-group {
+    margin-bottom: 2.5rem;
+    padding-top: 1rem;
+}
+.level-group:last-child {
+    margin-bottom: 0;
+}
+.level-group > h3 {
+    font-size: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+.timeline-container {
+    position: relative;
+    padding-left: 2.5rem;
+    border-left: 3px solid #e0e0e0;
+}
+.category-heading {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--secondary);
+    margin-bottom: 1rem;
+    margin-left: -2.5rem; /* タイムラインの線の外側に配置 */
+    padding: 0.25rem 0.5rem;
+}
+.timeline-node {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+.timeline-node::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 0.9rem;
+    transform: translateX(-50%);
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: #e0e0e0;
+    border: 3px solid var(--card-background-color);
+}
+.timeline-node.is-completed::before {
+    background-color: var(--primary);
+}
+.timeline-content {
+    background: var(--card-background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+}
+.single-task {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* --- 継続タスクや選択肢UIのスタイル --- */
+.continuous-tasks-card {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--primary);
+    padding: 1.5rem;
+}
+.choice-options-view {
+    margin-top: 1rem;
+}
+.choice-radio-label {
+    display: block;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+}
+.choice-radio-label:has(input:checked) {
+    border-color: var(--primary);
+    background-color: #eef9ff;
+}
+.selected-task-view {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }

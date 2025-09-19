@@ -151,8 +151,6 @@ def more(user_id):
 
 
 
-# app/routes.py の show_plan 関数をまるごと置き換え
-
 # app/routes.py の show_plan 関数
 
 def _sanitize_for_mermaid(text):
