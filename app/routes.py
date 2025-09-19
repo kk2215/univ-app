@@ -235,9 +235,21 @@ def show_plan(user_id):
     
     current_level_name = None
     
+    # ▼▼▼ 並び替えロジックを追加 ▼▼▼
+    # 1. plan_dataを難易度順にソートする
+    sorted_plan_data = {
+        subject: dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
+        for subject, levels in plan_data.items()
+    }
+    # 2. continuous_tasks_dataも同様にソートする
+    sorted_continuous_tasks_data = {
+        subject: dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
+        for subject, levels in continuous_tasks_data.items()
+    }
+    
     return render_template(
-        'plan.html', user=user, plan_data=plan_data, 
-        continuous_tasks_data=continuous_tasks_data,
+        'plan.html', user=user, plan_data=sorted_plan_data,
+        continuous_tasks_data=sorted_continuous_tasks_data,
         user_selections=user_selections, sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
         strategies=strategies, subject_ids_map=subject_ids_map,
