@@ -30,20 +30,13 @@ def create_app():
 
         app.register_blueprint(routes.bp)
 
-        # ▼▼▼ このブロックが抜けていました ▼▼▼
         from flask_migrate import upgrade
         from seed_db import seed_database
         
         @app.cli.command('setup-db')
         def setup_db_command():
             """データベースのテーブル作成と初期データの投入を両方行います。"""
-            print("--- Running database upgrade... ---")
             upgrade()
-            print("--- Database upgrade finished. ---")
-            
-            print("--- Seeding database... ---")
             seed_database(db)
-            print("--- Database seeding finished. ---")
-        # ▲▲▲ ここまで ▲▲▲
             
     return app

@@ -164,66 +164,82 @@ def show_plan(user_id):
     if user_id != current_user.id:
         abort(404)
     user = current_user
+
+    # --- 必要なデータを準備 ---
+    target_school = db.session.query(University).filter_by(name=user.school).first()
+    target_level_name = target_school.level if target_school else None
+    level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
+    target_level_value = level_hierarchy.get(target_level_name, 99)
     
     subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
     subject_ids_map = {v: k for k, v in subjects_map.items()}
-
-
-    level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
-    completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     
-    plan_data = {}
+    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
+    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
+    
+    seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
+    sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
+    
+    completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
+    strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
+    
+    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in user.subjects:
+        # 正しいルートを検索
         route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
             route = db.session.query(Route).filter_by(name=route_name).first()
         else:
             route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-        if not route: continue
+        
+        if not route:
+            continue
 
+        # ルートに紐づく参考書とステップ情報をすべて取得
         all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
                       .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
         
-        mermaid_string = f"gantt\n    dateFormat  X\n    axisFormat %s\n    title {subject.name} の学習計画\n\n"
-        
-        week_counter = 0
-        
-        # 継続タスク
-        continuous_tasks = [(s,b) for s,b in all_steps if b.task_type == 'continuous']
-        if continuous_tasks:
-            mermaid_string += "    section 継続タスク\n"
-            for step, book in continuous_tasks:
-                safe_title = _sanitize_for_mermaid(book.title)
-                status = "done" if book.task_id in completed_tasks_set else "active"
-                mermaid_string += f'    "{safe_title}" :{status}, 0, 52w\n'
+        # ユーザーの目標レベルに合わせて絞り込み
+        filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
 
-        # Sequentialタスク
-        sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
-        levels = sorted(list(set([s.level for s,b in sequential_steps])), key=lambda l: level_hierarchy.get(l, 99))
+        # 継続タスクと通常タスクに分類
+        for step, book in filtered_steps:
+            if book.task_type == 'continuous':
+                continuous_tasks_data[subject.name][step.level][step.category].append(book)
         
-        for level in levels:
-            mermaid_string += f"\n    section {level}\n"
-            level_steps_in_level = [(s,b) for s,b in sequential_steps if s.level == level]
-            
-            category_progress = defaultdict(int)
-            
-            for step, book in level_steps_in_level:
-                safe_title = _sanitize_for_mermaid(book.title)
-                status = "done" if book.task_id in completed_tasks_set else "active"
-                duration = book.duration_weeks if book.duration_weeks and book.duration_weeks > 0 else 1
-                
-                mermaid_string += f'    "{safe_title}" :{status}, {category_progress[step.category]}w, {duration}w\n'
-                category_progress[step.category] += duration
+        sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
+        if sequential_steps:
+            task_groups, temp_group = [], []
+            for step, book in sequential_steps:
+                if step.is_main == 1 and temp_group:
+                    task_groups.append(temp_group)
+                    temp_group = []
+                # 辞書として、必要な情報をすべて格納する
+                task_info = {
+                    'task_id': book.task_id, 'title': book.title, 'description': book.description, 'is_main': step.is_main
+                }
+                temp_group.append(task_info)
+            if temp_group:
+                task_groups.append(temp_group)
 
-        plan_data[subject.name] = mermaid_string
-
+            for group in task_groups:
+                if group: # グループが空でないことを確認
+                    # グループのレベルとカテゴリは、そのグループの最初のタスクのものを代表として使用
+                    first_task_in_group_id = group[0]['task_id']
+                    corresponding_step = next((s for s, b in all_steps if b.task_id == first_task_in_group_id), None)
+                    if corresponding_step:
+                        plan_data[subject.name][corresponding_step.level][corresponding_step.category].append(group)
+    
     return render_template(
-        'plan.html', 
-        user=user, 
-        plan_data=plan_data,
-        subject_ids_map=subject_ids_map
+        'plan.html', user=user, plan_data=plan_data, 
+        continuous_tasks_data=continuous_tasks_data,
+        user_selections=user_selections, sequential_selections=sequential_selections,
+        completed_tasks=completed_tasks_set,
+        strategies=strategies, subject_ids_map=subject_ids_map,
+        today=date.today()
     )
 
 @bp.route('/dashboard/<int:user_id>')
