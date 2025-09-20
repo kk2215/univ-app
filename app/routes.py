@@ -183,7 +183,6 @@ def show_plan(user_id):
     # --- 3. 表示用データを生成 ---
     plan_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     continuous_tasks_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    current_level_name = None
     
     for subject in sorted_subjects:
         route = None
@@ -212,9 +211,13 @@ def show_plan(user_id):
                     task_groups.append(temp_group)
                     temp_group = []
                 
-                task_info = { 'task_id': book.task_id, 'title': book.title, 'description': book.description, 'is_main': step.is_main, 'youtube_query': book.youtube_query }
+                task_info = {
+                    'task_id': book.task_id, 'title': book.title, 'description': book.description,
+                    'is_main': step.is_main, 'youtube_query': book.youtube_query
+                }
                 temp_group.append(task_info)
-            if temp_group: task_groups.append(temp_group)
+            if temp_group:
+                task_groups.append(temp_group)
 
             for group in task_groups:
                 if group:
@@ -223,19 +226,27 @@ def show_plan(user_id):
                     if corresponding_step:
                         plan_data_unsorted[subject.name][corresponding_step.level][corresponding_step.category].append(group)
 
-            # ユーザーの現在レベルを判定 (ループの最後)
-            if not current_level_name:
-                for step, book in sequential_steps:
-                    if book.task_id not in completed_tasks_set:
-                        current_level_name = step.level
-                        break
-
-    # --- 4. データをレベル順に並び替えて最終的な辞書を作成 ---
+    # --- 4. データをレベル順に並び替え、現在のレベルを判定 ---
     plan_data = {}
+    current_level_name = None
     for subject_name, levels in plan_data_unsorted.items():
         sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
         plan_data[subject_name] = sorted_levels
         
+        if not current_level_name:
+            for level, categories in sorted_levels.items():
+                level_completed = True
+                for category, task_groups in categories.items():
+                    for group in task_groups:
+                        group_id = (g['task_id'] for g in group if g['is_main'])
+                        selected_id = sequential_selections.get(next(group_id, group[0]['task_id']))
+                        if selected_id not in completed_tasks_set:
+                            current_level_name = level
+                            level_completed = False
+                            break
+                    if not level_completed: break
+                if not level_completed: break
+
     continuous_tasks_data = {}
     for subject_name, levels in continuous_tasks_data_unsorted.items():
         sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
