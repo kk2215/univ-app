@@ -156,114 +156,63 @@ def more(user_id):
 def show_plan(user_id):
     if user_id != current_user.id:
         abort(404)
+    return render_template('plan.html', user=current_user)
+
+@bp.route('/api/plan_data/<int:user_id>/<subject_name>')
+@login_required
+def get_plan_data(user_id, subject_name):
+    if user_id != current_user.id:
+        abort(403)
     user = current_user
-
-    # --- 1. 基本データを準備 ---
-    target_school = db.session.query(University).filter_by(name=user.school).first()
-    target_level_name = target_school.level if target_school else None
+    
+    # --- 必要な基本データを準備 ---
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
-    target_level_value = level_hierarchy.get(target_level_name, 99)
-    
-    subjects_map = {s.id: s.name for s in db.session.query(Subject).all()}
-    subject_ids_map = {v: k for k, v in subjects_map.items()}
-    
-    cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
-    user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
-    
-    seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
-    sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
-    
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
-    strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
-
-    # --- 2. 科目を優先度順に並び替える ---
-    subject_priority = ['英語', '数学', '現代文', '古文', '漢文', '日本史', '世界史', '地理', '政治・経済', '倫理', '物理', '化学', '生物', '地学', '小論文']
-    sorted_subjects = sorted(user.subjects, key=lambda s: subject_priority.index(s.name) if s.name in subject_priority else 99)
-
-    # --- 3. 表示用データを生成 ---
-    plan_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     
-    for subject in sorted_subjects:
-        route = None
-        if subject.name == '数学':
-            route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            route = db.session.query(Route).filter_by(name=route_name).first()
-        else:
-            route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-        
-        if not route: continue
+    subject = db.session.query(Subject).filter_by(name=subject_name).first()
+    if not subject:
+        return jsonify({"nodes": [], "links": []})
 
-        all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                      .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
-        
-        filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
+    # --- 指定された科目のルートを取得 ---
+    route = None
+    if subject.name == '数学':
+        route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
+        route = db.session.query(Route).filter_by(name=route_name).first()
+    else:
+        route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
+    
+    if not route:
+        return jsonify({"nodes": [], "links": []})
 
-        for step, book in filtered_steps:
-            if book.task_type == 'continuous':
-                continuous_tasks_data_unsorted[subject.name][step.level][step.category].append(book)
-        
-        sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
-        if sequential_steps:
-            task_groups, temp_group = [], []
-            for step, book in sequential_steps:
-                if step.is_main == 1 and temp_group:
-                    task_groups.append(temp_group)
-                    temp_group = []
-                
-                task_info = {
-                    'task_id': book.task_id, 'title': book.title, 'description': book.description,
-                    'is_main': step.is_main, 'youtube_query': book.youtube_query
-                }
-                temp_group.append(task_info)
-            if temp_group:
-                task_groups.append(temp_group)
+    all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                  .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
 
-            for group in task_groups:
-                if group:
-                    first_task_in_group_id = group[0]['task_id']
-                    corresponding_step = next((s for s, b in all_steps if b.task_id == first_task_in_group_id), None)
-                    if corresponding_step:
-                        plan_data_unsorted[subject.name][corresponding_step.level][corresponding_step.category].append(group)
+    # --- グラフ用のノードとリンクを生成 ---
+    nodes = []
+    links = []
+    
+    # ノード（参考書）をリストに追加
+    for step, book in all_steps:
+        nodes.append({
+            "id": book.task_id,
+            "title": book.title,
+            "level": step.level,
+            "category": step.category,
+            "completed": book.task_id in completed_tasks_set
+        })
 
-    # --- 4. データをレベル順に並び替え、現在のレベルを判定 ---
-    plan_data = {}
-    current_level_name = None
-    for subject_name, levels in plan_data_unsorted.items():
-        sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
-        plan_data[subject_name] = sorted_levels
-        
-        if not current_level_name:
-            for level, categories in sorted_levels.items():
-                level_completed = True
-                for category, task_groups in categories.items():
-                    for group in task_groups:
-                        group_id = (g['task_id'] for g in group if g['is_main'])
-                        selected_id = sequential_selections.get(next(group_id, group[0]['task_id']))
-                        if selected_id not in completed_tasks_set:
-                            current_level_name = level
-                            level_completed = False
-                            break
-                    if not level_completed: break
-                if not level_completed: break
+    # リンク（参考書間のつながり）をリストに追加
+    for i in range(len(all_steps) - 1):
+        # 同じカテゴリ内の連続するタスクをつなぐ
+        current_step, current_book = all_steps[i]
+        next_step, next_book = all_steps[i+1]
+        if current_step.category == next_step.category:
+            links.append({
+                "source": current_book.task_id,
+                "target": next_book.task_id
+            })
 
-    continuous_tasks_data = {}
-    for subject_name, levels in continuous_tasks_data_unsorted.items():
-        sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
-        continuous_tasks_data[subject_name] = sorted_levels
-
-    return render_template(
-        'plan.html', 
-        user=user, 
-        plan_data=plan_data,
-        continuous_tasks_data=continuous_tasks_data,
-        user_selections=user_selections, 
-        sequential_selections=sequential_selections,
-        completed_tasks=completed_tasks_set,
-        strategies=strategies, 
-        subject_ids_map=subject_ids_map,
-        current_level_name=current_level_name
-    )
+    return jsonify({"nodes": nodes, "links": links})
     
 
 @bp.route('/dashboard/<int:user_id>')
