@@ -151,13 +151,6 @@ def more(user_id):
 
 
 
-# app/routes.py の show_plan 関数
-
-def _sanitize_for_mermaid(text):
-    """Mermaidのラベルとして安全な文字列に変換する"""
-    # 引用符とコロンを削除するのが最も安全
-    return text.replace(':', '').replace('"', '').replace(',', '')
-
 @bp.route('/plan/<int:user_id>')
 @login_required
 def show_plan(user_id):
@@ -165,8 +158,7 @@ def show_plan(user_id):
         abort(404)
     user = current_user
 
-    
-    # --- 必要なデータを準備 ---
+    # --- 1. 基本データを準備 ---
     target_school = db.session.query(University).filter_by(name=user.school).first()
     target_level_name = target_school.level if target_school else None
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
@@ -178,23 +170,22 @@ def show_plan(user_id):
     cont_selections_rows = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id).all()
     user_selections = {(row.subject_id, row.level, row.category): row.selected_task_id for row in cont_selections_rows}
     
-    subject_priority = ['英語', '数学', '現代文', '古文', '漢文', '日本史', '世界史', '地理', '政治・経済', '倫理', '物理', '化学', '生物', '地学', '小論文']
-    sorted_subjects = sorted(user.subjects, key=lambda s: subject_priority.index(s.name) if s.name in subject_priority else 99)
-
     seq_selections_rows = db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()
     sequential_selections = {row.group_id: row.selected_task_id for row in seq_selections_rows}
     
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
-    
+
+    # --- 2. 科目を優先度順に並び替える ---
     subject_priority = ['英語', '数学', '現代文', '古文', '漢文', '日本史', '世界史', '地理', '政治・経済', '倫理', '物理', '化学', '生物', '地学', '小論文']
     sorted_subjects = sorted(user.subjects, key=lambda s: subject_priority.index(s.name) if s.name in subject_priority else 99)
-    
+
+    # --- 3. 表示用データを生成 ---
     plan_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     continuous_tasks_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-
+    current_level_name = None
+    
     for subject in sorted_subjects:
-        # 正しいルートを検索
         route = None
         if subject.name == '数学':
             route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
@@ -202,30 +193,16 @@ def show_plan(user_id):
         else:
             route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
         
-        if not route:
-            continue
+        if not route: continue
 
-        # ルートに紐づく参考書とステップ情報をすべて取得
         all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
                       .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
         
-        # 取得したレベルを難易度順に並び替える
-        levels_in_subject = sorted(list(set([s.level for s,b in all_steps if b.task_type == 'sequential'])), key=lambda l: level_hierarchy.get(l, 99))
-        
-        # データを格納
-        subject_plan_data = defaultdict(lambda: defaultdict(list))
-        
-        # 並び替えたレベルの順に辞書を再構築
-        if subject_plan_data:
-            plan_data[subject.name] = {level: subject_plan_data[level] for level in levels_in_subject}
-            
-        # ユーザーの目標レベルに合わせて絞り込み
         filtered_steps = [(step, book) for step, book in all_steps if level_hierarchy.get(step.level, 99) <= target_level_value]
 
-        # 継続タスクと通常タスクに分類
         for step, book in filtered_steps:
             if book.task_type == 'continuous':
-                continuous_tasks_data[subject.name][step.level][step.category].append(book)
+                continuous_tasks_data_unsorted[subject.name][step.level][step.category].append(book)
         
         sequential_steps = [(step, book) for step, book in filtered_steps if book.task_type == 'sequential']
         if sequential_steps:
@@ -234,55 +211,49 @@ def show_plan(user_id):
                 if step.is_main == 1 and temp_group:
                     task_groups.append(temp_group)
                     temp_group = []
-                # 辞書として、必要な情報をすべて格納する
-                task_info = {
-                    'task_id': book.task_id, 'title': book.title, 'description': book.description, 'is_main': step.is_main
-                }
+                
+                task_info = { 'task_id': book.task_id, 'title': book.title, 'description': book.description, 'is_main': step.is_main, 'youtube_query': book.youtube_query }
                 temp_group.append(task_info)
-            if temp_group:
-                task_groups.append(temp_group)
+            if temp_group: task_groups.append(temp_group)
 
             for group in task_groups:
-                if group: # グループが空でないことを確認
-                    # グループのレベルとカテゴリは、そのグループの最初のタスクのものを代表として使用
+                if group:
                     first_task_in_group_id = group[0]['task_id']
                     corresponding_step = next((s for s, b in all_steps if b.task_id == first_task_in_group_id), None)
                     if corresponding_step:
-                        plan_data[subject.name][corresponding_step.level][corresponding_step.category].append(group)
-                        
+                        plan_data_unsorted[subject.name][corresponding_step.level][corresponding_step.category].append(group)
+
+            # ユーザーの現在レベルを判定 (ループの最後)
+            if not current_level_name:
+                for step, book in sequential_steps:
+                    if book.task_id not in completed_tasks_set:
+                        current_level_name = step.level
+                        break
+
+    # --- 4. データをレベル順に並び替えて最終的な辞書を作成 ---
     plan_data = {}
     for subject_name, levels in plan_data_unsorted.items():
         sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
         plan_data[subject_name] = sorted_levels
-    
+        
     continuous_tasks_data = {}
     for subject_name, levels in continuous_tasks_data_unsorted.items():
         sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
         continuous_tasks_data[subject_name] = sorted_levels
-    
-        
-    current_level_name = None
-    
-    # ▼▼▼ 並び替えロジックを追加 ▼▼▼
-    # 1. plan_dataを難易度順にソートする
-    sorted_plan_data = {
-        subject: dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
-        for subject, levels in plan_data.items()
-    }
-    # 2. continuous_tasks_dataも同様にソートする
-    sorted_continuous_tasks_data = {
-        subject: dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
-        for subject, levels in continuous_tasks_data.items()
-    }
-    
+
     return render_template(
-        'plan.html', user=user, plan_data=sorted_plan_data,
-        continuous_tasks_data=sorted_continuous_tasks_data,
-        user_selections=user_selections, sequential_selections=sequential_selections,
+        'plan.html', 
+        user=user, 
+        plan_data=plan_data,
+        continuous_tasks_data=continuous_tasks_data,
+        user_selections=user_selections, 
+        sequential_selections=sequential_selections,
         completed_tasks=completed_tasks_set,
-        strategies=strategies, subject_ids_map=subject_ids_map,
-        today=date.today(), current_level_name=current_level_name
+        strategies=strategies, 
+        subject_ids_map=subject_ids_map,
+        current_level_name=current_level_name
     )
+    
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
