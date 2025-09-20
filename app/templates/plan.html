@@ -4,18 +4,28 @@
 <article class="plan-container">
     <hgroup>
         <h1>インタラクティブ・学習マップ</h1>
-        <p>科目を選択して、学習の全体像を掴もう</p>
+        <p>科目を選択し、参考書をクリックして詳細を確認しよう</p>
     </hgroup>
-    
     <nav class="tabs subject-tabs">
         {% for subject in current_user.subjects|sort(attribute='id') %}
             <button class="tab subject-tab" data-subject="{{ subject.name }}">{{ subject.name }}</button>
         {% endfor %}
     </nav>
-    
     <div id="plan-graph-container"></div>
-    <div id="tooltip" class="tooltip"></div>
 </article>
+
+<dialog id="task-modal">
+    <article>
+        <header>
+            <a href="#close" aria-label="Close" class="close"></a>
+            <h4 id="modal-title">参考書タイトル</h4>
+        </header>
+        <p id="modal-description">ここに説明が入ります。</p>
+        <footer>
+            <a id="modal-youtube-link" href="#" role="button" class="contrast" target="_blank" rel="noopener noreferrer">YouTubeで使い方を検索</a>
+        </footer>
+    </article>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
@@ -25,7 +35,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const subjectTabs = document.querySelectorAll('.subject-tab');
         const container = document.getElementById('plan-graph-container');
-        const tooltip = document.getElementById('tooltip');
+        const modal = document.getElementById('task-modal');
         
         async function drawGraph(subjectName) {
             container.innerHTML = '<progress></progress>';
@@ -38,24 +48,13 @@
             }
 
             const width = container.clientWidth;
-            const height = data.nodes.length * 100; // ノードの数に応じて高さを動的に変更
-            const margin = { top: 50, right: 100, bottom: 50, left: 100 };
+            const height = 600; // 高さをコンパクトに
+            const margin = { top: 40, right: 20, bottom: 40, left: 120 };
 
-            const levelScale = d3.scalePoint().domain([...new Set(data.nodes.map(d => d.level))]).range([margin.top, height - margin.bottom]);
-            const categoryScale = d3.scalePoint().domain(data.lanes).range([margin.left, width - margin.right]);
-            const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(data.lanes);
-
-            // ノードにx,y座標を事前に設定
-            data.nodes.forEach(d => {
-                d.x = categoryScale(d.category);
-                d.y = levelScale(d.level); // Y座標はレベルで大まかに決める
-            });
-
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).strength(1))
-                .force("y", d3.forceY(d => d.y).strength(2)) // Y座標に強く引き寄せる
-                .force("x", d3.forceX(d => d.x).strength(2)) // X座標に強く引き寄せる
-                .force("collide", d3.forceCollide(30));
+            const yValues = [...new Set(data.nodes.map(d => d.y))];
+            const xValues = [...new Set(data.nodes.map(d => d.x))];
+            const y = d3.scalePoint().domain(yValues).range([margin.top, height - margin.bottom]).padding(0.8);
+            const x = d3.scalePoint().domain(xValues).range([margin.left, width - margin.right]).padding(0.8);
 
             const svg = d3.select(container).append("svg")
                 .attr("width", width)
@@ -64,60 +63,37 @@
 
             const link = svg.append("g").selectAll("line")
                 .data(data.links).join("line")
-                .attr("stroke", "#ccc").attr("stroke-width", 3);
+                .attr("stroke", "#ccc").attr("stroke-width", 2);
 
             const node = svg.append("g").selectAll("g")
-                .data(data.nodes).join("g");
+                .data(data.nodes).join("g")
+                .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`)
+                .style("cursor", "pointer")
+                .on("click", (event, d) => {
+                    document.getElementById('modal-title').textContent = d.title;
+                    document.getElementById('modal-description').textContent = d.description;
+                    document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
+                    modal.showModal();
+                });
 
             node.append("circle")
-                .attr("r", 18)
-                .attr("fill", d => colorScale(d.category))
-                .attr("stroke", d => d.completed ? "#10B981" : "#fff")
-                .attr("stroke-width", 4);
-            
-            node.append("text")
-                .text(d => d.step) // 番号を表示
-                .attr("text-anchor", "middle")
+                .attr("r", 12)
+                .attr("fill", d => d.completed ? "#10B981" : "#0d6efd")
+                .attr("stroke", "#fff").attr("stroke-width", 3);
+
+            // レベルのラベル
+            svg.append("g").selectAll("text")
+                .data(yValues).join("text")
+                .attr("x", 10)
+                .attr("y", d => y(d))
                 .attr("dy", "0.35em")
-                .attr("fill", "white")
-                .attr("font-weight", "bold");
+                .text(d => data.nodes.find(n => n.y === d).level)
+                .attr("font-size", "12px").attr("font-weight", "bold");
             
-            node.append("text")
-                .text(d => d.title)
-                .attr("x", 25)
-                .attr("y", 5)
-                .attr("font-size", "14px");
-
-            node.on("mouseover", (event, d) => {
-                tooltip.style.display = "block";
-                tooltip.innerHTML = `<strong>${d.title}</strong><br><small>${d.level} - ${d.category}</small>`;
-            }).on("mousemove", (event) => {
-                tooltip.style.left = (event.pageX + 15) + 'px';
-                tooltip.style.top = (event.pageY) + 'px';
-            }).on("mouseout", () => {
-                tooltip.style.display = "none";
-            });
-
-
-            simulation.on("tick", () => {
-                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-                node.attr("transform", d => `translate(${d.x},${d.y})`);
-            });
-        
-        function dragstarted(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x; d.fy = d.y;
-            }
-            function dragged(event, d) {
-                d.fx = event.x; d.fy = event.y;
-            }
-            function dragended(event, d) {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null; d.fy = null;
-            }
+            link.attr("x1", d => x(d.source.x)).attr("y1", d => y(d.source.y))
+                .attr("x2", d => x(d.target.x)).attr("y2", d => y(d.target.y));
         }
-
+        
         function switchSubjectTab(targetTab) {
             if (!targetTab) return;
             subjectTabs.forEach(t => t.classList.remove('active'));

@@ -163,7 +163,6 @@ def show_plan(user_id):
 def get_plan_data(user_id, subject_name):
     if user_id != current_user.id:
         abort(403)
-    user = current_user
     
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
@@ -172,58 +171,43 @@ def get_plan_data(user_id, subject_name):
     if not subject:
         return jsonify({"nodes": [], "links": []})
 
-    route = None
-    if subject.name == '数学':
-        route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-        route = db.session.query(Route).filter_by(name=route_name).first()
-    else:
-        route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-    
+    route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
     if not route:
         return jsonify({"nodes": [], "links": []})
 
-    # ▼▼▼ all_stepsの取得方法を、レベルとステップ順でソートするように修正 ▼▼▼
-    all_steps_unsorted = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                  .filter(RouteStep.route_id == route.id).all()
-    
-    all_steps = sorted(all_steps_unsorted, key=lambda x: (level_hierarchy.get(x[0].level, 99), x[0].step_order))
-    
+    all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                  .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+
     nodes = []
     links = []
     
     sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
-    
-    # カテゴリごとにレーン（横位置）を割り振る
+    if not sequential_steps:
+        return jsonify({"nodes": [], "links": []})
+
+    levels = sorted(list(set([s.level for s,b in sequential_steps])), key=lambda l: level_hierarchy.get(l, 99))
     categories = sorted(list(set([s.category for s,b in sequential_steps])))
-    category_lanes = {cat: i for i, cat in enumerate(categories)}
-    
-    # 順番の番号を管理するカウンター
-    step_counter = 1
-    
-    # ノード（参考書）をリストに追加
+
     for step, book in sequential_steps:
         nodes.append({
             "id": book.task_id,
             "title": book.title,
+            "description": book.description,
+            "youtube_query": book.youtube_query,
             "level": step.level,
             "category": step.category,
-            "lane": category_lanes.get(step.category, 0), # レーン番号
-            "step": step_counter, # 順番の番号
+            "x": categories.index(step.category), # 横の位置（カテゴリ）
+            "y": levels.index(step.level),       # 縦の位置（レベル）
             "completed": book.task_id in completed_tasks_set
         })
-        step_counter += 1
 
-    # リンク（参考書間のつながり）をリストに追加
+    # リンク生成ロジック
     for i in range(len(sequential_steps) - 1):
-        current_step, current_book = sequential_steps[i]
-        next_step, next_book = sequential_steps[i+1]
-        links.append({
-            "source": current_book.task_id,
-            "target": next_book.task_id
-        })
+        _, current_book = sequential_steps[i]
+        _, next_book = sequential_steps[i+1]
+        links.append({"source": current_book.task_id, "target": next_book.task_id})
 
-    return jsonify({"nodes": nodes, "links": links, "lanes": categories})
-
+    return jsonify({"nodes": nodes, "links": links})
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
