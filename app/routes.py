@@ -192,29 +192,37 @@ def get_plan_data(user_id, subject_name):
     links = []
     
     sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
-
+    
+    # カテゴリごとにレーン（横位置）を割り振る
+    categories = sorted(list(set([s.category for s,b in sequential_steps])))
+    category_lanes = {cat: i for i, cat in enumerate(categories)}
+    
+    # 順番の番号を管理するカウンター
+    step_counter = 1
+    
+    # ノード（参考書）をリストに追加
     for step, book in sequential_steps:
         nodes.append({
             "id": book.task_id,
             "title": book.title,
             "level": step.level,
             "category": step.category,
+            "lane": category_lanes.get(step.category, 0), # レーン番号
+            "step": step_counter, # 順番の番号
             "completed": book.task_id in completed_tasks_set
         })
+        step_counter += 1
 
-    # リンク生成ロジックは、ソート済みのリストを元に作成
+    # リンク（参考書間のつながり）をリストに追加
     for i in range(len(sequential_steps) - 1):
         current_step, current_book = sequential_steps[i]
         next_step, next_book = sequential_steps[i+1]
-        
-        # 同じカテゴリ内、またはレベルの最後のタスクと次のレベルの最初のタスクを繋ぐ
-        if current_step.category == next_step.category or current_step.level != next_step.level:
-            links.append({
-                "source": current_book.task_id,
-                "target": next_book.task_id
-            })
+        links.append({
+            "source": current_book.task_id,
+            "target": next_book.task_id
+        })
 
-    return jsonify({"nodes": nodes, "links": links})
+    return jsonify({"nodes": nodes, "links": links, "lanes": categories})
 
 
 @bp.route('/dashboard/<int:user_id>')

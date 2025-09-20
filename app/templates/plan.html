@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}学習マップ{% endblock %}
-
 {% block content %}
 <article class="plan-container">
     <hgroup>
@@ -15,7 +14,7 @@
     </nav>
     
     <div id="plan-graph-container"></div>
-    <div id="tooltip" class="tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; pointer-events: none;"></div>
+    <div id="tooltip" class="tooltip"></div>
 </article>
 {% endblock %}
 
@@ -30,90 +29,65 @@
         
         async function drawGraph(subjectName) {
             container.innerHTML = '<progress></progress>';
-            
             const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
             const data = await response.json();
-
             container.innerHTML = '';
             if (!data.nodes || data.nodes.length === 0) {
-                container.innerHTML = '<p style="text-align: center; padding: 2rem;">この科目の学習ルートは準備中です。</p>';
+                container.innerHTML = '<p style="text-align: center; padding: 2rem;">準備中です。</p>';
                 return;
             }
 
             const width = container.clientWidth;
-            const height = 800;
-            const margin = { top: 40, right: 40, bottom: 40, left: 40 };
+            const height = data.nodes.length * 100; // ノードの数に応じて高さを動的に変更
+            const margin = { top: 50, right: 100, bottom: 50, left: 100 };
 
-            // 階層（レベル）とカテゴリのリストを作成し、ソート
-            const levels = [...new Set(data.nodes.map(d => d.level))].sort();
-            const categories = [...new Set(data.nodes.map(d => d.category))].sort();
+            const levelScale = d3.scalePoint().domain([...new Set(data.nodes.map(d => d.level))]).range([margin.top, height - margin.bottom]);
+            const categoryScale = d3.scalePoint().domain(data.lanes).range([margin.left, width - margin.right]);
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(data.lanes);
 
-            // 座標計算用のスケールを設定
-            const levelScale = d3.scalePoint().domain(levels).range([margin.top, height - margin.bottom]).padding(0.5);
-            const categoryScale = d3.scalePoint().domain(categories).range([margin.left, width - margin.right]).padding(0.5);
-            const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(categories);
-
-            // ノードに初期位置と色を設定
+            // ノードにx,y座標を事前に設定
             data.nodes.forEach(d => {
-                d.y = levelScale(d.level);
                 d.x = categoryScale(d.category);
-                d.color = colorScale(d.category);
+                d.y = levelScale(d.level); // Y座標はレベルで大まかに決める
             });
 
-            // シミュレーションを設定
             const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).strength(0.8).distance(60))
-                .force("charge", d3.forceManyBody().strength(-100))
-                .force("collide", d3.forceCollide().radius(25))
-                .force("y", d3.forceY(d => levelScale(d.level)).strength(1.5))
-                .force("x", d3.forceX(d => categoryScale(d.category)).strength(1.5));
+                .force("link", d3.forceLink(data.links).id(d => d.id).strength(1))
+                .force("y", d3.forceY(d => d.y).strength(2)) // Y座標に強く引き寄せる
+                .force("x", d3.forceX(d => d.x).strength(2)) // X座標に強く引き寄せる
+                .force("collide", d3.forceCollide(30));
 
             const svg = d3.select(container).append("svg")
                 .attr("width", width)
                 .attr("height", height)
                 .attr("viewBox", [0, 0, width, height]);
 
-            // 矢印マーカーを定義
-            svg.append("defs").append("marker")
-                .attr("id", "arrowhead")
-                .attr("viewBox", "0 -5 10 10").attr("refX", 22)
-                .attr("refY", 0).attr("orient", "auto")
-                .attr("markerWidth", 6).attr("markerHeight", 6)
-                .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#999");
-
-            // レベルの区切り線とラベルを追加
-            svg.append("g").selectAll("text")
-                .data(levels).join("text")
-                .attr("x", 15)
-                .attr("y", d => levelScale(d) - 30)
-                .text(d => d)
-                .attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "#6c757d");
-            svg.append("g").selectAll("line")
-                .data(levels).join("line")
-                .attr("x1", 0).attr("x2", width)
-                .attr("y1", d => levelScale(d)).attr("y2", d => levelScale(d))
-                .attr("stroke", "#e9ecef").attr("stroke-dasharray", "4");
-
             const link = svg.append("g").selectAll("line")
                 .data(data.links).join("line")
-                .attr("stroke", "#999").attr("stroke-opacity", 0.8).attr("stroke-width", 2)
-                .attr("marker-end", "url(#arrowhead)");
+                .attr("stroke", "#ccc").attr("stroke-width", 3);
 
             const node = svg.append("g").selectAll("g")
-                .data(data.nodes).join("g")
-                .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+                .data(data.nodes).join("g");
 
             node.append("circle")
-                .attr("r", 12)
-                .attr("fill", d => d.color)
+                .attr("r", 18)
+                .attr("fill", d => colorScale(d.category))
                 .attr("stroke", d => d.completed ? "#10B981" : "#fff")
                 .attr("stroke-width", 4);
-
+            
+            node.append("text")
+                .text(d => d.step) // 番号を表示
+                .attr("text-anchor", "middle")
+                .attr("dy", "0.35em")
+                .attr("fill", "white")
+                .attr("font-weight", "bold");
+            
             node.append("text")
                 .text(d => d.title)
-                .attr("x", 18).attr("y", 4)
-                .attr("font-size", "12px").attr("fill", "#333");
-            
+                .attr("x", 25)
+                .attr("y", 5)
+                .attr("font-size", "14px");
+
             node.on("mouseover", (event, d) => {
                 tooltip.style.display = "block";
                 tooltip.innerHTML = `<strong>${d.title}</strong><br><small>${d.level} - ${d.category}</small>`;
@@ -124,13 +98,14 @@
                 tooltip.style.display = "none";
             });
 
+
             simulation.on("tick", () => {
                 link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
                     .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
                 node.attr("transform", d => `translate(${d.x},${d.y})`);
             });
-
-            function dragstarted(event, d) {
+        
+        function dragstarted(event, d) {
                 if (!event.active) simulation.alphaTarget(0.3).restart();
                 d.fx = d.x; d.fy = d.y;
             }
