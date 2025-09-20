@@ -99,6 +99,13 @@
                 .attr("r", 15)
                 .attr("fill", d => d.completed ? "#10B981" : "#0d6efd")
                 .attr("stroke", "#fff").attr("stroke-width", 4);
+
+            // ▼▼▼ テキストラベルを追加 ▼▼▼
+            node.append("text")
+                .text(d => d.title)
+                .attr("x", 25) // 丸の右側に少し余白を空けて表示
+                .attr("y", 5)  // 丸の中心から少し縦にずらす
+                .attr("font-size", "14px");    
         }
         
         function switchSubjectTab(targetTab) {
@@ -112,7 +119,7 @@
         if (subjectTabs.length > 0) {
             switchSubjectTab(subjectTabs[0]);
         }
-        
+
     });
 </script>
 {% endblock %}
