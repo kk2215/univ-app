@@ -1,31 +1,60 @@
-/* --- 科目タブのスタイル --- */
+/* --- 変数定義: レベルごとのテーマカラー --- */
+:root {
+    --level-color-nittokomasen: #2196f3; /* 青系 */
+    --level-color-march: #4caf50;       /* 緑系 */
+    --level-color-sokei: #9c27b0;        /* 紫系 */
+    --level-color-special: #ff9800;     /* オレンジ系 */
+}
+
+/* --- 科目タブのスタイル (変更なし) --- */
 .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem; }
-.tab { padding: 0.75rem 1rem; cursor: pointer; border: none; background: transparent; color: var(--secondary); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 0.9rem; }
+.tab { padding: 0.75rem 1.25rem; cursor: pointer; border: none; background-color: transparent; color: var(--secondary); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* --- アコーディオンのスタイル --- */
-.accordion-group { border: 1px solid var(--border-color); border-radius: var(--border-radius); margin-bottom: 1rem; background: var(--card-background-color); }
-.accordion-group[open] { border-color: var(--pico-primary-border-hover); }
-.accordion-group > summary { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; cursor: pointer; list-style: none; font-size: 1.25rem; font-weight: 700; }
-.accordion-group > summary::-webkit-details-marker { display: none; }
-.accordion-group > summary::after { content: '＋'; font-size: 1.5rem; color: var(--secondary); transition: transform 0.2s; }
-.accordion-group[open] > summary::after { content: '−'; transform: rotate(180deg); }
-.accordion-content { padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border-color); }
+/* --- 科目ごとの戦略ボックス --- */
+.strategy-box { background-color: #fff; border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--border-color); font-size: 0.9rem; }
 
-/* --- タイムラインのスタイル --- */
-.category-block { padding: 1.5rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
-.category-heading { font-size: 1rem; font-weight: 700; color: var(--secondary); margin: 0 0 1rem 0; }
-.task-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; padding: 1rem 0; border-top: 1px solid var(--border-color); }
-.task-item:first-child { border-top: none; }
-.task-details { font-size: 0.9rem; }
-.task-details small { font-size: 0.8rem; color: var(--secondary); }
-.task-actions a { padding: 0.5rem 1rem; font-size: 0.8rem; margin: 0; }
+/* --- 「毎日やるタスク」カードのスタイル --- */
+.continuous-tasks-card { background-color: #f8f9fa; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 2rem; }
+.continuous-tasks-card > h4 { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); }
 
-/* --- カテゴリごとの色分け --- */
-.category-block[data-category*="単語"] { background-color: #e7f5ff; }
-.category-block[data-category*="文法"] { background-color: #e6fcf5; }
-.category-block[data-category*="解釈"] { background-color: #fff4e6; }
-.category-block[data-category*="長文"] { background-color: #f8f0fc; }
-.category-block[data-category*="チェック"] { background-color: #fffbe6; }
+/* --- タイムライン全体のスタイル --- */
+.plan-timeline-article { padding: 0; border: none; box-shadow: none; background: none; }
+.level-group > h3 { font-size: 1.75rem; padding-bottom: 0.75rem; border-bottom: 2px solid; margin-bottom: 2rem; }
+.timeline-container { position: relative; padding-left: 2rem; border-left: 3px solid #e0e0e0; }
+.category-heading { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 1.5rem 0; }
+.timeline-node { position: relative; margin-bottom: 1rem; }
+.timeline-node::before {
+    content: ''; position: absolute; left: -2rem; top: 0.9rem;
+    transform: translateX(-50%); width: 1rem; height: 1rem;
+    border-radius: 50%; background-color: #fff; border: 3px solid #ccc;
+}
+.timeline-node.is-completed::before { background-color: var(--primary); border-color: var(--primary); }
+.timeline-content { border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; }
+
+/* --- 色分けのスタイル --- */
+/* レベルの見出しの色 */
+.level-nittokomasen h3 { border-color: var(--level-color-nittokomasen); }
+.level-march h3 { border-color: var(--level-color-march); }
+.level-sokei h3 { border-color: var(--level-color-sokei); }
+.level-special h3 { border-color: var(--level-color-special); }
+
+/* カテゴリの見出しの色 */
+.level-nittokomasen .category-heading { color: var(--level-color-nittokomasen); }
+.level-march .category-heading { color: var(--level-color-march); }
+.level-sokei .category-heading { color: var(--level-color-sokei); }
+.level-special .category-heading { color: var(--level-color-special); }
+
+/* タイムラインの丸の色 */
+.level-nittokomasen .timeline-node::before { border-color: var(--level-color-nittokomasen); }
+.level-march .timeline-node::before { border-color: var(--level-color-march); }
+.level-sokei .timeline-node::before { border-color: var(--level-color-sokei); }
+.level-special .timeline-node::before { border-color: var(--level-color-special); }
+
+/* --- 選択肢UIのスタイル (変更なし) --- */
+.choice-options-view { margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: var(--border-radius); }
+.selected-task-view { display: flex; justify-content: space-between; align-items: center; }
+.choice-radio-label { display: block; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; cursor: pointer; background-color: #fff; }
+.choice-radio-label:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-hover); }

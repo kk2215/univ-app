@@ -2,10 +2,10 @@
 {% block title %}学習マップ{% endblock %}
 
 {% block content %}
-<article class="plan-container">
+<article>
     <hgroup>
         <h1>{{ user.school }}を目指すあなたの学習計画</h1>
-        <h2>科目タブをタップして、ルートの全体像を確認しましょう</h2>
+        <h2>科目タブをクリックして、ルートの全体像を確認しましょう</h2>
     </hgroup>
     
     <nav class="tabs subject-tabs">
@@ -16,45 +16,53 @@
 
     {% for subject_name, levels in plan_data.items()|sort %}
         <div id="tab-content-{{ subject_name }}" class="tab-content subject-tab-content">
-            {% if continuous_tasks_data.get(subject_name) %}
-                <details class="accordion-group continuous-tasks-accordion" open>
-                    <summary>毎日やるタスク ✍️</summary>
-                    <div class="accordion-content">
-                        </div>
-                </details>
+            
+            {% set subject_id = subject_ids_map.get(subject_name) %}
+            {% if subject_id and subject_id in strategies %}
+            <article class="strategy-box">
+                {{ strategies[subject_id]|safe }}
+            </article>
+            {% endif %}
+
+            {% if continuous_tasks_data.get(subject_name) and continuous_tasks_data[subject_name] %}
+                <article class="continuous-tasks-card">
+                    <h4>毎日やるタスク ✍️</h4>
+                    <p>単語帳など、ルート本体とは別に毎日少しずつ進める参考書です。</p>
+                    {% for level, categories in continuous_tasks_data[subject_name].items()|sort %}
+                    <div class="continuous-level-section">
+                        <h5>{{ level }}</h5>
+                        {% for category, tasks in categories.items()|sort %}
+                            {% set current_selection_id = user_selections.get((subject_id, level, category)) %}
+                            <div class="continuous-category-group {% if (current_selection_id and tasks|length > 1) or tasks|length == 1 %}is-selected{% endif %}">
+                                </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </article>
             {% endif %}
             
-            {% if not levels %}
-                <p>この科目の学習ステップは、現在準備中です。</p>
-            {% else %}
-                {% for level, categories in levels.items() %}
-                    <details class="accordion-group level-group" {% if level == current_level_name %}open{% endif %}>
-                        <summary>{{ level }}</summary>
-                        <div class="accordion-content">
-                            {% for category, task_groups in categories.items() %}
-                                <div class="category-block" data-category="{{ category }}">
-                                    <h4 class="category-heading">{{ category }}</h4>
-                                    {% for group in task_groups %}
-                                        <div class="task-item">
-                                            {% set task = group[0] %}
-                                            <div class="task-checkbox">
-                                                <input class="progress-checkbox" type="checkbox" id="task-{{ task.task_id }}" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_ids_map.get(subject_name) }}" {% if task.task_id in completed_tasks %}checked{% endif %}>
-                                            </div>
-                                            <div class="task-details">
-                                                <label for="task-{{ task.task_id }}"><strong>{{ task.title }}</strong></label>
-                                                <small>{{ task.description }}</small>
-                                            </div>
-                                            <div class="task-actions">
-                                                <a href="https://www.youtube.com/results?search_query={{ task.youtube_query|urlencode }}" target="_blank" role="button" class="contrast outline">使い方</a>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
+            <article class="plan-timeline-article">
+                {% if not levels %}
+                    <p>この科目の学習ステップは、現在準備中です。</p>
+                {% else %}
+                    {% for level, categories in levels.items()|sort %}
+                        {% set level_class = "level-other" %}
+                        {% if "日東駒専" in level %}{% set level_class = "level-nittokomasen" %}{% endif %}
+                        {% if "MARCH" in level or "関関同立" in level %}{% set level_class = "level-march" %}{% endif %}
+                        {% if "早慶" in level or "早稲田" in level %}{% set level_class = "level-sokei" %}{% endif %}
+                        {% if "特殊" in level %}{% set level_class = "level-special" %}{% endif %}
+
+                        <section class="level-group {{ level_class }}">
+                            <h3>{{ level }}</h3>
+                            {% for category, task_groups in categories.items()|sort %}
+                                <h4 class="category-heading">{{ category }}</h4>
+                                <div class="timeline-container">
+                                    </div>
                             {% endfor %}
-                        </div>
-                    </details>
-                {% endfor %}
-            {% endif %}
+                        </section>
+                    {% endfor %}
+                {% endif %}
+            </article>
         </div>
     {% endfor %}
 </article>
