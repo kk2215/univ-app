@@ -187,8 +187,11 @@ def show_plan(user_id):
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     strategies = {s.subject_id: s.strategy_html for s in db.session.query(SubjectStrategy).all()}
     
-    plan_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    continuous_tasks_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    subject_priority = ['英語', '数学', '現代文', '古文', '漢文', '日本史', '世界史', '地理', '政治・経済', '倫理', '物理', '化学', '生物', '地学', '小論文']
+    sorted_subjects = sorted(user.subjects, key=lambda s: subject_priority.index(s.name) if s.name in subject_priority else 99)
+    
+    plan_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    continuous_tasks_data_unsorted = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for subject in sorted_subjects:
         # 正しいルートを検索
@@ -246,7 +249,18 @@ def show_plan(user_id):
                     corresponding_step = next((s for s, b in all_steps if b.task_id == first_task_in_group_id), None)
                     if corresponding_step:
                         plan_data[subject.name][corresponding_step.level][corresponding_step.category].append(group)
+                        
+    plan_data = {}
+    for subject_name, levels in plan_data_unsorted.items():
+        sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
+        plan_data[subject_name] = sorted_levels
     
+    continuous_tasks_data = {}
+    for subject_name, levels in continuous_tasks_data_unsorted.items():
+        sorted_levels = dict(sorted(levels.items(), key=lambda item: level_hierarchy.get(item[0], 99)))
+        continuous_tasks_data[subject_name] = sorted_levels
+    
+        
     current_level_name = None
     
     # ▼▼▼ 並び替えロジックを追加 ▼▼▼
