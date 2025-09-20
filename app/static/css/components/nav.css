@@ -61,7 +61,7 @@ nav .container {
 @media (max-width: 768px) {
     /* ▼▼▼ PC用のトップナビゲーションのリンク部分を非表示に ▼▼▼ */
     .primary-navigation {
-        display: none;
+        display: none !important; /* ← !important を追加 */
     }
     
     /* スマホ用のフッターナビゲーションを表示する */
