@@ -37,9 +37,9 @@
                                 <div class="selected-task-view">
                                     <div class="task-details">
                                         {% if tasks|length == 1 %}{% set task = tasks[0] %}
-                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
                                         {% elif current_selection_id %}{% for task in tasks %}{% if task.task_id == current_selection_id %}
-                                            <strong>{{ task.book }}</strong><small>{{ task.description }}</small>
+                                            <strong>{{ task.title }}</strong><small>{{ task.description }}</small>
                                         {% endif %}{% endfor %}{% else %}
                                             <strong>未選択</strong><small>{{ category }}の参考書を選択してください</small>
                                         {% endif %}
@@ -86,7 +86,7 @@
                                                         <div class="selected-task-view">
                                                             <div class="task-details">
                                                                 {% for task in group %}{% if task.task_id == selected_id %}
-                                                                    <strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small>
+                                                                    <strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small>
                                                                 {% endif %}{% endfor %}
                                                             </div>
                                                             <button class="secondary outline change-sequential-btn">変更</button>
