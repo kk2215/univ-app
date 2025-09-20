@@ -53,7 +53,7 @@
                                             <label class="choice-radio-label">
                                                 <input type="radio" class="continuous-task-radio" name="continuous-choice-{{ subject_name }}-{{ level }}-{{ category }}" value="{{ task.task_id }}" data-subject-id="{{ subject_id }}" data-level="{{ level }}" data-category="{{ category }}"
                                                 {% if current_selection_id == task.task_id or (not current_selection_id and task.is_main) %} checked {% endif %}>
-                                                <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description }}</small></div>
+                                                <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description }}</small></div>
                                             </label>
                                         {% endfor %}
                                     </div>
@@ -98,7 +98,7 @@
                                                                     <label class="choice-radio-label">
                                                                         <input type="radio" class="sequential-task-radio" name="choice-{{ group_id }}" data-group-id="{{ group_id }}" data-task-id="{{ task.task_id }}"
                                                                         {% if selected_id == task.task_id %} checked {% endif %}>
-                                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
                                                                     </label>
                                                                 {% endfor %}
                                                             </div>
@@ -108,7 +108,7 @@
                                                     {% set task = group[0] %}
                                                     <div class="single-task">
                                                         <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
-                                                        <div class="task-details"><strong>{{ task.book }}</strong><small>{{ task.description | safe }}</small></div>
+                                                        <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
                                                     </div>
                                                 {% endif %}
                                             </div>
