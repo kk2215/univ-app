@@ -44,6 +44,8 @@
                                             <strong>未選択</strong><small>{{ category }}の参考書を選択してください</small>
                                         {% endif %}
                                     </div>
+                                    {% set task_to_link = (group|selectattr('task_id', 'equalto', selected_id)|first) or group[0] %}
+                                     <a href="https://www.youtube.com/results?search_query={{ task_to_link.youtube_query|urlencode }}" target="_blank" role="button" class="contrast outline">使い方</a>
                                     {% if tasks|length > 1 %}<button class="secondary outline change-selection-btn">変更</button>{% endif %}
                                 </div>
                                 <div class="choice-options-view">
@@ -109,6 +111,9 @@
                                                     <div class="single-task">
                                                         <div class="task-checkbox"><input class="progress-checkbox" type="checkbox" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_id }}" {% if task.task_id in completed_tasks %}checked{% endif %}></div>
                                                         <div class="task-details"><strong>{{ task.title }}</strong><small>{{ task.description | safe }}</small></div>
+                                                        <div class="task-actions">
+                                                         <a href="https://www.youtube.com/results?search_query={{ task.youtube_query|urlencode }}" target="_blank" role="button" class="contrast outline">使い方</a>
+                                                        </div>
                                                     </div>
                                                 {% endif %}
                                             </div>

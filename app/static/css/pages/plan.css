@@ -58,3 +58,63 @@
 .selected-task-view { display: flex; justify-content: space-between; align-items: center; }
 .choice-radio-label { display: block; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; cursor: pointer; background-color: #fff; }
 .choice-radio-label:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-hover); }
+
+/* --- 新しいタイムラインのスタイル --- */
+.plan-container { padding: 0; }
+.timeline { position: relative; padding: 1rem 0; margin-left: 1rem; }
+.timeline::before {
+    content: ''; position: absolute; left: 24px; top: 0; bottom: 0;
+    width: 4px; background-color: #e9ecef;
+}
+.timeline-level-header { padding-left: 4.5rem; margin: 2.5rem 0 2rem 0; }
+.timeline-level-header h3 { font-size: 1.6rem; color: var(--pico-h2-color); }
+.timeline-item {
+    position: relative; display: grid; grid-template-columns: 50px 1fr;
+    align-items: start; /* アイコンをカードの上端に合わせる */
+    margin-bottom: 1.5rem;
+}
+.timeline-item.is-completed { opacity: 0.7; }
+.timeline-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 50px; height: 50px; border-radius: 50%;
+    background-color: #fff; border: 4px solid #adb5bd;
+    font-size: 1.5rem; z-index: 1; margin-top: 0.5rem; /* カードとの位置調整 */
+}
+.timeline-item.is-completed .timeline-icon {
+    background-color: var(--success-color, #198754);
+    border-color: var(--success-color, #198754);
+    color: white;
+}
+
+/* ▼▼▼ カードのデザインを更新 ▼▼▼ */
+.timeline-card {
+    background: var(--card-background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-left: 1rem;
+    box-shadow: var(--pico-card-box-shadow);
+}
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+.category-badge {
+    margin-bottom: 0; /* hgroupから移動したため調整 */
+}
+.card-action-btn {
+    margin: 0;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+}
+.timeline-card h4 {
+    font-size: 1.05rem;
+    margin-bottom: 0.25rem;
+}
+.timeline-card p {
+    font-size: 0.9rem;
+    color: var(--secondary);
+    margin: 0;
+}
