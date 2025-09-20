@@ -13,6 +13,19 @@
     </nav>
     <div id="plan-graph-container"></div>
 </article>
+
+<dialog id="task-modal">
+    <article>
+        <header>
+            <a href="#close" aria-label="Close" class="close"></a>
+            <h4 id="modal-title">参考書タイトル</h4>
+        </header>
+        <p id="modal-description">ここに説明が入ります。</p>
+        <footer>
+            <a id="modal-youtube-link" href="#" role="button" class="contrast" target="_blank" rel="noopener noreferrer">YouTubeで使い方を検索</a>
+        </footer>
+    </article>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
@@ -22,7 +35,20 @@
     document.addEventListener('DOMContentLoaded', () => {
         const subjectTabs = document.querySelectorAll('.subject-tab');
         const container = document.getElementById('plan-graph-container');
+        const modal = document.getElementById('task-modal');
+        const modalCloseBtn = document.querySelector('#task-modal .close');
         
+        // --- モーダルを閉じる機能 ---
+        function closeModal() {
+            if (modal.hasAttribute("open")) {
+                modal.close();
+            }
+        }
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal();
+        });
+        modalCloseBtn.addEventListener('click', closeModal);
+
         async function drawGraph(subjectName) {
             container.innerHTML = '<progress></progress>';
             const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
@@ -34,20 +60,18 @@
             }
 
             const width = container.clientWidth;
-            const height = data.nodes.length * 80; // ノードの数に応じて高さを確保
+            const height = data.nodes.length * 60; // 縦の高さをコンパクトに
             const margin = { top: 40, right: 120, bottom: 40, left: 120 };
 
-            // 座標計算用のスケール
             const x = d3.scalePoint().domain([...new Set(data.nodes.map(d => d.x))]).range([margin.left, width - margin.right]).padding(0.5);
             const y = d3.scalePoint().domain([...new Set(data.nodes.map(d => d.y))]).range([margin.top, height - margin.bottom]);
-            const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain([...new Set(data.nodes.map(d => d.category))]);
-
+            
             const svg = d3.select(container).append("svg")
                 .attr("width", width)
                 .attr("height", height)
                 .attr("viewBox", [0, 0, width, height]);
 
-            // リンク（線）を描画
+            // --- リンク（線）を描画 ---
             svg.append("g").selectAll("path")
                 .data(data.links)
                 .join("path")
@@ -56,27 +80,25 @@
                     const targetNode = data.nodes.find(n => n.id === d.target);
                     return `M${x(sourceNode.x)},${y(sourceNode.y)} L${x(targetNode.x)},${y(targetNode.y)}`;
                 })
-                .attr("fill", "none")
-                .attr("stroke", "#ccc")
-                .attr("stroke-width", 3);
+                .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 3);
 
-            // ノード（丸とテキスト）を描画
+            // --- ノード（丸とテキスト）を描画 ---
             const node = svg.append("g").selectAll("g")
                 .data(data.nodes)
                 .join("g")
-                .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`);
+                .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`)
+                .style("cursor", "pointer")
+                .on("click", (event, d) => {
+                    document.getElementById('modal-title').textContent = d.title;
+                    document.getElementById('modal-description').textContent = d.description;
+                    document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
+                    modal.showModal();
+                });
 
             node.append("circle")
                 .attr("r", 15)
-                .attr("fill", d => colorScale(d.category))
-                .attr("stroke", d => d.completed ? "#10B981" : "#fff")
-                .attr("stroke-width", 4);
-
-            node.append("text")
-                .text(d => d.title)
-                .attr("x", 25)
-                .attr("dy", "0.35em")
-                .attr("font-size", "14px");
+                .attr("fill", d => d.completed ? "#10B981" : "#0d6efd")
+                .attr("stroke", "#fff").attr("stroke-width", 4);
         }
         
         function switchSubjectTab(targetTab) {
@@ -90,6 +112,7 @@
         if (subjectTabs.length > 0) {
             switchSubjectTab(subjectTabs[0]);
         }
+        
     });
 </script>
 {% endblock %}

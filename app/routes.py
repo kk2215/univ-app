@@ -194,6 +194,8 @@ def get_plan_data(user_id, subject_name):
         nodes.append({
             "id": book.task_id,
             "title": book.title,
+            "description": book.description,     # ← 説明を追加
+            "youtube_query": book.youtube_query, # ← YouTubeクエリを追加
             "level": step.level,
             "category": step.category,
             "x": category_lanes.get(step.category, 0), # 横位置
