@@ -1,83 +1,114 @@
-/* --- 変数定義: レベルごとのテーマカラー --- */
-:root {
-    --level-color-nittokomasen: #2196f3; /* 青系 */
-    --level-color-march: #4caf50;       /* 緑系 */
-    --level-color-sokei: #9c27b0;        /* 紫系 */
-    --level-color-special: #ff9800;     /* オレンジ系 */
+/* --- 科目タブのスタイル --- */
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+.tab {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    color: var(--secondary);
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+.tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
 }
 
-/* --- 科目タブのスタイル (変更なし) --- */
-.tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem; }
-.tab { padding: 0.75rem 1.25rem; cursor: pointer; border: none; background-color: transparent; color: var(--secondary); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+/* --- 新しいタイムラインのスタイル --- */
+.plan-container {
+    padding: 0;
+}
+.timeline {
+    position: relative;
+    padding: 1rem 0;
+    margin-left: 1rem;
+}
+/* タイムラインの縦線 */
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #e9ecef; /* 少し薄いグレー */
+}
 
-/* --- 科目ごとの戦略ボックス --- */
-.strategy-box {
-    background-color: var(--pico-card-background-color);
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+.timeline-level-header {
+    padding-left: 4.5rem;
+    margin: 2.5rem 0 2rem 0;
+}
+.timeline-level-header h3 {
+    font-size: 1.5rem;
+    color: var(--pico-h2-color);
+}
+
+.timeline-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    align-items: center; /* アイコンとカードを中央揃えに */
+    margin-bottom: 1.5rem;
+}
+/* 完了済みのアイテムは少し薄くする */
+.timeline-item.is-completed {
+    opacity: 0.6;
+}
+
+.timeline-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 4px solid #e9ecef;
+    font-size: 1.5rem;
+    z-index: 1; /* 縦線より手前に表示 */
+}
+/* 完了済みのアイコン */
+.timeline-item.is-completed .timeline-icon {
+    background-color: var(--success-color, #198754);
+    border-color: var(--success-color, #198754);
+    color: white;
+}
+
+.timeline-card {
+    background: var(--card-background-color);
     border: 1px solid var(--border-color);
-    font-size: 0.9rem;
-    line-height: 1.6;
-}
-.strategy-box h4 { margin-top: 0; }
-
-/* --- 「毎日やるタスク」カードのスタイル --- */
-.continuous-tasks-card {
-    background-color: #f8f9fa;
-    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    padding: 1rem 1.5rem;
+    margin-left: 1rem;
 }
-.continuous-tasks-card > h4 { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); }
-.continuous-level-section { margin-top: 1rem; }
-.continuous-level-section h5 { font-size: 1rem; font-weight: bold; margin-bottom: 0.5rem; }
-
-/* --- タイムライン全体のスタイル --- */
-.plan-timeline-article { padding: 0; border: none; box-shadow: none; background: none; }
-.level-group > h3 { font-size: 1.75rem; padding-bottom: 0.75rem; border-bottom: 2px solid; margin-bottom: 2rem; }
-.timeline-container { position: relative; padding-left: 2rem; border-left: 3px solid #e0e0e0; }
-.category-heading { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 1.5rem 0; }
-.timeline-node { position: relative; margin-bottom: 1rem; }
-.timeline-node::before {
-    content: ''; position: absolute; left: -2rem; top: 0.9rem;
-    transform: translateX(-50%); width: 1rem; height: 1rem;
-    border-radius: 50%; background-color: #fff; border: 3px solid #ccc;
+.timeline-card h4 {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
 }
-.timeline-node.is-completed::before { background-color: var(--primary); border-color: var(--primary); }
-.timeline-content { border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; }
-.single-task { display: flex; align-items: center; gap: 1rem; }
-.task-details small { color: var(--secondary); display: block; margin-top: 0.25rem; }
-
-/* --- 色分けのスタイル --- */
-/* レベルの見出しの色 */
-h3:contains("日東駒専レベル") { border-color: var(--level-color-nittokomasen); }
-h3:contains("MARCHレベル"), h3:contains("関関同立") { border-color: var(--level-color-march); }
-h3:contains("早慶レベル"), h3:contains("早稲田レベル") { border-color: var(--level-color-sokei); }
-h3:contains("特殊形式") { border-color: var(--level-color-special); }
-
-/* カテゴリの見出しの色 */
-.level-group:has(h3:contains("日東駒専レベル")) .category-heading { color: var(--level-color-nittokomasen); }
-.level-group:has(h3:contains("MARCHレベル")) .category-heading,
-.level-group:has(h3:contains("関関同立")) .category-heading { color: var(--level-color-march); }
-.level-group:has(h3:contains("早慶レベル")) .category-heading,
-.level-group:has(h3:contains("早稲田レベル")) .category-heading { color: var(--level-color-sokei); }
-.level-group:has(h3:contains("特殊形式")) .category-heading { color: var(--level-color-special); }
-
-/* タイムラインの丸の色 */
-.level-group:has(h3:contains("日東駒専レベル")) .timeline-node::before { border-color: var(--level-color-nittokomasen); }
-.level-group:has(h3:contains("MARCHレベル")) .timeline-node::before,
-.level-group:has(h3:contains("関関同立")) .timeline-node::before { border-color: var(--level-color-march); }
-.level-group:has(h3:contains("早慶レベル")) .timeline-node::before,
-.level-group:has(h3:contains("早稲田レベル")) .timeline-node::before { border-color: var(--level-color-sokei); }
-.level-group:has(h3:contains("特殊形式")) .timeline-node::before { border-color: var(--level-color-special); }
-
-/* --- 選択肢UIのスタイル --- */
-.choice-options-view { margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: var(--border-radius); }
-.selected-task-view { display: flex; justify-content: space-between; align-items: center; }
-.choice-radio-label { display: block; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; cursor: pointer; background-color: #fff; }
-.choice-radio-label:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-hover); }
+.timeline-card p {
+    font-size: 0.85rem;
+    color: var(--secondary);
+    margin: 0;
+}
+.category-badge {
+    display: inline-block;
+    background-color: var(--pico-secondary-background);
+    color: var(--pico-secondary);
+    padding: 0.25em 0.6em;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+}
