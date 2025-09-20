@@ -16,41 +16,45 @@
 
     {% for subject_name, levels in plan_data.items()|sort %}
         <div id="tab-content-{{ subject_name }}" class="tab-content subject-tab-content">
-            <div class="timeline">
+            {% if continuous_tasks_data.get(subject_name) %}
+                <details class="accordion-group continuous-tasks-accordion" open>
+                    <summary>毎日やるタスク ✍️</summary>
+                    <div class="accordion-content">
+                        </div>
+                </details>
+            {% endif %}
+            
+            {% if not levels %}
+                <p>この科目の学習ステップは、現在準備中です。</p>
+            {% else %}
                 {% for level, categories in levels.items() %}
-                    <div class="timeline-level-header">
-                        <h3>{{ level }}</h3>
-                    </div>
-                    {% for category, task_groups in categories.items() %}
-                        {% for group in task_groups %}
-                            {% set task = group[0] %} {# 簡略化のため代表タスクを表示 #}
-                            {% set is_group_completed = task.task_id in completed_tasks %}
-                            <div class="timeline-item {% if is_group_completed %}is-completed{% endif %}">
-                                <div class="timeline-icon">
-                                    {% if category == '英単語' or category == '語彙' %}
-                                    <span>🔤</span>
-                                    {% elif category == '英文法' or category == '文法' %}
-                                    <span>📖</span>
-                                    {% elif category == '英文解釈' %}
-                                    <span>🔍</span>
-                                    {% elif category == '英語長文' %}
-                                    <span>📰</span>
-                                    {% elif category == 'レベルチェック' %}
-                                    <span>🏆</span>
-                                    {% else %}
-                                    <span>📚</span>
-                                    {% endif %}
+                    <details class="accordion-group level-group" {% if level == current_level_name %}open{% endif %}>
+                        <summary>{{ level }}</summary>
+                        <div class="accordion-content">
+                            {% for category, task_groups in categories.items() %}
+                                <div class="category-block" data-category="{{ category }}">
+                                    <h4 class="category-heading">{{ category }}</h4>
+                                    {% for group in task_groups %}
+                                        <div class="task-item">
+                                            {% set task = group[0] %}
+                                            <div class="task-checkbox">
+                                                <input class="progress-checkbox" type="checkbox" id="task-{{ task.task_id }}" data-task-id="{{ task.task_id }}" data-subject-id="{{ subject_ids_map.get(subject_name) }}" {% if task.task_id in completed_tasks %}checked{% endif %}>
+                                            </div>
+                                            <div class="task-details">
+                                                <label for="task-{{ task.task_id }}"><strong>{{ task.title }}</strong></label>
+                                                <small>{{ task.description }}</small>
+                                            </div>
+                                            <div class="task-actions">
+                                                <a href="https://www.youtube.com/results?search_query={{ task.youtube_query|urlencode }}" target="_blank" role="button" class="contrast outline">使い方</a>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
                                 </div>
-                                <div class="timeline-card">
-                                    <span class="category-badge">{{ category }}</span>
-                                    <h4>{{ task.title }}</h4>
-                                    <p>{{ task.description }}</p>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </details>
                 {% endfor %}
-            </div>
+            {% endif %}
         </div>
     {% endfor %}
 </article>

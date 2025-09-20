@@ -1,118 +1,31 @@
 /* --- 科目タブのスタイル --- */
-.tabs {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 2px solid var(--border-color);
-    margin-bottom: 1.5rem;
-}
-.tab {
-    padding: 0.75rem 1.25rem;
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-    color: var(--secondary);
-    font-weight: 500;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-}
-.tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-.tab-content {
-    display: none;
-}
-.tab-content.active {
-    display: block;
-}
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem; }
+.tab { padding: 0.75rem 1rem; cursor: pointer; border: none; background: transparent; color: var(--secondary); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 0.9rem; }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
-/* --- 新しいタイムラインのスタイル --- */
-.plan-container {
-    padding: 0;
-}
-.timeline {
-    position: relative;
-    padding: 1rem 0;
-    margin-left: 1rem;
-}
-/* タイムラインの縦線 */
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 24px;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background-color: #e9ecef;
-}
+/* --- アコーディオンのスタイル --- */
+.accordion-group { border: 1px solid var(--border-color); border-radius: var(--border-radius); margin-bottom: 1rem; background: var(--card-background-color); }
+.accordion-group[open] { border-color: var(--pico-primary-border-hover); }
+.accordion-group > summary { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; cursor: pointer; list-style: none; font-size: 1.25rem; font-weight: 700; }
+.accordion-group > summary::-webkit-details-marker { display: none; }
+.accordion-group > summary::after { content: '＋'; font-size: 1.5rem; color: var(--secondary); transition: transform 0.2s; }
+.accordion-group[open] > summary::after { content: '−'; transform: rotate(180deg); }
+.accordion-content { padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border-color); }
 
-.timeline-level-header {
-    padding-left: 4.5rem;
-    margin: 2.5rem 0 2rem 0;
-}
-.timeline-level-header h3 {
-    font-size: 1.6rem;
-    color: var(--pico-h2-color);
-}
+/* --- タイムラインのスタイル --- */
+.category-block { padding: 1.5rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
+.category-heading { font-size: 1rem; font-weight: 700; color: var(--secondary); margin: 0 0 1rem 0; }
+.task-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; padding: 1rem 0; border-top: 1px solid var(--border-color); }
+.task-item:first-child { border-top: none; }
+.task-details { font-size: 0.9rem; }
+.task-details small { font-size: 0.8rem; color: var(--secondary); }
+.task-actions a { padding: 0.5rem 1rem; font-size: 0.8rem; margin: 0; }
 
-.timeline-item {
-    position: relative;
-    display: grid;
-    grid-template-columns: 50px 1fr;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-/* 完了済みのアイテムは少し薄くする */
-.timeline-item.is-completed {
-    opacity: 0.7;
-}
-.timeline-item.is-completed .timeline-card {
-    background-color: #f8f9fa;
-}
-
-.timeline-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background-color: #fff;
-    border: 4px solid #adb5bd; /* アイコンの枠線を少し濃く */
-    font-size: 1.5rem;
-    z-index: 1;
-}
-/* 完了済みのアイコン */
-.timeline-item.is-completed .timeline-icon {
-    background-color: var(--success-color, #198754);
-    border-color: var(--success-color, #198754);
-    color: white;
-}
-
-.timeline-card {
-    background: var(--card-background-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 1rem 1.5rem;
-    margin-left: 1rem;
-    box-shadow: var(--pico-card-box-shadow); /* カードに影を追加 */
-}
-.timeline-card h4 {
-    font-size: 1.05rem; /* タイトルを少し大きく */
-    margin-bottom: 0.25rem;
-}
-.timeline-card p {
-    font-size: 0.9rem;
-    color: var(--secondary);
-    margin: 0;
-}
-.category-badge {
-    display: inline-block;
-    background-color: var(--pico-secondary-background);
-    color: var(--pico-secondary);
-    padding: 0.25em 0.75em;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border-radius: 20px;
-    margin-bottom: 0.75rem;
-}
+/* --- カテゴリごとの色分け --- */
+.category-block[data-category*="単語"] { background-color: #e7f5ff; }
+.category-block[data-category*="文法"] { background-color: #e6fcf5; }
+.category-block[data-category*="解釈"] { background-color: #fff4e6; }
+.category-block[data-category*="長文"] { background-color: #f8f0fc; }
+.category-block[data-category*="チェック"] { background-color: #fffbe6; }
