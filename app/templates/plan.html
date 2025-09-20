@@ -15,114 +15,101 @@
     </nav>
     
     <div id="plan-graph-container"></div>
-    <div id="tooltip" style="position: absolute; display: none; background: #fff; border: 1px solid #ccc; padding: 10px; border-radius: 5px;"></div>
+    <div id="tooltip" class="tooltip"></div>
 </article>
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const subjectTabs = document.querySelectorAll('.subject-tab');
-    const container = document.getElementById('plan-graph-container');
-    const tooltip = document.getElementById('tooltip');
-    
-    // --- D3.js グラフ描画関数 ---
-    async function drawGraph(subjectName) {
-        // コンテナをクリアし、ローディング表示
-        container.innerHTML = '<div class="loading-spinner"></div>';
+<script type="module">
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const subjectTabs = document.querySelectorAll('.subject-tab');
+        const container = document.getElementById('plan-graph-container');
+        const tooltip = document.getElementById('tooltip');
         
-        // APIからグラフデータを取得
-        const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
-        const data = await response.json();
+        async function drawGraph(subjectName) {
+            container.innerHTML = '<progress></progress>';
+            
+            const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
+            const data = await response.json();
 
-        if (!data.nodes || data.nodes.length === 0) {
-            container.innerHTML = '<p style="text-align: center; padding: 2rem;">この科目の学習ルートは準備中です。</p>';
-            return;
-        }
+            container.innerHTML = '';
+            if (!data.nodes || data.nodes.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 2rem;">この科目の学習ルートは準備中です。</p>';
+                return;
+            }
 
-        container.innerHTML = ''; // ローディングを消去
+            const width = container.clientWidth;
+            const height = 700; // 高さを固定
 
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+            const levels = [...new Set(data.nodes.map(d => d.level))];
+            const levelScale = d3.scalePoint().domain(levels).range([50, height - 50]);
 
-        const svg = d3.select(container).append("svg")
-            .attr("width", width)
-            .attr("height", height)
-            .attr("viewBox", [0, 0, width, height]);
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
-        // 矢印マーカーを定義
-        svg.append("defs").append("marker")
-            .attr("id", "arrowhead")
-            .attr("viewBox", "-0 -5 10 10")
-            .attr("refX", 23)
-            .attr("refY", 0)
-            .attr("orient", "auto")
-            .attr("markerWidth", 8)
-            .attr("markerHeight", 8)
-            .attr("xoverflow", "visible")
-            .append("svg:path")
-            .attr("d", "M 0,-5 L 10 ,0 L 0,5")
-            .attr("fill", "#999");
-        
-        // 階層（レベル）ごとにy座標を決定
-        const levels = [...new Set(data.nodes.map(d => d.level))];
-        const levelScale = d3.scalePoint().domain(levels).range([height * 0.2, height * 0.8]);
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).strength(0.5))
+                .force("charge", d3.forceManyBody().strength(-150))
+                .force("y", d3.forceY(d => levelScale(d.level)).strength(1))
+                .force("x", d3.forceX(width / 2).strength(0.1));
 
-        // シミュレーションを設定
-        const simulation = d3.forceSimulation(data.nodes)
-            .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
-            .force("charge", d3.forceManyBody().strength(-200))
-            .force("x", d3.forceX(width / 2).strength(0.05))
-            .force("y", d3.forceY(d => levelScale(d.level)).strength(0.5));
+            const svg = d3.select(container).append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height]);
 
-        const link = svg.append("g")
-            .attr("class", "links")
-            .selectAll("line")
-            .data(data.links)
-            .enter().append("line")
-            .attr("class", "link")
-            .attr("marker-end", "url(#arrowhead)");
+            svg.append("defs").append("marker")
+                .attr("id", "arrowhead")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 20)
+                .attr("refY", 0)
+                .attr("orient", "auto")
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#999");
 
-        const node = svg.append("g")
-            .attr("class", "nodes")
-            .selectAll("g")
-            .data(data.nodes)
-            .enter().append("g")
-            .attr("class", "node")
-            .call(drag(simulation));
+            const link = svg.append("g").selectAll("line")
+                .data(data.links).join("line")
+                .attr("stroke", "#999").attr("stroke-opacity", 0.6)
+                .attr("marker-end", "url(#arrowhead)");
 
-        node.append("circle")
-            .attr("r", 15)
-            .attr("fill", d => d.completed ? "#28a745" : "#0d6efd");
+            const node = svg.append("g").selectAll("g")
+                .data(data.nodes).join("g")
+                .call(drag(simulation));
 
-        node.append("text")
-            .text(d => d.title)
-            .attr("x", 20)
-            .attr("y", 5);
+            node.append("circle")
+                .attr("r", 10)
+                .attr("fill", d => colorScale(d.category))
+                .attr("stroke", d => d.completed ? "#10B981" : "#fff")
+                .attr("stroke-width", 3);
 
-        node.on("mouseover", (event, d) => {
-            tooltip.style.display = "block";
-            tooltip.innerHTML = `<strong>${d.title}</strong><br>${d.level} - ${d.category}`;
-        }).on("mousemove", (event) => {
-            tooltip.style.left = (event.pageX + 15) + 'px';
-            tooltip.style.top = (event.pageY - 10) + 'px';
-        }).on("mouseout", () => {
-            tooltip.style.display = "none";
-        });
-        
-        simulation.on("tick", () => {
-            link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-            node
-                .attr("transform", d => `translate(${d.x},${d.y})`);
-        });
+            node.append("text")
+                .text(d => d.title)
+                .attr("x", 15)
+                .attr("y", 4)
+                .attr("font-size", "12px")
+                .attr("fill", "#333");
+            
+            node.on("mouseover", (event, d) => {
+                tooltip.style.display = "block";
+                tooltip.innerHTML = `<strong>${d.title}</strong><br><small>${d.level} - ${d.category}</small>`;
+            }).on("mousemove", (event) => {
+                tooltip.style.left = (event.pageX + 15) + 'px';
+                tooltip.style.top = (event.pageY) + 'px';
+            }).on("mouseout", () => {
+                tooltip.style.display = "none";
+            });
 
-        // ドラッグ操作の関数
-        function drag(simulation) {
-          function dragstarted(event, d) {
+            simulation.on("tick", () => {
+                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+
+            function drag(simulation) {function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
@@ -138,25 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
         }
-    }
+        
 
-    // --- 科目タブの切り替え ---
-    const subjectTabs = document.querySelectorAll('.subject-tab');
-    function switchSubjectTab(targetTab) {
-        if (!targetTab) return;
+        function switchSubjectTab(targetTab) {if (!targetTab) return;
         subjectTabs.forEach(t => t.classList.remove('active'));
         targetTab.classList.add('active');
         const subjectName = targetTab.dataset.subject;
-        drawGraph(subjectName);
-    }
-    subjectTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
-    });
+        drawGraph(subjectName);}
+        
+        subjectTabs.forEach(tab => tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget)));
 
-    // --- 初期表示 ---
-    if (subjectTabs.length > 0) {
-        switchSubjectTab(subjectTabs[0]);
-    }
-});
+        if (subjectTabs.length > 0) {
+            switchSubjectTab(subjectTabs[0]);
+        }
+    });
 </script>
 {% endblock %}

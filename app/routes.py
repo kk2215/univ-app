@@ -165,7 +165,6 @@ def get_plan_data(user_id, subject_name):
         abort(403)
     user = current_user
     
-    # --- 必要な基本データを準備 ---
     level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     
@@ -173,7 +172,6 @@ def get_plan_data(user_id, subject_name):
     if not subject:
         return jsonify({"nodes": [], "links": []})
 
-    # --- 指定された科目のルートを取得 ---
     route = None
     if subject.name == '数学':
         route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
@@ -187,12 +185,12 @@ def get_plan_data(user_id, subject_name):
     all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
                   .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
 
-    # --- グラフ用のノードとリンクを生成 ---
     nodes = []
     links = []
     
-    # ノード（参考書）をリストに追加
-    for step, book in all_steps:
+    sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
+
+    for step, book in sequential_steps:
         nodes.append({
             "id": book.task_id,
             "title": book.title,
@@ -201,19 +199,18 @@ def get_plan_data(user_id, subject_name):
             "completed": book.task_id in completed_tasks_set
         })
 
-    # リンク（参考書間のつながり）をリストに追加
-    for i in range(len(all_steps) - 1):
-        # 同じカテゴリ内の連続するタスクをつなぐ
-        current_step, current_book = all_steps[i]
-        next_step, next_book = all_steps[i+1]
-        if current_step.category == next_step.category:
+    for i in range(len(sequential_steps) - 1):
+        current_step, current_book = sequential_steps[i]
+        next_step, next_book = sequential_steps[i+1]
+        
+        # 同じカテゴリ内、またはレベルの最後のタスクと次のレベルの最初のタスクを繋ぐ
+        if current_step.category == next_step.category or current_step.level != next_step.level:
             links.append({
                 "source": current_book.task_id,
                 "target": next_book.task_id
             })
 
     return jsonify({"nodes": nodes, "links": links})
-    
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
