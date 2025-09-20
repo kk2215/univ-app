@@ -182,9 +182,12 @@ def get_plan_data(user_id, subject_name):
     if not route:
         return jsonify({"nodes": [], "links": []})
 
-    all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                  .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
-
+    # ▼▼▼ all_stepsの取得方法を、レベルとステップ順でソートするように修正 ▼▼▼
+    all_steps_unsorted = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
+                  .filter(RouteStep.route_id == route.id).all()
+    
+    all_steps = sorted(all_steps_unsorted, key=lambda x: (level_hierarchy.get(x[0].level, 99), x[0].step_order))
+    
     nodes = []
     links = []
     
@@ -199,6 +202,7 @@ def get_plan_data(user_id, subject_name):
             "completed": book.task_id in completed_tasks_set
         })
 
+    # リンク生成ロジックは、ソート済みのリストを元に作成
     for i in range(len(sequential_steps) - 1):
         current_step, current_book = sequential_steps[i]
         next_step, next_book = sequential_steps[i+1]
@@ -211,6 +215,7 @@ def get_plan_data(user_id, subject_name):
             })
 
     return jsonify({"nodes": nodes, "links": links})
+
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
