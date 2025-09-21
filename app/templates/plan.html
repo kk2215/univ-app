@@ -61,7 +61,7 @@
 
             const width = container.clientWidth;
             const height = data.nodes.length * 60; // 縦の高さをコンパクトに
-            const margin = { top: 40, right: 150, bottom: 40, left: 150 };
+            const margin = { top: 30, right: 130, bottom: 40, left: 180 };
 
             // 座標計算用のスケール
             const y = d3.scalePoint().domain(data.nodes.map(d => d.id)).range([margin.top, height - margin.bottom]).padding(0.5);
