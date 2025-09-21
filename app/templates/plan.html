@@ -85,12 +85,14 @@
                 .attr("y2", d => y(levels.get(d)[0].id) - 40)
                 .attr("stroke", "#1dd2ffff").attr("stroke-dasharray", "4");
             svg.append("g").selectAll("text")
-                .data(levels.keys()).join("text")
+                .data(levels)
+                .join("text")
                 .attr("x", width - margin.right + 20) // 右の余白の外側に配置
                 .attr("y", d => levelScale(d))
-                .attr("dy", "-0.5em")
                 .text(d => d)
-                .attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "#1109f6ff");
+                .attr("font-size", "14px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#6c757d");
                     
 
             // リンク（線）
