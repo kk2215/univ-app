@@ -92,21 +92,28 @@
                 .attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "#1109f6ff");
                     
 
-            // --- リンク（線）を描画 ---
+            // リンク（線）
             svg.append("g").selectAll("path")
-                .data(data.links)
-                .join("path")
+                .data(data.links).join("path")
                 .attr("d", d => {
                     const sourceNode = data.nodes.find(n => n.id === d.source);
                     const targetNode = data.nodes.find(n => n.id === d.target);
-                    return `M${x(sourceNode.x)},${y(sourceNode.y)} L${x(targetNode.x)},${y(targetNode.y)}`;
+                    return `M${x(sourceNode.category)},${y(sourceNode.id)} L${x(targetNode.category)},${y(targetNode.id)}`;
                 })
-                .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 3);
+                .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
+
 
             // --- ノード（丸とテキスト）を描画 ---
             const node = svg.append("g").selectAll("g")
                 .data(data.nodes).join("g")
                 .attr("transform", d => `translate(${x(d.category)},${y(d.id)})`);
+                .style("cursor", "pointer")
+                .on("click", (event, d) => {
+                    document.getElementById('modal-title').textContent = d.title;
+                    document.getElementById('modal-description').textContent = d.description;
+                    document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
+                    modal.showModal();
+                });
 
             node.append("circle")
                 .attr("r", 12)
