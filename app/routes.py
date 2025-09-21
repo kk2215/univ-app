@@ -158,6 +158,7 @@ def show_plan(user_id):
         abort(404)
     return render_template('plan.html', user=current_user)
 
+
 @bp.route('/api/plan_data/<int:user_id>/<subject_name>')
 @login_required
 def get_plan_data(user_id, subject_name):
@@ -165,53 +166,77 @@ def get_plan_data(user_id, subject_name):
         abort(403)
     user = current_user
     
-    level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
-    completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
-    
     subject = db.session.query(Subject).filter_by(name=subject_name).first()
-    if not subject: return jsonify({"nodes": [], "links": []})
+    if not subject:
+        return jsonify({"nodes": [], "links": []})
 
     route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
-    if not route: return jsonify({"nodes": [], "links": []})
+    if not route:
+        return jsonify({"nodes": [], "links": []})
 
-    all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id)\
-                  .filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+    # ▼▼▼ 変更点1: ユーザーが選択した継続タスクのIDを取得します ▼▼▼
+    user_selections = db.session.query(UserContinuousTaskSelection.selected_task_id)\
+        .filter_by(user_id=user_id, subject_id=subject.id).all()
+    selected_continuous_task_ids = {selection.selected_task_id for selection in user_selections}
 
+    # ▼▼▼ 変更点2: まず、ルートタスク(sequential)だけを取得します ▼▼▼
+    sequential_steps = db.session.query(RouteStep, Book)\
+        .join(Book, RouteStep.book_id == Book.id)\
+        .filter(RouteStep.route_id == route.id, Book.task_type == 'sequential')\
+        .all()
+
+    # ▼▼▼ 変更点3: 次に、ユーザーが選択した継続タスク(continuous)だけを取得します ▼▼▼
+    selected_continuous_steps = []
+    if selected_continuous_task_ids:
+        selected_continuous_steps = db.session.query(RouteStep, Book)\
+            .join(Book, RouteStep.book_id == Book.id)\
+            .filter(RouteStep.route_id == route.id, Book.task_type == 'continuous', Book.task_id.in_(selected_continuous_task_ids))\
+            .all()
+    
+    # ▼▼▼ 変更点4: 両方のタスクリストを合体させ、step_orderで並び替えます ▼▼▼
+    all_steps_to_render = sorted(sequential_steps + selected_continuous_steps, key=lambda x: x[0].step_order)
+
+    if not all_steps_to_render:
+        return jsonify({"nodes": [], "links": []})
+
+    # --- ここから下の描画ロジックは、all_steps_to_render を使うように変更 ---
+    
+    completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
+    
     nodes = []
     links = []
     
-    sequential_steps = [(s,b) for s,b in all_steps if b.task_type == 'sequential']
-    if not sequential_steps: return jsonify({"nodes": [], "links": []})
-
     # カテゴリに横方向のレーン番号を割り当てる
-    categories = sorted(list(set([s.category for s,b in sequential_steps])))
+    # ▼▼▼ all_steps_to_render を使うように変更 ▼▼▼
+    categories = sorted(list(set([s.category for s, b in all_steps_to_render])))
     category_lanes = {cat: i for i, cat in enumerate(categories)}
     
     # 順番の番号カウンター
     step_counter = 1
     
-    for step, book in sequential_steps:
+    # ▼▼▼ all_steps_to_render をループ処理するように変更 ▼▼▼
+    for step, book in all_steps_to_render:
         nodes.append({
             "id": book.task_id,
             "title": book.title,
-            "description": book.description,     # ← 説明を追加
-            "youtube_query": book.youtube_query, # ← YouTubeクエリを追加
+            "description": book.description,
+            "youtube_query": book.youtube_query,
             "level": step.level,
             "category": step.category,
-            "x": category_lanes.get(step.category, 0), # 横位置
-            "y": step_counter,                         # 縦位置（単純な連番）
+            "x": category_lanes.get(step.category, 0),
+            "y": step_counter,
             "completed": book.task_id in completed_tasks_set
         })
         step_counter += 1
 
-    # リンクを生成
+    # リンクを生成（ルートタスク間のみ）
+    # ▼▼▼ sequential_steps を使ってリンクを生成するのはそのまま ▼▼▼
     for i in range(len(sequential_steps) - 1):
         _, current_book = sequential_steps[i]
         _, next_book = sequential_steps[i+1]
         links.append({"source": current_book.task_id, "target": next_book.task_id})
-
+        
     return jsonify({"nodes": nodes, "links": links})
-
 
 @bp.route('/dashboard/<int:user_id>')
 @login_required
