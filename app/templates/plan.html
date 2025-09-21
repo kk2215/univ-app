@@ -146,6 +146,12 @@
             const subjectName = targetTab.dataset.subject;
             drawGraph(subjectName);
         }
+
+        subjectTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                switchSubjectTab(e.currentTarget);
+            });
+        });
         
         if (subjectTabs.length > 0) {
             switchSubjectTab(subjectTabs[0]);
