@@ -107,13 +107,7 @@
             const node = svg.append("g").selectAll("g")
                 .data(data.nodes).join("g")
                 .attr("transform", d => `translate(${x(d.category)},${y(d.id)})`);
-                .style("cursor", "pointer")
-                .on("click", (event, d) => {
-                    document.getElementById('modal-title').textContent = d.title;
-                    document.getElementById('modal-description').textContent = d.description;
-                    document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
-                    modal.showModal();
-                });
+                
 
             node.append("circle")
                 .attr("r", 12)
