@@ -368,6 +368,12 @@ def dashboard(user_id):
             subject.continuous_tasks = tasks_to_display
         
         dashboard_data.append(subject)
+        
+        print("--- デバッグ情報：テンプレートに渡す直前のデータ ---")
+    for subj in dashboard_data:
+        if subj.next_task and isinstance(subj.next_task, dict) and subj.next_task.get('is_choice_pending'):
+            print(f"科目「{subj.name}」の選択ボタンのリンク先は → subject_name='{subj.next_task.get('subject_name')}'")
+    print("--------------------------------------------------")
 
     return render_template('dashboard.html', user=user, university=university, 
                            days_until_exam=days_until_exam, dashboard_data=dashboard_data,
