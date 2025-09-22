@@ -162,8 +162,7 @@ def show_plan(user_id):
 @bp.route('/api/plan_data/<int:user_id>/<subject_name>')
 @login_required
 def get_plan_data(user_id, subject_name):
-    if user_id != current_user.id:
-        abort(403)
+    if user_id != current_user.id: abort(403)
     
     subject = db.session.query(Subject).filter_by(name=subject_name).first()
     if not subject: return jsonify({})
@@ -171,50 +170,58 @@ def get_plan_data(user_id, subject_name):
     route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
     if not route: return jsonify({})
 
-    # --- グラフ用のデータ（ルートタスク）を取得 ---
-    sequential_steps_query = db.session.query(RouteStep, Book)\
-        .join(Book, RouteStep.book_id == Book.id)\
-        .filter(RouteStep.route_id == route.id, Book.task_type == 'sequential')\
-        .order_by(RouteStep.step_order)
+    level_hierarchy = { '基礎徹底レベル': 0, '高校入門レベル': 0, '日東駒専レベル': 1, '産近甲龍': 1, 'MARCHレベル': 2, '関関同立': 2, '早慶レベル': 3, '早稲田レベル': 3, '難関国公立・東大・早慶レベル': 3, '特殊形式': 98 }
     
-    # ▼▼▼「突破テスト」のような特殊カテゴリをグラフから除外したい場合、以下の行を追加 ▼▼▼
-    # sequential_steps_query = sequential_steps_query.filter(RouteStep.category != 'レベルチェック')
-    
-    sequential_steps = sequential_steps_query.all()
-
-    # --- 単語帳リスト用のデータ（継続タスク）を取得 ---
-    continuous_steps = db.session.query(RouteStep, Book)\
-        .join(Book, RouteStep.book_id == Book.id)\
-        .filter(RouteStep.route_id == route.id, Book.task_type == 'continuous')\
-        .order_by(RouteStep.level, RouteStep.step_order).all()
-
-    # --- 必要なデータを整形 ---
+    # --- 1. データを取得 ---
+    all_steps = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id).filter(RouteStep.route_id == route.id).all()
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
     
-    # グラフのノードとリンクを作成
+    sequential_steps = sorted([(s, b) for s, b in all_steps if b.task_type == 'sequential'], key=lambda x: x[0].step_order)
+    continuous_steps = [(s, b) for s, b in all_steps if b.task_type == 'continuous']
+
+    # --- 2. 現在のレベルを判定 ---
+    current_level = None
+    next_task = next((s for s, b in sequential_steps if b.task_id not in completed_tasks_set), None)
+    if next_task:
+        current_level = next_task.level
+    else: # 全て完了している場合
+        last_task = sequential_steps[-1][0] if sequential_steps else None
+        if last_task: current_level = last_task.level
+
+    # --- 3. 必要なデータを整形して返す ---
     graph_nodes = [{
         "id": book.task_id, "title": book.title, "description": book.description,
         "youtube_query": book.youtube_query, "level": step.level, "category": step.category,
         "completed": book.task_id in completed_tasks_set
     } for step, book in sequential_steps]
     
+    # 現在のレベルで選択済みの継続タスクを取得し、ノードに追加
+    user_selections = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id, subject_id=subject.id, level=current_level).all()
+    selected_task_ids = {sel.selected_task_id for sel in user_selections}
+    
+    for step, book in continuous_steps:
+        if book.task_id in selected_task_ids and step.level == current_level:
+            graph_nodes.append({
+                "id": book.task_id, "title": book.title, "description": book.description,
+                "youtube_query": book.youtube_query, "level": step.level, 
+                "category": "継続タスク", # マップの右端に表示するための特別カテゴリ
+                "completed": book.task_id in completed_tasks_set
+            })
+
     graph_links = [{"source": sequential_steps[i][1].task_id, "target": sequential_steps[i+1][1].task_id} 
                    for i in range(len(sequential_steps) - 1)]
 
-    # 単語帳リストをレベルごとにグループ化
-    continuous_tasks_by_level = defaultdict(list)
+    # モーダル用に、現在のレベルで利用可能な継続タスクの選択肢を整形
+    available_choices = defaultdict(list)
     for step, book in continuous_steps:
-        continuous_tasks_by_level[step.level].append({
-            "id": book.task_id, "title": book.title, "category": step.category
-        })
+        if step.level == current_level:
+            available_choices[step.category].append({"id": book.task_id, "title": book.title})
 
-    # ▼▼▼ フロントエンドに渡すJSONの構造を変更 ▼▼▼
     return jsonify({
-        "graph_data": {
-            "nodes": graph_nodes,
-            "links": graph_links
-        },
-        "continuous_tasks": dict(continuous_tasks_by_level)
+        "graph_data": {"nodes": graph_nodes, "links": graph_links},
+        "current_level": current_level,
+        "current_selections": {sel.category: sel.selected_task_id for sel in user_selections},
+        "available_choices": dict(available_choices)
     })
     
 @bp.route('/dashboard/<int:user_id>')
@@ -917,3 +924,49 @@ def admin_users():
     users = db.session.query(User).order_by(User.id.desc()).all()
     user_count = len(users)
     return render_template('admin/admin_users.html', users=users, user_count=user_count, user=current_user)
+
+# app/routes.py の一番下に追加
+
+@bp.route('/api/update_continuous_tasks/<int:user_id>', methods=['POST'])
+@login_required
+def update_continuous_tasks(user_id):
+    if user_id != current_user.id:
+        abort(403)
+    
+    data = request.get_json()
+    level = data.get('level')
+    selections = data.get('selections') # { "英単語": "task_id_1", "英文法": "task_id_2" }
+
+    if not level or selections is None:
+        return jsonify({'success': False, 'error': 'Missing data'}), 400
+
+    # このレベル・カテゴリの古い選択を一度削除
+    categories_to_update = list(selections.keys())
+    db.session.query(UserContinuousTaskSelection).filter(
+        UserContinuousTaskSelection.user_id == user_id,
+        UserContinuousTaskSelection.level == level,
+        UserContinuousTaskSelection.category.in_(categories_to_update)
+    ).delete(synchronize_session=False)
+
+    # 新しい選択を追加
+    subject_ids = {s.id for s in current_user.subjects} # ユーザーの科目IDを取得
+    for category, task_id in selections.items():
+        if task_id: # 選択がある場合のみ
+             # subject_idを見つけるロジック(簡易版、要改善の可能性あり)
+            book = db.session.query(Book).filter_by(task_id=task_id).first()
+            route_step = db.session.query(RouteStep).filter_by(book_id=book.id).first()
+            route = db.session.query(Route).get(route_step.route_id)
+            subject_id = route.subject_id
+            
+            if subject_id in subject_ids:
+                new_selection = UserContinuousTaskSelection(
+                    user_id=user_id, 
+                    subject_id=subject_id, 
+                    level=level, 
+                    category=category, 
+                    selected_task_id=task_id
+                )
+                db.session.add(new_selection)
+    
+    db.session.commit()
+    return jsonify({'success': True})
