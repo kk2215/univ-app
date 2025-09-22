@@ -138,85 +138,90 @@
         }
 
         // --- グラフ描画関数 ---
-        function drawGraph(data) {
-            currentData = data; // データを保存
-            const { graph_data, current_level, current_selections, available_choices } = data;
-            
-            updateCurrentSelectionUI(current_level, current_selections, available_choices);
+        // 新しい drawGraph 関数のコード
 
-            graphContainer.innerHTML = '';
-            if (!graph_data || !graph_data.nodes || graph_data.nodes.length === 0) {
-                graphContainer.innerHTML = '<p style="text-align: center; padding: 2rem;">学習ルートは準備中です。</p>';
-                return;
+function drawGraph(data) {
+    currentData = data; // データを保存
+    const { graph_data, current_level, current_selections, available_choices } = data;
+    
+    updateCurrentSelectionUI(current_level, current_selections, available_choices);
+
+    graphContainer.innerHTML = '';
+    if (!graph_data || !graph_data.nodes || graph_data.nodes.length === 0) {
+        graphContainer.innerHTML = '<p style="text-align: center; padding: 2rem;">学習ルートは準備中です。</p>';
+        return;
+    }
+
+    const width = graphContainer.clientWidth;
+    const margin = { top: 50, right: 20, bottom: 50, left: 20 };
+
+    // ▼▼▼【修正点】先に高さを計算し、yスケールを定義する正しい順序に変更 ▼▼▼
+    const levels = d3.group(graph_data.nodes, d => d.level);
+    
+    let totalHeight = margin.top + margin.bottom;
+    levels.forEach(nodesInLevel => {
+        // 各レベルのノード数に基づいて高さを加算
+        totalHeight += nodesInLevel.length * 70; 
+    });
+    // レベル間のスペースも少し加える
+    totalHeight += (levels.size - 1) * 30;
+
+    const y = d3.scalePoint().domain(graph_data.nodes.map(d => d.id)).range([margin.top, totalHeight - margin.bottom]).padding(0.8);
+    // ▲▲▲ ここまでが修正箇所 ▲▲▲
+
+    const categories = [...new Set(graph_data.nodes.map(d => d.category))];
+    if (!categories.includes("継続タスク")) {
+        categories.push("継続タスク");
+    }
+    const x = d3.scalePoint().domain(categories).range([margin.left + 50, width - margin.right - 50]);
+
+    const svg = d3.select(graphContainer).append("svg")
+        .attr("width", width)
+        .attr("height", totalHeight) // 正しい高さを使用
+        .attr("viewBox", [0, 0, width, totalHeight]);
+
+    // レベル線とラベルの描画ロジック
+    svg.append("g").selectAll("line").data(levels.keys()).join("line")
+        .attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40)
+        .attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-primary)").attr("stroke-dasharray", "4");
+    svg.append("g").selectAll("text").data(levels.keys()).join("text")
+        .attr("x", 20).attr("y", d => y(levels.get(d)[0].id) - 40)
+        .attr("dy", "-0.5em").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
+    
+    // リンクとノードの描画
+    svg.append("g").selectAll("path").data(graph_data.links).join("path")
+        .attr("d", d => {
+            const sourceNode = graph_data.nodes.find(n => n.id === d.source);
+            const targetNode = graph_data.nodes.find(n => n.id === d.target);
+            if (!sourceNode || !targetNode) return "";
+            return `M${x(sourceNode.category)},${y(sourceNode.id)} L${x(targetNode.category)},${y(targetNode.id)}`;
+        })
+        .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
+
+    const node = svg.append("g").selectAll("g").data(graph_data.nodes).join("g")
+        .attr("transform", d => {
+            if (d.category === '継続タスク') {
+                const firstNodeOfLevel = graph_data.nodes.find(n => n.level === d.level && n.category !== '継続タスク');
+                const yPos = firstNodeOfLevel ? y(firstNodeOfLevel.id) : y(d.id);
+                return `translate(${x(d.category)},${yPos})`;
             }
-
-            const width = graphContainer.clientWidth;
-            const height = (d3.max(graph_data.nodes, d => d.level === current_level ? 1 : 0) ? 1.2 : 1) * d3.max(graph_data.nodes, d => y(d.id)) + 100;
-            const margin = { top: 50, right: 20, bottom: 50, left: 20 };
-
-            const categories = [...new Set(graph_data.nodes.map(d => d.category))];
-            if (!categories.includes("継続タスク")) {
-                categories.push("継続タスク");
-            }
-            const x = d3.scalePoint().domain(categories).range([margin.left, width - margin.right]);
-
-            const levels = d3.group(graph_data.nodes, d => d.level);
-            let yPos = margin.top;
-            const levelYPositions = {};
-            [...levels.keys()].sort((a,b) => (d3.min(levels.get(a), n => n.order) || 0) - (d3.min(levels.get(b), n => n.order) || 0) ).forEach(level => {
-                 levelYPositions[level] = yPos;
-                 yPos += levels.get(level).length * 70;
-            });
-            const y = d3.scalePoint().domain(graph_data.nodes.map(d => d.id)).range([margin.top, yPos - 70]).padding(0.8);
-
-
-            const svg = d3.select(graphContainer).append("svg")
-                .attr("width", width).attr("height", yPos)
-                .attr("viewBox", [0, 0, width, yPos]);
-
-            // (レベル線とラベルの描画ロジックはほぼ変更なし)
-            svg.append("g").selectAll("line").data(levels.keys()).join("line")
-                .attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40)
-                .attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-primary)").attr("stroke-dasharray", "4");
-            svg.append("g").selectAll("text").data(levels.keys()).join("text")
-                .attr("x", 20).attr("y", d => y(levels.get(d)[0].id) - 40)
-                .attr("dy", "-0.5em").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
-            
-            // リンクとノードの描画 (継続タスクがy座標を持つように修正)
-            svg.append("g").selectAll("path").data(graph_data.links).join("path")
-                .attr("d", d => {
-                    const sourceNode = graph_data.nodes.find(n => n.id === d.source);
-                    const targetNode = graph_data.nodes.find(n => n.id === d.target);
-                    if (!sourceNode || !targetNode) return "";
-                    return `M${x(sourceNode.category)},${y(sourceNode.id)} L${x(targetNode.category)},${y(targetNode.id)}`;
-                })
-                .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
-
-            const node = svg.append("g").selectAll("g").data(graph_data.nodes).join("g")
-                .attr("transform", d => {
-                    // 継続タスクは同じレベルの最初の sequential タスクと同じy座標にする
-                    if (d.category === '継続タスク') {
-                        const firstNodeOfLevel = graph_data.nodes.find(n => n.level === d.level && n.category !== '継続タスク');
-                        const yPos = firstNodeOfLevel ? y(firstNodeOfLevel.id) : y(d.id);
-                        return `translate(${x(d.category)},${yPos})`;
-                    }
-                    return `translate(${x(d.category)},${y(d.id)})`;
-                })
-                .style("cursor", "pointer")
-                .on("click", (event, d) => { 
-                    document.getElementById('modal-title').textContent = d.title;
-                document.getElementById('modal-description').textContent = d.description;
-                document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
-                modal.showModal();
-                 });
-            
-            // (ノードの円やテキストの描画はほぼ変更なし)
-            node.append("circle").attr("r", 12).attr("fill", "var(--pico-primary)")
-                .attr("stroke", d => d.completed ? "#10B981" : "#fff").attr("stroke-width", 3);
-            node.append("text").text(d => d.title).attr("x", 25).attr("y", 5).attr("font-size", "14px");
-            node.filter(d => d.completed).append("text").text("✔")
-                .attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "white").attr("font-size", "12px");
-        }
+            return `translate(${x(d.category)},${y(d.id)})`;
+        })
+        .style("cursor", "pointer")
+        .on("click", (event, d) => {
+             document.getElementById('modal-title').textContent = d.title;
+             document.getElementById('modal-description').textContent = d.description;
+             document.getElementById('modal-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(d.youtube_query)}`;
+             taskModal.showModal();
+        });
+    
+    // ノードの円やテキストの描画
+    node.append("circle").attr("r", 12).attr("fill", "var(--pico-primary)")
+        .attr("stroke", d => d.completed ? "#10B981" : "#fff").attr("stroke-width", 3);
+    node.append("text").text(d => d.title).attr("x", 25).attr("y", 5).attr("font-size", "14px");
+    node.filter(d => d.completed).append("text").text("✔")
+        .attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "white").attr("font-size", "12px");
+　　　}
 
         // --- イベントリスナー ---
         document.getElementById('change-tasks-btn').addEventListener('click', () => {
