@@ -326,7 +326,12 @@ def dashboard(user_id):
                         task_level_value = level_hierarchy.get(potential_next_task['level'], 99)
                         if task_level_value <= target_level_value:
                             if len(group) > 1 and group_id not in seq_selections:
-                                subject.next_task = {'is_choice_pending': True, 'title': f"『{group[0]['category']}』の参考書を選択してください", 'subject_name': subject.name}
+                                subject.next_task = {
+                                    'is_choice_pending': True, 
+                                    'title': f"『{group[0]['category']}』の参考書を選択してください", 
+                                    'subject_name': subject.name,
+                                    'level': group[0]['level'] # ▼▼▼ この行を追加 ▼▼▼
+                                }
                             else:
                                 subject.next_task = potential_next_task
                         

@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const x = (category) => margin.left + 15;
         const svg = d3.select(graphContainer).append("svg").attr("width", width).attr("height", totalHeight).attr("viewBox", [0, 0, width, totalHeight]);
         svg.append("g").selectAll("line").data(levels.keys()).join("line").attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40).attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-muted-border-color)").attr("stroke-dasharray", "4");
-        svg.append("g").selectAll("text").data(levels.keys()).join("text").attr("x", width - margin.right).attr("y", d => y(levels.get(d)[0].id) - 40).attr("dy", "-0.5em").attr("text-anchor", "end").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
+        svg.append("g").selectAll("text").data(levels.keys()).attr("id", d => d).join("text").attr("x", width - margin.right).attr("y", d => y(levels.get(d)[0].id) - 40).attr("dy", "-0.5em").attr("text-anchor", "end").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
         svg.append("g").selectAll("path").data(graphData.links).join("path").attr("d", d => {
             const sourceNode = graphData.nodes.find(n => n.id === d.source);
             const targetNode = graphData.nodes.find(n => n.id === d.target);
