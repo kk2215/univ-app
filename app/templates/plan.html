@@ -20,6 +20,12 @@
         <h1>インタラクティブ・学習マップ</h1>
         <p>科目を選択し、参考書をクリックして詳細を確認しよう</p>
     </hgroup>
+    <nav class="tabs subject-tabs">
+        {% for subject in current_user.subjects|sort(attribute='id') %}
+            <button class="tab subject-tab" data-subject="{{ subject.name }}">{{ subject.name }}</button>
+        {% endfor %}
+    </nav>
+
     <section id="plan-header" class="plan-header" hidden>
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
@@ -29,12 +35,6 @@
         <button id="change-tasks-btn" class="secondary outline">変更</button>
     </div>
     </section>
-
-    <nav class="tabs subject-tabs">
-        {% for subject in current_user.subjects|sort(attribute='id') %}
-            <button class="tab subject-tab" data-subject="{{ subject.name }}">{{ subject.name }}</button>
-        {% endfor %}
-    </nav>
     
 
     <dialog id="selection-modal">
@@ -50,7 +50,7 @@
             </footer>
         </article>
     </dialog>
-    <div id="plan-graph-container"></div>
+    <div id="plan-graph-container" style="border: 1px solid var(--pico-muted-border-color); border-top: none; padding: 1rem; border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius);"></div>
 </article>
 
 <dialog id="task-modal">
@@ -69,8 +69,6 @@
 
 {% block scripts %}
 <script type="module">
-    // plan.html の <script type="module"> の中
-
 // plan.html の <script type="module"> の中
 
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
@@ -81,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskModal = document.getElementById('task-modal');
     const selectionModal = document.getElementById('selection-modal');
     let currentSubject = '';
+    let currentData = {}; // ▼▼▼ 修正点: currentDataをここに移動 ▼▼▼
 
     function closeModal(modal) { if (modal.hasAttribute("open")) modal.close(); }
     taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeModal(taskModal); });
@@ -91,17 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateContinuousTaskUI(data) {
         const { current_level, current_selections, available_choices } = data;
         const planHeader = document.getElementById('plan-header');
-
         if (!current_level || Object.keys(available_choices).length === 0) {
-            planHeader.hidden = true;
-            return;
+            planHeader.hidden = true; return;
         }
-
         planHeader.hidden = false;
         document.getElementById('current-level-title').textContent = `【${current_level}】の毎日のタスク`;
         const list = document.getElementById('current-tasks-list');
         list.innerHTML = '';
-
         for (const category in available_choices) {
             const selectedId = current_selections[category];
             const selectedTask = available_choices[category].find(c => c.id === selectedId);
@@ -115,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('selection-modal-title').textContent = title;
         const body = document.getElementById('selection-modal-body');
         body.innerHTML = '';
-
         let fieldsetHTML = '<fieldset>';
         choices.forEach(choice => {
             const isChecked = choice.id === currentSelection ? 'checked' : '';
@@ -123,55 +117,50 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         fieldsetHTML += '</fieldset>';
         body.innerHTML = fieldsetHTML;
-
         const saveBtn = document.getElementById('save-selection-btn');
-        const newSaveBtn = saveBtn.cloneNode(true); // イベントリスナーをリセット
+        const newSaveBtn = saveBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
         newSaveBtn.addEventListener('click', saveCallback);
-
         selectionModal.showModal();
     }
-
+    
     async function drawGraph(subjectName) {
         graphContainer.innerHTML = '<progress></progress>';
         currentSubject = subjectName;
 
         const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
         const data = await response.json();
-
+        currentData = data; // ▼▼▼ 修正点: データをグローバルに保存 ▼▼▼
+        
         updateContinuousTaskUI(data.continuous_data || {});
-
+        
         const graphData = data.graph_data;
         graphContainer.innerHTML = '';
         if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
             graphContainer.innerHTML = '<p style="text-align: center; padding: 2rem;">学習ルートは準備中です。</p>';
             return;
         }
-
+        
+        // D3.jsの描画コード（変更なし）
         const width = graphContainer.clientWidth;
         const margin = { top: 50, right: 100, bottom: 50, left: 20 };
         const levels = d3.group(graphData.nodes, d => d.level);
         let totalHeight = margin.top + margin.bottom;
         levels.forEach(nodes => { totalHeight += nodes.length * 70; });
         totalHeight += (levels.size - 1) * 30;
-
         const y = d3.scalePoint().domain(graphData.nodes.map(d => d.id)).range([margin.top, totalHeight - margin.bottom]).padding(0.8);
         const categories = [...new Set(graphData.nodes.map(d => d.category))];
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(categories);
         const x = (category) => margin.left + 15;
-
         const svg = d3.select(graphContainer).append("svg").attr("width", width).attr("height", totalHeight).attr("viewBox", [0, 0, width, totalHeight]);
-
         svg.append("g").selectAll("line").data(levels.keys()).join("line").attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40).attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-muted-border-color)").attr("stroke-dasharray", "4");
         svg.append("g").selectAll("text").data(levels.keys()).join("text").attr("x", width - margin.right).attr("y", d => y(levels.get(d)[0].id) - 40).attr("dy", "-0.5em").attr("text-anchor", "end").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
-
         svg.append("g").selectAll("path").data(graphData.links).join("path").attr("d", d => {
             const sourceNode = graphData.nodes.find(n => n.id === d.source);
             const targetNode = graphData.nodes.find(n => n.id === d.target);
             if (!sourceNode || !targetNode) return "";
             return `M${x(sourceNode.category)},${y(sourceNode.id)} L${x(targetNode.category)},${y(targetNode.id)}`;
         }).attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
-
         const node = svg.append("g").selectAll("g").data(graphData.nodes).join("g")
             .attr("transform", d => `translate(${x(d.category)},${y(d.id)})`)
             .style("cursor", "pointer")
@@ -181,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         e.target.setAttribute('aria-busy', 'true');
                         const selectedRadio = document.querySelector(`#selection-modal-body input[name="selection"]:checked`);
                         if(selectedRadio) {
-                            const endpoint = d.placeholder_type === 'sequential' ? '/api/select_sequential_task' : '/api/select_continuous_task';
+                            const endpoint = '/api/select_sequential_task';
                             await fetch(endpoint, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -200,19 +189,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     taskModal.showModal();
                 }
             });
-
         node.append("circle").attr("r", 12).attr("fill", d => d.is_placeholder ? 'var(--pico-secondary)' : colorScale(d.category)).attr("stroke", d => d.completed ? "#10B981" : "#fff").attr("stroke-width", 3);
         node.append("text").text(d => d.title).attr("x", 25).attr("y", 5).attr("font-size", "14px");
         node.filter(d => d.completed).append("text").text("✔").attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "white").attr("font-size", "12px");
     }
 
+    // ▼▼▼ 修正点: ボタンのイベントリスナーをここに設置 ▼▼▼
     document.getElementById('change-tasks-btn').addEventListener('click', () => {
-        const { current_level, current_selections, available_choices } = data.continuous_data;
+        const { current_level, current_selections, available_choices } = currentData.continuous_data;
         if(!current_level || !available_choices) return;
-
-        const category = Object.keys(available_choices)[0]; // 簡易的に最初のカテゴリの選択肢を表示
+        const category = Object.keys(available_choices)[0];
         if(!category) return;
-
+        
         const saveCallback = async (e) => {
             e.target.setAttribute('aria-busy', 'true');
             const selectedRadio = document.querySelector(`#selection-modal-body input[name="selection"]:checked`);
@@ -240,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     subjectTabs.forEach(tab => {
         tab.addEventListener('click', (e) => switchSubjectTab(e.currentTarget));
     });
-
+    
     if (subjectTabs.length > 0) {
         switchSubjectTab(subjectTabs[0]);
     }
