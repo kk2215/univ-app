@@ -138,10 +138,10 @@
         }
 
         // --- グラフ描画関数 ---
-        // 新しい drawGraph 関数のコード
+        // plan.html の <script type="module"> 内にあります
 
 function drawGraph(data) {
-    currentData = data; // データを保存
+    currentData = data;
     const { graph_data, current_level, current_selections, available_choices } = data;
     
     updateCurrentSelectionUI(current_level, current_selections, available_choices);
@@ -153,42 +153,48 @@ function drawGraph(data) {
     }
 
     const width = graphContainer.clientWidth;
-    const margin = { top: 50, right: 20, bottom: 50, left: 20 };
+    const margin = { top: 50, right: 100, bottom: 50, left: 20 }; // 右マージンを少し広げてレベル名を表示
 
-    // ▼▼▼【修正点】先に高さを計算し、yスケールを定義する正しい順序に変更 ▼▼▼
     const levels = d3.group(graph_data.nodes, d => d.level);
-    
     let totalHeight = margin.top + margin.bottom;
     levels.forEach(nodesInLevel => {
-        // 各レベルのノード数に基づいて高さを加算
-        totalHeight += nodesInLevel.length * 70; 
+        totalHeight += nodesInLevel.length * 70;
     });
-    // レベル間のスペースも少し加える
     totalHeight += (levels.size - 1) * 30;
 
     const y = d3.scalePoint().domain(graph_data.nodes.map(d => d.id)).range([margin.top, totalHeight - margin.bottom]).padding(0.8);
-    // ▲▲▲ ここまでが修正箇所 ▲▲▲
-
+    
+    // ▼▼▼ 変更点1: カテゴリごとに色分けするためのカラースケールを定義 ▼▼▼
     const categories = [...new Set(graph_data.nodes.map(d => d.category))];
-    if (!categories.includes("継続タスク")) {
-        categories.push("継続タスク");
-    }
-    const x = d3.scalePoint().domain(categories).range([margin.left + 50, width - margin.right - 50]);
+    const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(categories);
+    
+    // ▼▼▼ 変更点2: X座標の計算方法を変更 ▼▼▼
+    // ルートタスクは左端(margin.left + 15)に、継続タスクは右端(width - margin.right)に配置
+    const x = (category) => {
+        if (category === '継続タスク') {
+            return width - margin.right;
+        }
+        return margin.left + 15; // 円の半径分を考慮
+    };
 
     const svg = d3.select(graphContainer).append("svg")
         .attr("width", width)
-        .attr("height", totalHeight) // 正しい高さを使用
+        .attr("height", totalHeight)
         .attr("viewBox", [0, 0, width, totalHeight]);
 
-    // レベル線とラベルの描画ロジック
+    // ▼▼▼ 変更点3: レベル名のテキストを右端に配置 ▼▼▼
     svg.append("g").selectAll("line").data(levels.keys()).join("line")
         .attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40)
-        .attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-primary)").attr("stroke-dasharray", "4");
+        .attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-muted-border-color)").attr("stroke-dasharray", "4");
     svg.append("g").selectAll("text").data(levels.keys()).join("text")
-        .attr("x", 20).attr("y", d => y(levels.get(d)[0].id) - 40)
-        .attr("dy", "-0.5em").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
+        .attr("x", width - margin.right) // 右端に配置
+        .attr("y", d => y(levels.get(d)[0].id) - 40)
+        .attr("dy", "-0.5em")
+        .attr("text-anchor", "end") // テキストを右揃えにする
+        .text(d => d)
+        .attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
     
-    // リンクとノードの描画
+    // リンクの描画
     svg.append("g").selectAll("path").data(graph_data.links).join("path")
         .attr("d", d => {
             const sourceNode = graph_data.nodes.find(n => n.id === d.source);
@@ -198,14 +204,13 @@ function drawGraph(data) {
         })
         .attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
 
+    // ノードの描画
     const node = svg.append("g").selectAll("g").data(graph_data.nodes).join("g")
         .attr("transform", d => {
-            if (d.category === '継続タスク') {
-                const firstNodeOfLevel = graph_data.nodes.find(n => n.level === d.level && n.category !== '継続タスク');
-                const yPos = firstNodeOfLevel ? y(firstNodeOfLevel.id) : y(d.id);
-                return `translate(${x(d.category)},${yPos})`;
-            }
-            return `translate(${x(d.category)},${y(d.id)})`;
+            const yPos = d.category === '継続タスク' 
+                ? y(graph_data.nodes.find(n => n.level === d.level && n.category !== '継続タスク')?.id || d.id) 
+                : y(d.id);
+            return `translate(${x(d.category)},${yPos})`;
         })
         .style("cursor", "pointer")
         .on("click", (event, d) => {
@@ -215,13 +220,16 @@ function drawGraph(data) {
              taskModal.showModal();
         });
     
-    // ノードの円やテキストの描画
-    node.append("circle").attr("r", 12).attr("fill", "var(--pico-primary)")
+    // ▼▼▼ 変更点4: ノードの円の色をカラースケールで設定 ▼▼▼
+    node.append("circle").attr("r", 12)
+        .attr("fill", d => colorScale(d.category)) // カテゴリに応じて色を変更
         .attr("stroke", d => d.completed ? "#10B981" : "#fff").attr("stroke-width", 3);
+
+    // テキストと完了マークの描画
     node.append("text").text(d => d.title).attr("x", 25).attr("y", 5).attr("font-size", "14px");
     node.filter(d => d.completed).append("text").text("✔")
         .attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "white").attr("font-size", "12px");
-　　　}
+    }
 
         // --- イベントリスナー ---
         document.getElementById('change-tasks-btn').addEventListener('click', () => {
