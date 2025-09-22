@@ -351,13 +351,23 @@ def dashboard(user_id):
                     subject.last_completed_task = db.session.query(Book).filter_by(task_id=last_completed_id).first()
                 
                 if subject.next_task and not isinstance(subject.next_task, dict):
-                    current_level = subject.next_task.level
+            # next_task (Bookオブジェクト) のtask_idを使って、元の計画リストからレベル情報を見つけ出す
+                   next_task_info = next((task for task in sequential_plan if task['task_id'] == subject.next_task.task_id), None)
+                   if next_task_info:
+                      current_level = next_task_info['level']
                 elif completed_in_plan:
-                    last_task_in_plan = next((t for t in sequential_plan if t['task_id'] == completed_in_plan[-1]), None)
-                    current_level = last_task_in_plan['level'] if last_task_in_plan else None
+            # 全て完了している場合は、最後に完了したタスクのレベルを現在のレベルとする
+                     last_task_in_plan = next((t for t in sequential_plan if t['task_id'] == completed_in_plan[-1]), None)
+                     current_level = last_task_in_plan['level'] if last_task_in_plan else None
+                elif sequential_plan:
+            # まだ何も完了していない場合は、最初のタスクのレベルを現在のレベルとする
+                    current_level = sequential_plan[0]['level']
                 else:
-                    current_level = sequential_plan[0]['level'] if sequential_plan else None
-                subject.progress = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
+            # ルートタスクが一つも設定されていない場合
+                    current_level = None
+        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        
+            subject.progress = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
 
             continuous_tasks_in_plan = [task for task in full_plan if task['task_type'] == 'continuous' and task['category'] != '補助教材']
             tasks_to_display, tasks_by_category = [], defaultdict(list)
