@@ -171,73 +171,84 @@ def get_plan_data(user_id, subject_name):
 
     route = db.session.query(Route).filter_by(subject_id=subject.id, plan_type='standard').first()
     if not route: return jsonify({})
-    
+
     # --- 1. 必要なデータを全て取得 ---
-    all_steps_raw = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id).filter(RouteStep.route_id == route.id).all()
-    user_selections = { (sel.level, sel.category): sel.selected_task_id 
-                        for sel in db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id, subject_id=subject.id).all() }
+    all_steps_raw = db.session.query(RouteStep, Book).join(Book, RouteStep.book_id == Book.id).filter(RouteStep.route_id == route.id).order_by(RouteStep.step_order).all()
+    
+    # ユーザーの全ての選択状況を取得
+    seq_selections = {sel.group_id: sel.selected_task_id for sel in db.session.query(UserSequentialTaskSelection).filter_by(user_id=user_id).all()}
+    cont_selections_raw = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id, subject_id=subject.id).all()
+    
     completed_tasks_set = {p.task_id for p in db.session.query(Progress).filter_by(user_id=user_id, is_completed=1).all()}
 
-    # --- 2. 表示するノードを決定するロジック ---
-    nodes_to_render = []
-    sequential_steps = []
+    # --- 2. ルートタスク(sequential)を処理し、表示するノードを決定 ---
+    nodes_to_render, sequential_links_base = [], []
     
-    # まず、ルートタスク(sequential)を全て追加
-    for step, book in all_steps_raw:
-        if book.task_type == 'sequential':
-            node_data = {
-                "id": book.task_id, "title": book.title, "description": book.description,
-                "youtube_query": book.youtube_query, "level": step.level, "category": step.category,
-                "completed": book.task_id in completed_tasks_set, "is_placeholder": False
-            }
-            nodes_to_render.append(node_data)
-            sequential_steps.append(node_data) # リンク生成用に保持
+    sequential_steps_raw = [(s, b) for s, b in all_steps_raw if b.task_type == 'sequential']
+    
+    # is_mainフラグでタスクをグループ化
+    task_groups = []
+    if sequential_steps_raw:
+        temp_group = []
+        for step, book in sequential_steps_raw:
+            if step.is_main == 1 and temp_group:
+                task_groups.append(temp_group)
+                temp_group = []
+            temp_group.append((step, book))
+        if temp_group: task_groups.append(temp_group)
 
-    # 次に、継続タスク(continuous)を吟味して追加
-    continuous_steps_grouped = defaultdict(list)
-    for step, book in all_steps_raw:
-        if book.task_type == 'continuous':
-            continuous_steps_grouped[(step.level, step.category)].append((step, book))
+    # 各グループを処理して表示ノードを決定
+    for group in task_groups:
+        group_id = next((b.task_id for s, b in group if s.is_main == 1), group[0][1].task_id)
+        user_selected_task_id = seq_selections.get(group_id)
 
-    for (level, category), tasks in continuous_steps_grouped.items():
-        selection_key = (level, category)
-        user_selected_task_id = user_selections.get(selection_key)
-
+        node_to_add = None
         if user_selected_task_id:
-            # ユーザーが選択済みの場合 -> 選択されたタスクを表示
-            step, book = next(((s, b) for s, b in tasks if b.task_id == user_selected_task_id), (None, None))
+            step, book = next(((s, b) for s, b in group if b.task_id == user_selected_task_id), (None, None))
             if book:
-                nodes_to_render.append({
-                    "id": book.task_id, "title": book.title, "description": book.description,
-                    "youtube_query": book.youtube_query, "level": step.level, "category": "継続タスク",
-                    "completed": book.task_id in completed_tasks_set, "is_placeholder": False
-                })
+                node_to_add = {"id": book.task_id, "title": book.title, "description": book.description, "youtube_query": book.youtube_query, "level": step.level, "category": step.category, "completed": book.task_id in completed_tasks_set, "is_placeholder": False}
+        elif len(group) == 1:
+            step, book = group[0]
+            node_to_add = {"id": book.task_id, "title": book.title, "description": book.description, "youtube_query": book.youtube_query, "level": step.level, "category": step.category, "completed": book.task_id in completed_tasks_set, "is_placeholder": False}
         else:
-            # ユーザーが未選択の場合
-            if len(tasks) == 1:
-                # 選択肢が1つしかない場合 -> 自動でそれを表示 (DBには保存しない)
-                step, book = tasks[0]
-                nodes_to_render.append({
-                    "id": book.task_id, "title": book.title, "description": book.description,
-                    "youtube_query": book.youtube_query, "level": step.level, "category": "継続タスク",
-                    "completed": book.task_id in completed_tasks_set, "is_placeholder": False
-                })
-            else:
-                # 選択肢が複数ある場合 -> プレースホルダーを表示
-                step, _ = tasks[0]
-                placeholder_id = f"placeholder_{level}_{category}"
-                nodes_to_render.append({
-                    "id": placeholder_id, "title": f"【{category}】を選択", "description": "クリックして使用する参考書を選択してください。",
-                    "level": level, "category": "継続タスク", "completed": False, 
-                    "is_placeholder": True,
-                    "choices": [{"id": b.task_id, "title": b.title} for s, b in tasks]
-                })
+            step, _ = group[0]
+            node_to_add = {
+                "id": f"placeholder_seq_{group_id}", "title": f"【{step.category}】を選択", "description": "クリックして使用する参考書を選択してください。",
+                "level": step.level, "category": step.category, "completed": False, 
+                "is_placeholder": True, "placeholder_type": "sequential",
+                "group_id": group_id,
+                "choices": [{"id": b.task_id, "title": b.title} for s, b in group]
+            }
+        
+        if node_to_add:
+            nodes_to_render.append(node_to_add)
+            if not node_to_add["is_placeholder"]:
+                sequential_links_base.append(node_to_add)
+    
+    graph_links = [{"source": sequential_links_base[i]['id'], "target": sequential_links_base[i+1]['id']} for i in range(len(sequential_links_base) - 1)]
 
-    # --- 3. リンクを生成 ---
-    graph_links = [{"source": sequential_steps[i]['id'], "target": sequential_steps[i+1]['id']} 
-                   for i in range(len(sequential_steps) - 1)]
+    # --- 3. 継続タスク(continuous)の情報を整形 ---
+    current_level = None
+    next_node = next((node for node in nodes_to_render if not node['completed']), None)
+    if next_node:
+        current_level = next_node['level']
+    elif nodes_to_render:
+        current_level = nodes_to_render[-1]['level']
 
-    return jsonify({"nodes": nodes_to_render, "links": graph_links})
+    continuous_steps = [(s, b) for s, b in all_steps_raw if b.task_type == 'continuous']
+    available_choices = defaultdict(list)
+    for step, book in continuous_steps:
+        if step.level == current_level:
+            available_choices[step.category].append({"id": book.task_id, "title": book.title})
+            
+    return jsonify({
+        "graph_data": {"nodes": nodes_to_render, "links": graph_links},
+        "continuous_data": {
+            "current_level": current_level,
+            "current_selections": {sel.category: sel.selected_task_id for sel in cont_selections_raw if sel.level == current_level},
+            "available_choices": dict(available_choices)
+        }
+    })
     
 @bp.route('/dashboard/<int:user_id>')
 @login_required

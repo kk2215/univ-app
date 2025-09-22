@@ -20,6 +20,15 @@
         <h1>インタラクティブ・学習マップ</h1>
         <p>科目を選択し、参考書をクリックして詳細を確認しよう</p>
     </hgroup>
+    <section id="plan-header" class="plan-header" hidden>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h5 id="current-level-title" style="margin-bottom: 0.5rem;"></h5>
+            <ul id="current-tasks-list" class="current-tasks-list"></ul>
+        </div>
+        <button id="change-tasks-btn" class="secondary outline">変更</button>
+    </div>
+    </section>
 
     <nav class="tabs subject-tabs">
         {% for subject in current_user.subjects|sort(attribute='id') %}
@@ -62,49 +71,67 @@
 <script type="module">
     // plan.html の <script type="module"> の中
 
+// plan.html の <script type="module"> の中
+
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM要素の取得 ---
     const subjectTabs = document.querySelectorAll('.subject-tab');
     const graphContainer = document.getElementById('plan-graph-container');
     const taskModal = document.getElementById('task-modal');
     const selectionModal = document.getElementById('selection-modal');
+    let currentSubject = '';
 
-    let currentSubject = ''; // 現在の科目名を保持
-
-    // --- モーダル関連の基本設定 ---
-    function closeModal(modalElement) { if (modalElement.hasAttribute("open")) modalElement.close(); }
+    function closeModal(modal) { if (modal.hasAttribute("open")) modal.close(); }
     taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeModal(taskModal); });
     taskModal.querySelector('.close').addEventListener('click', () => closeModal(taskModal));
     selectionModal.addEventListener('click', (e) => { if (e.target === selectionModal) closeModal(selectionModal); });
     selectionModal.querySelector('.close').addEventListener('click', () => closeModal(selectionModal));
 
-    // --- 選択モーダルの中身を生成する関数 ---
-    function populateSelectionModal(placeholderNode) {
+    function updateContinuousTaskUI(data) {
+        const { current_level, current_selections, available_choices } = data;
+        const planHeader = document.getElementById('plan-header');
+
+        if (!current_level || Object.keys(available_choices).length === 0) {
+            planHeader.hidden = true;
+            return;
+        }
+
+        planHeader.hidden = false;
+        document.getElementById('current-level-title').textContent = `【${current_level}】の毎日のタスク`;
+        const list = document.getElementById('current-tasks-list');
+        list.innerHTML = '';
+
+        for (const category in available_choices) {
+            const selectedId = current_selections[category];
+            const selectedTask = available_choices[category].find(c => c.id === selectedId);
+            const li = document.createElement('li');
+            li.innerHTML = `<strong>${category}:</strong> ${selectedTask ? selectedTask.title : '未選択'}`;
+            list.appendChild(li);
+        }
+    }
+
+    function populateSelectionModal(title, choices, currentSelection, saveCallback) {
+        document.getElementById('selection-modal-title').textContent = title;
         const body = document.getElementById('selection-modal-body');
         body.innerHTML = '';
-        document.getElementById('selection-modal-title').textContent = placeholderNode.title.replace('【','').replace('】','');
 
         let fieldsetHTML = '<fieldset>';
-        placeholderNode.choices.forEach(choice => {
-            fieldsetHTML += `
-                <label>
-                    <input type="radio" name="${placeholderNode.category}" value="${choice.id}">
-                    ${choice.title}
-                </label>
-            `;
+        choices.forEach(choice => {
+            const isChecked = choice.id === currentSelection ? 'checked' : '';
+            fieldsetHTML += `<label><input type="radio" name="selection" value="${choice.id}" ${isChecked}>${choice.title}</label>`;
         });
         fieldsetHTML += '</fieldset>';
         body.innerHTML = fieldsetHTML;
 
-        // 保存ボタンにデータを設定
         const saveBtn = document.getElementById('save-selection-btn');
-        saveBtn.dataset.level = placeholderNode.level;
-        saveBtn.dataset.category = placeholderNode.category.replace('を選択','');
+        const newSaveBtn = saveBtn.cloneNode(true); // イベントリスナーをリセット
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+        newSaveBtn.addEventListener('click', saveCallback);
+
+        selectionModal.showModal();
     }
 
-    // --- グラフ描画関数 ---
     async function drawGraph(subjectName) {
         graphContainer.innerHTML = '<progress></progress>';
         currentSubject = subjectName;
@@ -112,47 +139,60 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await fetch(`/api/plan_data/{{ user.id }}/${subjectName}`);
         const data = await response.json();
 
+        updateContinuousTaskUI(data.continuous_data || {});
+
+        const graphData = data.graph_data;
         graphContainer.innerHTML = '';
-        if (!data.nodes || data.nodes.length === 0) {
+        if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
             graphContainer.innerHTML = '<p style="text-align: center; padding: 2rem;">学習ルートは準備中です。</p>';
             return;
         }
 
-        // --- ここからD3.jsの描画ロジック ---
         const width = graphContainer.clientWidth;
         const margin = { top: 50, right: 100, bottom: 50, left: 20 };
-
-        const levels = d3.group(data.nodes, d => d.level);
+        const levels = d3.group(graphData.nodes, d => d.level);
         let totalHeight = margin.top + margin.bottom;
-        levels.forEach(nodesInLevel => { totalHeight += nodesInLevel.length * 70; });
+        levels.forEach(nodes => { totalHeight += nodes.length * 70; });
         totalHeight += (levels.size - 1) * 30;
 
-        const y = d3.scalePoint().domain(data.nodes.map(d => d.id)).range([margin.top, totalHeight - margin.bottom]).padding(0.8);
-
-        const categories = [...new Set(data.nodes.map(d => d.category))];
+        const y = d3.scalePoint().domain(graphData.nodes.map(d => d.id)).range([margin.top, totalHeight - margin.bottom]).padding(0.8);
+        const categories = [...new Set(graphData.nodes.map(d => d.category))];
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(categories);
-
-        const x = (category) => (category === '継続タスク') ? width - margin.right : margin.left + 15;
+        const x = (category) => margin.left + 15;
 
         const svg = d3.select(graphContainer).append("svg").attr("width", width).attr("height", totalHeight).attr("viewBox", [0, 0, width, totalHeight]);
 
         svg.append("g").selectAll("line").data(levels.keys()).join("line").attr("x1", 0).attr("x2", width).attr("y1", d => y(levels.get(d)[0].id) - 40).attr("y2", d => y(levels.get(d)[0].id) - 40).attr("stroke", "var(--pico-muted-border-color)").attr("stroke-dasharray", "4");
         svg.append("g").selectAll("text").data(levels.keys()).join("text").attr("x", width - margin.right).attr("y", d => y(levels.get(d)[0].id) - 40).attr("dy", "-0.5em").attr("text-anchor", "end").text(d => d).attr("font-size", "14px").attr("font-weight", "bold").attr("fill", "var(--pico-primary)");
 
-        svg.append("g").selectAll("path").data(data.links).join("path").attr("d", d => {
-            const sourceNode = data.nodes.find(n => n.id === d.source);
-            const targetNode = data.nodes.find(n => n.id === d.target);
+        svg.append("g").selectAll("path").data(graphData.links).join("path").attr("d", d => {
+            const sourceNode = graphData.nodes.find(n => n.id === d.source);
+            const targetNode = graphData.nodes.find(n => n.id === d.target);
             if (!sourceNode || !targetNode) return "";
             return `M${x(sourceNode.category)},${y(sourceNode.id)} L${x(targetNode.category)},${y(targetNode.id)}`;
         }).attr("fill", "none").attr("stroke", "#ccc").attr("stroke-width", 2);
 
-        const node = svg.append("g").selectAll("g").data(data.nodes).join("g")
+        const node = svg.append("g").selectAll("g").data(graphData.nodes).join("g")
             .attr("transform", d => `translate(${x(d.category)},${y(d.id)})`)
             .style("cursor", "pointer")
             .on("click", (event, d) => {
                 if (d.is_placeholder) {
-                    populateSelectionModal(d);
-                    selectionModal.showModal();
+                    const saveCallback = async (e) => {
+                        e.target.setAttribute('aria-busy', 'true');
+                        const selectedRadio = document.querySelector(`#selection-modal-body input[name="selection"]:checked`);
+                        if(selectedRadio) {
+                            const endpoint = d.placeholder_type === 'sequential' ? '/api/select_sequential_task' : '/api/select_continuous_task';
+                            await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ group_id: d.group_id, task_id: selectedRadio.value })
+                            });
+                        }
+                        e.target.removeAttribute('aria-busy');
+                        closeModal(selectionModal);
+                        drawGraph(currentSubject);
+                    };
+                    populateSelectionModal(d.title, d.choices, null, saveCallback);
                 } else {
                     document.getElementById('modal-title').textContent = d.title;
                     document.getElementById('modal-description').textContent = d.description;
@@ -166,27 +206,28 @@ document.addEventListener('DOMContentLoaded', () => {
         node.filter(d => d.completed).append("text").text("✔").attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "white").attr("font-size", "12px");
     }
 
-    // --- イベントリスナー ---
-    document.getElementById('save-selection-btn').addEventListener('click', async (e) => {
-        e.target.setAttribute('aria-busy', 'true');
-        const level = e.target.dataset.level;
-        const category = e.target.dataset.category;
-        const selectedRadio = document.querySelector(`#selection-modal-body input[name="${category}"]:checked`);
+    document.getElementById('change-tasks-btn').addEventListener('click', () => {
+        const { current_level, current_selections, available_choices } = data.continuous_data;
+        if(!current_level || !available_choices) return;
 
-        if (selectedRadio) {
-            await fetch(`/api/update_continuous_tasks/{{ user.id }}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    level: level, 
-                    selections: { [category]: selectedRadio.value } 
-                })
-            });
-        }
+        const category = Object.keys(available_choices)[0]; // 簡易的に最初のカテゴリの選択肢を表示
+        if(!category) return;
 
-        e.target.removeAttribute('aria-busy');
-        closeModal(selectionModal);
-        drawGraph(currentSubject); // グラフを再描画
+        const saveCallback = async (e) => {
+            e.target.setAttribute('aria-busy', 'true');
+            const selectedRadio = document.querySelector(`#selection-modal-body input[name="selection"]:checked`);
+            if(selectedRadio) {
+                 await fetch(`/api/update_continuous_tasks/{{ user.id }}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level: current_level, selections: { [category]: selectedRadio.value } })
+                });
+            }
+            e.target.removeAttribute('aria-busy');
+            closeModal(selectionModal);
+            drawGraph(currentSubject);
+        };
+        populateSelectionModal(`【${current_level}】${category}`, available_choices[category], current_selections[category], saveCallback);
     });
 
     function switchSubjectTab(targetTab) {
