@@ -76,8 +76,7 @@
                                 <small>学習マップで次に進む参考書を選んでください。</small>
                             </div>
                             <div class="task-actions">
-                                <a href="{{ url_for('main.show_plan', user_id=user.id, subject_name=subject.next_task.subject_name) }}" role="button" class="contrast">選択する</a>
-                            </div>
+                            <a href="{{ url_for('main.show_plan', user_id=user.id, subject_name=subject.name) }}" ...>選択する</a>
                         </div>
                         {% else %}
                             {% if subject.next_task.task_id.startswith('level_check_') %}
