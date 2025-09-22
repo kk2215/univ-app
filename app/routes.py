@@ -195,18 +195,6 @@ def get_plan_data(user_id, subject_name):
         "completed": book.task_id in completed_tasks_set
     } for step, book in sequential_steps]
     
-    # 現在のレベルで選択済みの継続タスクを取得し、ノードに追加
-    user_selections = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id, subject_id=subject.id, level=current_level).all()
-    selected_task_ids = {sel.selected_task_id for sel in user_selections}
-    
-    for step, book in continuous_steps:
-        if book.task_id in selected_task_ids and step.level == current_level:
-            graph_nodes.append({
-                "id": book.task_id, "title": book.title, "description": book.description,
-                "youtube_query": book.youtube_query, "level": step.level, 
-                "category": "継続タスク", # マップの右端に表示するための特別カテゴリ
-                "completed": book.task_id in completed_tasks_set
-            })
 
     graph_links = [{"source": sequential_steps[i][1].task_id, "target": sequential_steps[i+1][1].task_id} 
                    for i in range(len(sequential_steps) - 1)]
@@ -216,6 +204,8 @@ def get_plan_data(user_id, subject_name):
     for step, book in continuous_steps:
         if step.level == current_level:
             available_choices[step.category].append({"id": book.task_id, "title": book.title})
+            
+    user_selections = db.session.query(UserContinuousTaskSelection).filter_by(user_id=user_id, subject_id=subject.id, level=current_level).all()
 
     return jsonify({
         "graph_data": {"nodes": graph_nodes, "links": graph_links},

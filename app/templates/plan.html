@@ -92,23 +92,27 @@
 
         // --- UI更新関数 ---
         function updateCurrentSelectionUI(level, selections, choices) {
-            if (!level) {
-                planHeader.hidden = true;
-                return;
-            }
-            planHeader.hidden = false;
-            document.getElementById('current-level-title').textContent = `【${level}】の毎日のタスク`;
-            const list = document.getElementById('current-tasks-list');
-            list.innerHTML = '';
-            
-            for (const category in choices) {
-                const selectedId = selections[category];
-                const selectedTask = choices[category].find(c => c.id === selectedId);
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${category}:</strong> ${selectedTask ? selectedTask.title : '未選択'}`;
-                list.appendChild(li);
-            }
-        }
+    const planHeader = document.getElementById('plan-header');
+    
+    // ▼▼▼ 変更点: 継続タスクの選択肢(choices)が空の場合もヘッダーを非表示にする ▼▼▼
+    if (!level || Object.keys(choices).length === 0) {
+        planHeader.hidden = true;
+        return;
+    }
+    
+    planHeader.hidden = false;
+    document.getElementById('current-level-title').textContent = `【${level}】の毎日のタスク`;
+    const list = document.getElementById('current-tasks-list');
+    list.innerHTML = '';
+    
+    for (const category in choices) {
+        const selectedId = selections[category];
+        const selectedTask = choices[category].find(c => c.id === selectedId);
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${category}:</strong> ${selectedTask ? selectedTask.title : '未選択'}`;
+        list.appendChild(li);
+    }
+}
 
         function populateSelectionModal(level, choices, selections) {
             const body = document.getElementById('selection-modal-body');
