@@ -294,18 +294,24 @@ def dashboard(user_id):
         subject.pending_selections = []
         
         base_query = db.session.query(
-            Book.task_id, Book.title, Book.youtube_query, Book.task_type, 
+            Book.task_id, Book.title, Book.description, Book.youtube_query, Book.task_type, 
             RouteStep.level, RouteStep.category, RouteStep.is_main
         ).join(RouteStep, Book.id == RouteStep.book_id).join(Route, RouteStep.route_id == Route.id)
 
-        if subject.name == '数学':
-            route_name = 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
-            full_plan_rows = base_query.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
+        # subject.nameに応じた適切なroute_nameを決定
+        route_name_map = {
+            '数学': 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'
+        }
+        route_name = route_name_map.get(subject.name)
+
+        if route_name:
+             full_plan_rows = base_query.filter(Route.name == route_name).order_by(RouteStep.step_order).all()
         else:
-            full_plan_rows = base_query.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).order_by(RouteStep.step_order).all()
+             full_plan_rows = base_query.filter(Route.plan_type == 'standard', Route.subject_id == subject.id).order_by(RouteStep.step_order).all()
         
         full_plan = [dict(row._mapping) for row in full_plan_rows]
         current_level = None
+        
         if full_plan:
             sequential_plan = [task for task in full_plan if task['task_type'] == 'sequential']
             if sequential_plan:
@@ -321,22 +327,22 @@ def dashboard(user_id):
                 for group in task_groups:
                     group_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
                     actual_task_id = seq_selections.get(group_id, group_id)
+                    
                     if actual_task_id not in completed_tasks_set:
-                        potential_next_task = next((t for t in group if t['task_id'] == actual_task_id), group[0])
-                        task_level_value = level_hierarchy.get(potential_next_task['level'], 99)
+                        potential_next_task_dict = next((t for t in group if t['task_id'] == actual_task_id), group[0])
+                        task_level_value = level_hierarchy.get(potential_next_task_dict['level'], 99)
+
                         if task_level_value <= target_level_value:
                             if len(group) > 1 and group_id not in seq_selections:
                                 subject.next_task = {
-                                    'is_choice_pending': True, 
-                                    'title': f"『{group[0]['category']}』の参考書を選択してください", 
+                                    'is_choice_pending': True,
+                                    'title': f"『{potential_next_task_dict['category']}』の参考書を選択してください",
                                     'subject_name': subject.name,
-                                    'level': group[0]['level'] # ▼▼▼ この行を追加 ▼▼▼
+                                    'level': potential_next_task_dict['level']
                                 }
                             else:
-                                subject.next_task = potential_next_task
-                        
-                        # ▼▼▼ このbreakが、内側の「groupを探すループ」だけを抜けるように、正しくインデントされています ▼▼▼
-                        break
+                                subject.next_task = db.session.query(Book).filter_by(task_id=potential_next_task_dict['task_id']).first()
+                        break 
                 
                 plan_task_ids_in_groups = [seq_selections.get(next((t['task_id'] for t in g if t['is_main']), g[0]['task_id']), g[0]['task_id']) for g in task_groups]
                 completed_in_plan = [task_id for task_id in plan_task_ids_in_groups if task_id in completed_tasks_set]
@@ -345,11 +351,12 @@ def dashboard(user_id):
                     subject.last_completed_task = db.session.query(Book).filter_by(task_id=last_completed_id).first()
                 
                 if subject.next_task and not isinstance(subject.next_task, dict):
-                    current_level = subject.next_task['level']
+                    current_level = subject.next_task.level
                 elif completed_in_plan:
                     last_task_in_plan = next((t for t in sequential_plan if t['task_id'] == completed_in_plan[-1]), None)
                     current_level = last_task_in_plan['level'] if last_task_in_plan else None
-                else: current_level = sequential_plan[0]['level'] if sequential_plan else None
+                else:
+                    current_level = sequential_plan[0]['level'] if sequential_plan else None
                 subject.progress = int((len(completed_in_plan) / len(task_groups)) * 100) if task_groups else 0
 
             continuous_tasks_in_plan = [task for task in full_plan if task['task_type'] == 'continuous' and task['category'] != '補助教材']
@@ -357,24 +364,26 @@ def dashboard(user_id):
             for task in continuous_tasks_in_plan: tasks_by_category[task['category']].append(task)
             
             for category, tasks in tasks_by_category.items():
-                if category == '漢字':
-                    if tasks: tasks_to_display.append({'title': tasks[0]['title']}); continue
                 if not current_level: continue
                 tasks_in_current_level = [t for t in tasks if t['level'] == current_level]
                 if not tasks_in_current_level: continue
-                user_selection = cont_selections.get((subject.id, current_level, category))
-                if len(tasks_in_current_level) > 1:
-                    if user_selection:
-                        selected_book = db.session.query(Book.title).filter(Book.task_id == user_selection).first()
-                        if selected_book: tasks_to_display.append({'title': selected_book.title})
-                    else:
-                        subject.pending_selections.append(f"{current_level}の{category}")
-                else: tasks_to_display.append({'title': tasks_in_current_level[0]['title']})
+                
+                user_selection_id = cont_selections.get((subject.id, current_level, category))
+                
+                if len(tasks_in_current_level) > 1 and not user_selection_id:
+                     subject.pending_selections.append(f"{current_level}の{category}")
+                else:
+                    task_to_add_id = user_selection_id or tasks_in_current_level[0]['task_id']
+                    book_title = db.session.query(Book.title).filter(Book.task_id == task_to_add_id).scalar()
+                    if book_title:
+                        tasks_to_display.append({'title': book_title})
+
             subject.continuous_tasks = tasks_to_display
         
         dashboard_data.append(subject)
-        
-        print("--- デバッグ情報：テンプレートに渡す直前のデータ ---")
+
+    # デバッグ情報のプリント
+    print("--- デバッグ情報：テンプレートに渡す直前のデータ ---")
     for subj in dashboard_data:
         if subj.next_task and isinstance(subj.next_task, dict) and subj.next_task.get('is_choice_pending'):
             print(f"科目「{subj.name}」の選択ボタンのリンク先は → subject_name='{subj.next_task.get('subject_name')}'")
@@ -383,7 +392,7 @@ def dashboard(user_id):
     return render_template('dashboard.html', user=user, university=university, 
                            days_until_exam=days_until_exam, dashboard_data=dashboard_data,
                            upcoming_exams=upcoming_exams, today=date.today())
-
+    
 @bp.route('/support/<int:user_id>')
 @login_required
 def support(user_id):

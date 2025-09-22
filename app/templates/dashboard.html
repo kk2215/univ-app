@@ -95,7 +95,10 @@
                                 </div>
                             </div>
                             {% else %}
-                            <div class="focus-task-item sequential">
+                            <div class="focus-task-item sequential clickable-task" 
+     data-title="{{ subject.next_task.title }}" 
+     data-description="{{ subject.next_task.description }}" 
+     data-youtube-query="{{ subject.next_task.youtube_query }}">
                                 <span class="task-icon">📖</span>
                                 <div class="task-details">
                                     <strong>{{ subject.next_task.title }}</strong>
@@ -118,7 +121,10 @@
                     {% endif %}
                     
                     {% if subject.last_completed_task %}
-                    <div class="focus-task-item last-completed">
+                    <div class="focus-task-item last-completed clickable-task"
+     data-title="{{ subject.last_completed_task.title }}"
+     data-description="{{ subject.last_completed_task.description }}"
+     data-youtube-query="{{ subject.last_completed_task.youtube_query }}">
                         <span class="task-icon">✅</span>
                         <div class="task-details">
                             <strong>{{ subject.last_completed_task.title }}</strong>
@@ -196,6 +202,57 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => handleProgressUpdate(button, false));
     });
 });
+document.addEventListener('DOMContentLoaded', () => {
+    // --- モーダル表示用のJavaScript ---
+    const taskModal = document.getElementById('task-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDescription = document.getElementById('modal-description');
+    const modalYoutubeLink = document.getElementById('modal-youtube-link');
+
+    // モーダルを閉じる機能
+    function closeModal() {
+        if (taskModal.hasAttribute("open")) taskModal.close();
+    }
+    taskModal.addEventListener('click', (event) => {
+        if (event.target === taskModal) closeModal();
+    });
+    taskModal.querySelector('.close').addEventListener('click', closeModal);
+
+    // クリック可能なタスク全てにイベントリスナーを追加
+    document.querySelectorAll('.clickable-task').forEach(taskElement => {
+        taskElement.addEventListener('click', (event) => {
+            // ボタンをクリックした場合はモーダルを開かない
+            if (event.target.tagName === 'BUTTON' || event.target.tagName === 'A') {
+                return;
+            }
+            
+            // HTMLに埋め込んだデータを取得
+            const title = taskElement.dataset.title;
+            const description = taskElement.dataset.description;
+            const youtubeQuery = taskElement.dataset.youtubeQuery;
+
+            // モーダルの中身を更新
+            modalTitle.textContent = title;
+            modalDescription.textContent = description || '説明はありません。';
+            modalYoutubeLink.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery)}`;
+
+            // モーダルを表示
+            taskModal.showModal();
+        });
+    });
+});
 </script>
+<dialog id="task-modal">
+    <article>
+        <header>
+            <a href="#close" aria-label="Close" class="close"></a>
+            <h4 id="modal-title">参考書タイトル</h4>
+        </header>
+        <p id="modal-description">ここに説明が入ります。</p>
+        <footer>
+            <a id="modal-youtube-link" href="#" role="button" class="contrast" target="_blank" rel="noopener noreferrer">YouTubeで使い方を検索</a>
+        </footer>
+    </article>
+</dialog>
 {% endblock %}
 {% endblock %}
