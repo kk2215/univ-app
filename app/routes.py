@@ -1160,6 +1160,15 @@ def edit_faq(faq_id):
 @admin_required
 def delete_faq(faq_id):
     faq = db.session.query(FAQ).get_or_404(faq_id)
+    
+    # ▼▼▼ このブロックを追加 ▼▼▼
+    # このFAQを参照している全てのお問い合わせを探す
+    linked_inquiries = db.session.query(Inquiry).filter_by(faq_id=faq_id).all()
+    for inquiry in linked_inquiries:
+        # つながりを断ち切る (faq_idをNoneにする)
+        inquiry.faq_id = None
+    # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    
     db.session.delete(faq)
     db.session.commit()
     flash('FAQを削除しました。')
