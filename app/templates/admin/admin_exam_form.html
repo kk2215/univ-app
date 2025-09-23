@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ '模試編集' if exam else '新しい模試の登録' }}{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>{{ '模試編集' if exam else '新しい模試の登録' }}</h1>
+    <p>公式模試の情報を登録・編集します。</p>
+  </hgroup>
+
+  <form method="POST">
+    <div class="grid">
+      <label for="provider">
+        予備校名
+        <select id="provider" name="provider" required>
+          <option value="河合塾" {% if exam and exam.provider == '河合塾' %}selected{% endif %}>河合塾</option>
+          <option value="駿台" {% if exam and exam.provider == '駿台' %}selected{% endif %}>駿台</option>
+          <option value="東進" {% if exam and exam.provider == '東進' %}selected{% endif %}>東進</option>
+          <option value="その他" {% if exam and exam.provider == 'その他' %}selected{% endif %}>その他</option>
+        </select>
+      </label>
+      <label for="name">
+        模試の正式名称
+        <input type="text" id="name" name="name" value="{{ exam.name if exam else '' }}" required>
+      </label>
+    </div>
+
+    <div class="grid">
+      <label for="exam_date">
+        実施日
+        <input type="date" id="exam_date" name="exam_date" value="{{ exam.exam_date.isoformat() if exam and exam.exam_date else '' }}" required>
+      </label>
+       <label for="target_grade">
+        対象学年
+        <input type="text" id="target_grade" name="target_grade" value="{{ exam.target_grade if exam else '高3・卒' }}" required>
+      </label>
+    </div>
+    
+    <div class="grid">
+      <label for="app_start_date">
+        申込開始日
+        <input type="date" id="app_start_date" name="app_start_date" value="{{ exam.app_start_date.isoformat() if exam and exam.app_start_date else '' }}">
+      </label>
+      <label for="app_end_date">
+        申込締切日
+        <input type="date" id="app_end_date" name="app_end_date" value="{{ exam.app_end_date.isoformat() if exam and exam.app_end_date else '' }}">
+      </label>
+    </div>
+
+    <label for="url">
+      公式サイトURL
+      <input type="url" id="url" name="url" value="{{ exam.url if exam else '' }}" required>
+    </label>
+    
+    <button type="submit">保存する</button>
+  </form>
+</article>
+{% endblock %}
