@@ -137,3 +137,16 @@ class OfficialMockExam(db.Model):
     app_end_date = db.Column(db.Date, nullable=True)
     url = db.Column(db.String(255), nullable=False)
     target_grade = db.Column(db.String(50), nullable=True)
+    
+# お問い合わせを保存するためのモデル
+class Inquiry(db.Model):
+    __tablename__ = 'inquiries'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_resolved = db.Column(db.Boolean, default=False, nullable=False)
+
+    def __repr__(self):
+        return f'<Inquiry {self.id}>'
