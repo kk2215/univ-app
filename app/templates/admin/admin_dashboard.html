@@ -1,17 +1,14 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block title %}管理者ダッシュボード{% endblock %}
+
 {% block content %}
 <article>
-    <hgroup>
-        <h1>管理者ダッシュボード</h1>
-        <p>ようこそ、{{ user.username }}さん。ここは管理者専用ページです。</p>
-    </hgroup>
-    <nav>
-    <ul>
-        <li><a href="{{ url_for('main.admin_users') }}"><strong>ユーザーを管理する</strong></a></li>
-        <li><a href="{{ url_for('main.admin_universities') }}"><strong>大学・学部を管理する</strong></a></li>
-        <li><a href="{{ url_for('main.admin_exams') }}"><strong>模試情報を管理する</strong></a></li>
-        </ul>
-</nav>
+    <h2>管理者メニュー</h2>
+    <div class="grid">
+        <a href="{{ url_for('main.admin_users') }}" role="button">ユーザー管理</a>
+        <a href="{{ url_for('main.admin_universities') }}" role="button">大学情報管理</a>
+        <a href="{{ url_for('main.admin_exams') }}" role="button">模試情報管理</a>
+        <a href="{{ url_for('main.admin_inquiries') }}" role="button" class="contrast">お問い合わせ管理</a>
+    </div>
 </article>
 {% endblock %}

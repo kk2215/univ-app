@@ -8,6 +8,16 @@
     <p>ご意見、ご感想、バグ報告など、お気軽にご連絡ください。</p>
   </hgroup>
 
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash-{{ category }}" role="alert">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
   <form method="POST">
     <label for="message">お問い合わせ内容</label>
     <textarea id="message" name="message" rows="5" required></textarea>

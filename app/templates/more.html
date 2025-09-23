@@ -7,15 +7,23 @@
     <h1>その他</h1>
     <p>設定の変更やサポート情報はこちら</p>
   </hgroup>
-</article>
 
-<div class="grid">
-  <div>
+  <div class="list-menu">
     <a href="{{ url_for('main.settings', user_id=user.id) }}" role="button" class="secondary outline">⚙️ プロフィール・科目設定</a>
     <a href="{{ url_for('main.change_password', user_id=user.id) }}" role="button" class="secondary outline">🔑 パスワード変更</a>
     <a href="{{ url_for('main.support', user_id=user.id) }}" role="button" class="secondary outline">🤝 受験生支援制度</a>
     <a href="{{ url_for('main.contact') }}" role="button" class="secondary outline">❓ お問い合わせ</a>
     <a href="{{ url_for('main.logout') }}" role="button" class="contrast">↪️ ログアウト</a>
   </div>
-</div>
+
+</article>
+
+<style>
+  .list-menu a[role="button"] {
+    display: block; /* ボタンをブロック要素にして横幅いっぱいに広げる */
+    width: 100%;
+    margin-bottom: 0.75rem; /* 各ボタンの間に少し余白をとる */
+    text-align: left; /* テキストを左揃えにする */
+  }
+</style>
 {% endblock %}

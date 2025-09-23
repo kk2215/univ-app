@@ -1051,3 +1051,12 @@ def contact():
             return redirect(url_for('main.contact'))
             
     return render_template('contact.html', user=current_user)
+
+# app/routes.py の一番下に追加
+
+@bp.route('/admin/inquiries')
+@login_required
+@admin_required
+def admin_inquiries():
+    inquiries = db.session.query(Inquiry).order_by(Inquiry.created_at.desc()).all()
+    return render_template('admin/admin_inquiries.html', inquiries=inquiries, user=current_user)
