@@ -148,6 +148,27 @@ class Inquiry(db.Model):
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_resolved = db.Column(db.Boolean, default=False, nullable=False)
+    faq_id = db.Column(db.Integer, db.ForeignKey('faqs.id'), nullable=True)
 
     def __repr__(self):
         return f'<Inquiry {self.id}>'
+    
+class Reply(db.Model):
+    __tablename__ = 'replies'
+    id = db.Column(db.Integer, primary_key=True)
+    inquiry_id = db.Column(db.Integer, db.ForeignKey('inquiries.id'), nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+
+    # 関連するInquiryやUserオブジェクトを簡単に取得できるようにする
+    inquiry = db.relationship('Inquiry', backref=db.backref('replies', lazy=True))
+    admin = db.relationship('User')    
+    
+class FAQ(db.Model):
+    __tablename__ = 'faqs'
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String, nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    sort_order = db.Column(db.Integer, default=0)    
