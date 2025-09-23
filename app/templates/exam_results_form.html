@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}模試結果の入力{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>{{ exam.exam_name }}</h1>
+    <p>{{ exam.exam_date.strftime('%Y年%m月%d日') }} 実施</p>
+  </hgroup>
+
+  <form method="POST">
+    <figure>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">科目</th>
+            <th scope="col">点数</th>
+            <th scope="col">満点</th>
+            <th scope="col">偏差値</th>
+            <th scope="col">判定</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subject in current_user.subjects|sort(attribute='id') %}
+            {% set result = results.get(subject.id) %}
+            <tr>
+              <td><strong>{{ subject.name }}</strong></td>
+              <td><input type="number" name="score_{{ subject.id }}" value="{{ result.score if result }}"></td>
+              <td><input type="number" name="max_score_{{ subject.id }}" value="{{ result.max_score if result }}"></td>
+              <td><input type="number" step="0.1" name="deviation_{{ subject.id }}" value="{{ result.deviation if result }}"></td>
+              <td><input type="text" name="ranking_{{ subject.id }}" value="{{ result.ranking if result }}"></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </figure>
+    <button type="submit">結果を保存する</button>
+  </form>
+</article>
+{% endblock %}

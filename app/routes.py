@@ -11,7 +11,7 @@ from flask_login import login_user, login_required, current_user
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
 # データベースモデルをインポートします
-from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, Inquiry, FAQ, Reply
+from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, Inquiry, FAQ, Reply, MockExamResult
 from functools import wraps
 from flask_login import current_user, login_user, logout_user, login_required
 import re
@@ -1192,3 +1192,35 @@ def mark_reply_as_read(reply_id):
     reply.is_read = True
     db.session.commit()
     return jsonify({'success': True})
+
+@bp.route('/exams/<int:exam_id>/results', methods=['GET', 'POST'])
+@login_required
+def edit_exam_results(exam_id):
+    exam = db.session.query(MockExam).filter_by(id=exam_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        for subject in current_user.subjects:
+            result = db.session.query(MockExamResult).filter_by(
+                mock_exam_id=exam_id, 
+                subject_id=subject.id
+            ).first()
+
+            # フォームからデータが送られてきていれば、新しい結果として作成または更新
+            if f'score_{subject.id}' in request.form:
+                if not result:
+                    result = MockExamResult(mock_exam_id=exam_id, subject_id=subject.id)
+                    db.session.add(result)
+                
+                result.score = int(request.form[f'score_{subject.id}']) if request.form[f'score_{subject.id}'] else None
+                result.max_score = int(request.form[f'max_score_{subject.id}']) if request.form[f'max_score_{subject.id}'] else None
+                result.deviation = float(request.form[f'deviation_{subject.id}']) if request.form[f'deviation_{subject.id}'] else None
+                result.ranking = request.form[f'ranking_{subject.id}'] if request.form[f'ranking_{subject.id}'] else None
+
+        db.session.commit()
+        flash('模試の結果を保存しました。')
+        return redirect(url_for('main.mock_exams', user_id=current_user.id))
+
+    # 既存の結果を辞書としてテンプレートに渡す
+    existing_results = {res.subject_id: res for res in exam.results}
+    return render_template('exam_results_form.html', user=current_user, exam=exam, results=existing_results)
+

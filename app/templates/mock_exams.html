@@ -47,6 +47,9 @@
                         {# 将来的に結果URLを編集する機能を追加できます #}
                     </td>
                     <td>
+  <a href="{{ url_for('main.edit_exam_results', exam_id=exam.id) }}" role="button" class="outline">結果を入力/編集</a>
+</td>
+                    <td>
                         <form method="post" action="{{ url_for('main.delete_mock_exam', exam_id=exam.id) }}" style="margin: 0;">
                             <button type="submit" class="secondary outline" onclick="return confirm('本当にこの模試の記録を削除しますか？');">削除</button>
                         </form>
