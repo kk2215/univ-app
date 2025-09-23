@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}お問い合わせからFAQを作成{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>お問い合わせからFAQを作成</h1>
+    <p>ユーザーからのお問い合わせを元に、新しいFAQ項目を作成します。</p>
+  </hgroup>
+
+  <figure>
+    <figcaption><strong>元の質問内容 (これがFAQの「質問」になります)</strong></figcaption>
+    <blockquote>
+      {{ inquiry.message }}
+      <footer><cite>- {{ inquiry.name }}さんより</cite></footer>
+    </blockquote>
+  </figure>
+
+  <form method="POST">
+    <label for="answer">
+      <strong>回答 (これがFAQの「答え」になります)</strong>
+    </label>
+    <textarea id="answer" name="answer" rows="8" required></textarea>
+    
+    <button type="submit">FAQを作成して対応済みにする</button>
+  </form>
+
+</article>
+{% endblock %}
