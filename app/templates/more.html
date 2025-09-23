@@ -1,19 +1,21 @@
 {% extends "base.html" %}
-
 {% block title %}その他{% endblock %}
 
 {% block content %}
 <article>
-    <hgroup>
-        <h1>その他</h1>
-        <p>各種設定やアカウント情報はこちらから</p>
-    </hgroup>
-
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('main.settings', user_id=user.id) }}"><strong>アカウント設定</strong><br><small>ユーザー名や志望校、学習科目の変更</small></a></li>
-            <li><a href="{{ url_for('main.logout') }}"><strong>ログアウト</strong></a></li>
-        </ul>
-    </nav>
+  <hgroup>
+    <h1>その他</h1>
+    <p>設定の変更やサポート情報はこちら</p>
+  </hgroup>
 </article>
+
+<div class="grid">
+  <div>
+    <a href="{{ url_for('main.settings', user_id=user.id) }}" role="button" class="secondary outline">⚙️ プロフィール・科目設定</a>
+    <a href="{{ url_for('main.change_password', user_id=user.id) }}" role="button" class="secondary outline">🔑 パスワード変更</a>
+    <a href="{{ url_for('main.support', user_id=user.id) }}" role="button" class="secondary outline">🤝 受験生支援制度</a>
+    <a href="{{ url_for('main.contact') }}" role="button" class="secondary outline">❓ お問い合わせ</a>
+    <a href="{{ url_for('main.logout') }}" role="button" class="contrast">↪️ ログアウト</a>
+  </div>
+</div>
 {% endblock %}
