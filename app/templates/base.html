@@ -41,13 +41,13 @@
                     <li><a href="{{ url_for('main.stats', user_id=current_user.id) }}">学習記録</a></li>
                     <li><a href="{{ url_for('main.support', user_id=current_user.id) }}">支援制度</a></li>
                     <li>
-      <details role="list">
-        <summary aria-haspopup="listbox">その他</summary>
-        <ul role="listbox">
-          <li><a href="{{ url_for('main.contact') }}">お問い合わせ</a></li>
-        </ul>
-      </details>
-    </li>
+        <details role="list">
+          <summary aria-haspopup="listbox">その他</summary>
+          <ul role="listbox">
+            <li><a href="{{ url_for('main.contact') }}">お問い合わせ</a></li>
+            </ul>
+        </details>
+      </li>
                     {% if current_user.is_admin %}
                         <li><a href="{{ url_for('main.admin_dashboard') }}" role="button">管理者</a></li>
                     {% endif %}

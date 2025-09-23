@@ -1030,18 +1030,19 @@ def update_continuous_tasks(user_id):
 # app/routes.py の一番下に追加
 
 @bp.route('/contact', methods=['GET', 'POST'])
+@login_required # ▼▼▼ ログイン必須にする ▼▼▼
 def contact():
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
         message = request.form.get('message')
 
-        if not name or not email or not message:
-            flash('全ての項目を入力してください。', 'error')
+        if not message:
+            flash('お問い合わせ内容を入力してください。', 'error')
         else:
+            # ログインユーザーの情報を自動でセット
             new_inquiry = Inquiry(
-                name=name,
-                email=email,
+                user_id=current_user.id,
+                name=current_user.username,
+                email=f"user_id:{current_user.id}", # メールアドレスは必須ではないのでIDを記録
                 message=message
             )
             db.session.add(new_inquiry)
