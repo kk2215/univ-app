@@ -32,6 +32,9 @@
             {% endif %}
           </td>
         </tr>
+        <td>
+  <a href="{{ url_for('main.faq_from_inquiry', inquiry_id=inquiry.id) }}" role="button" class="secondary outline">FAQに追加</a>
+  </td>
         {% else %}
         <tr>
           <td colspan="4">お問い合わせはまだありません。</td>

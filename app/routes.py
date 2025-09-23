@@ -11,7 +11,7 @@ from flask_login import login_user, login_required, current_user
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
 # データベースモデルをインポートします
-from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, Inquiry
+from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, Inquiry, FAQ, Reply
 from functools import wraps
 from flask_login import current_user, login_user, logout_user, login_required
 import re
@@ -285,6 +285,12 @@ def dashboard(user_id):
         OfficialMockExam.target_grade.in_(relevant_grades)
     ).order_by(OfficialMockExam.exam_date.asc()).limit(5).all()
     
+    # ▼▼▼ 未読の返信を取得するクエリを追加 ▼▼▼
+    unread_replies = db.session.query(Reply).join(Inquiry).filter(
+        Inquiry.user_id == user_id,
+        Reply.is_read == False
+    ).order_by(Reply.created_at.desc()).all()
+    
     dashboard_data = []
     for subject in user.subjects:
         subject.next_task = None
@@ -401,7 +407,7 @@ def dashboard(user_id):
 
     return render_template('dashboard.html', user=user, university=university, 
                            days_until_exam=days_until_exam, dashboard_data=dashboard_data,
-                           upcoming_exams=upcoming_exams, today=date.today())
+                           upcoming_exams=upcoming_exams, unread_replies=unread_replies,today=date.today())
     
 @bp.route('/support/<int:user_id>')
 @login_required
@@ -1060,3 +1066,34 @@ def contact():
 def admin_inquiries():
     inquiries = db.session.query(Inquiry).order_by(Inquiry.created_at.desc()).all()
     return render_template('admin/admin_inquiries.html', inquiries=inquiries, user=current_user)
+
+@bp.route('/admin/inquiry/<int:inquiry_id>/faq', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def faq_from_inquiry(inquiry_id):
+    inquiry = db.session.query(Inquiry).get_or_404(inquiry_id)
+    
+    if request.method == 'POST':
+        answer_text = request.form.get('answer')
+        if answer_text:
+            # 新しいFAQを作成
+            new_faq = FAQ(
+                question=inquiry.message, # 問い合わせ内容を質問として使用
+                answer=answer_text
+            )
+            db.session.add(new_faq)
+            
+            # 問い合わせを「対応済み」にする
+            inquiry.is_resolved = True
+            
+            # DBの変更を一度にコミット
+            db.session.commit()
+            
+            # FAQと問い合わせを紐付け
+            inquiry.faq_id = new_faq.id
+            db.session.commit()
+
+            flash('FAQに登録し、お問い合わせを対応済みにしました。')
+            return redirect(url_for('main.admin_inquiries'))
+
+    return render_template('admin/admin_faq_form_from_inquiry.html', inquiry=inquiry, user=current_user)
