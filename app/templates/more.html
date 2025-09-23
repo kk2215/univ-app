@@ -12,6 +12,7 @@
     <a href="{{ url_for('main.settings', user_id=user.id) }}" role="button" class="secondary outline">⚙️ プロフィール・科目設定</a>
     <a href="{{ url_for('main.change_password', user_id=user.id) }}" role="button" class="secondary outline">🔑 パスワード変更</a>
     <a href="{{ url_for('main.support', user_id=user.id) }}" role="button" class="secondary outline">🤝 受験生支援制度</a>
+    <a href="{{ url_for('main.faq_list') }}" role="button" class="secondary outline">🙋 よくある質問</a>
     <a href="{{ url_for('main.contact') }}" role="button" class="secondary outline">❓ お問い合わせ</a>
     <a href="{{ url_for('main.logout') }}" role="button" class="contrast">↪️ ログアウト</a>
   </div>

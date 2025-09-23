@@ -1097,3 +1097,8 @@ def faq_from_inquiry(inquiry_id):
             return redirect(url_for('main.admin_inquiries'))
 
     return render_template('admin/admin_faq_form_from_inquiry.html', inquiry=inquiry, user=current_user)
+
+@bp.route('/faq')
+def faq_list():
+    faqs = db.session.query(FAQ).order_by(FAQ.sort_order).all()
+    return render_template('faq.html', faqs=faqs, user=current_user)

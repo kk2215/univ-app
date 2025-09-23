@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}よくある質問{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>よくある質問</h1>
+    <p>アプリの使い方や、学習に関する一般的な質問と回答です。</p>
+  </hgroup>
+
+  {% for faq in faqs %}
+    <details>
+      <summary>{{ faq.question }}</summary>
+      <p>{{ faq.answer }}</p>
+    </details>
+  {% else %}
+    <p>現在、よくある質問はありません。</p>
+  {% endfor %}
+
+</article>
+{% endblock %}
