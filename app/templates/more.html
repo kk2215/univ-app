@@ -9,6 +9,7 @@
   </hgroup>
 
   <div class="list-menu">
+    <a href="{{ url_for('main.about') }}" role="button" class="secondary outline">💡 このアプリについて</a>
     <a href="{{ url_for('main.settings', user_id=user.id) }}" role="button" class="secondary outline">⚙️ プロフィール・科目設定</a>
     <a href="{{ url_for('main.change_password', user_id=user.id) }}" role="button" class="secondary outline">🔑 パスワード変更</a>
     <a href="{{ url_for('main.support', user_id=user.id) }}" role="button" class="secondary outline">🤝 受験生支援制度</a>

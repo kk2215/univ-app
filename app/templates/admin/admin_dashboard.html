@@ -3,13 +3,29 @@
 
 {% block content %}
 <article>
-    <h2>管理者メニュー</h2>
-    <div class="grid">
-        <a href="{{ url_for('main.admin_users') }}" role="button">ユーザー管理</a>
-        <a href="{{ url_for('main.admin_universities') }}" role="button">大学情報管理</a>
-        <a href="{{ url_for('main.admin_exams') }}" role="button">模試情報管理</a>
-        <a href="{{ url_for('main.admin_inquiries') }}" role="button" class="contrast">お問い合わせ管理</a>
-        <a href="{{ url_for('main.admin_faqs') }}" role="button">FAQ管理</a>
-    </div>
+  <hgroup>
+    <h1>管理者ダッシュボード</h1>
+    <p>ようこそ、{{ user.username }}さん。</p>
+  </hgroup>
+
+  <h3>現在の状況</h3>
+  <div class="grid">
+    <article>
+      <h4>登録ユーザー総数</h4>
+      <h2 style="margin: 0;">{{ user_count }}人</h2>
+    </article>
+    <article>
+      <h4>未対応のお問い合わせ</h4>
+      <h2 style="margin: 0;">{{ unresolved_inquiries }}件</h2>
+    </article>
+  </div>
+  <h3>管理メニュー</h3>
+  <div class="grid">
+    <a href="{{ url_for('main.admin_users') }}" role="button">ユーザー管理</a>
+    <a href="{{ url_for('main.admin_universities') }}" role="button">大学情報管理</a>
+    <a href="{{ url_for('main.admin_exams') }}" role="button">模試情報管理</a>
+    <a href="{{ url_for('main.admin_inquiries') }}" role="button" class="contrast">お問い合わせ管理</a>
+    <a href="{{ url_for('main.admin_faqs') }}" role="button">FAQ管理</a>
+  </div>
 </article>
 {% endblock %}

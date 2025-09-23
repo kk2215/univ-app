@@ -1227,3 +1227,26 @@ def edit_exam_results(exam_id):
 @bp.route('/privacy')
 def privacy_policy():
     return render_template('privacy.html', user=current_user)
+
+@bp.route('/terms')
+def terms_of_service():
+    return render_template('terms.html', user=current_user)
+
+@bp.route('/about')
+def about():
+    return render_template('about.html', user=current_user)
+
+@bp.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    # ▼▼▼ 統計情報を取得するコードを追加 ▼▼▼
+    user_count = db.session.query(User).count()
+    unresolved_inquiries = db.session.query(Inquiry).filter_by(is_resolved=False).count()
+    
+    return render_template(
+        'admin/admin_dashboard.html', 
+        user=current_user,
+        user_count=user_count,
+        unresolved_inquiries=unresolved_inquiries
+    )
