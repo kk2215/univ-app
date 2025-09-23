@@ -56,8 +56,11 @@
     </main>
 
     <footer class="container">
-        <small>&copy; 2025 大学受験サポートApp</small>
-    </footer>
+  <small>
+    © 2025 大学受験サポートApp
+    ・ <a href="{{ url_for('main.privacy_policy') }}">プライバシーポリシー</a>
+  </small>
+</footer>
 
     {% if current_user.is_authenticated %}
     <nav class="footer-nav">

@@ -1224,3 +1224,6 @@ def edit_exam_results(exam_id):
     existing_results = {res.subject_id: res for res in exam.results}
     return render_template('exam_results_form.html', user=current_user, exam=exam, results=existing_results)
 
+@bp.route('/privacy')
+def privacy_policy():
+    return render_template('privacy.html', user=current_user)
