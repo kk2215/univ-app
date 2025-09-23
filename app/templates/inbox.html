@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}受信箱{% endblock %}
+{% block content %}
+<article>
+  <hgroup>
+    <h1>受信箱</h1>
+    <p>管理者からのお問い合わせへの返信一覧です。</p>
+  </hgroup>
+  {% for inquiry in inquiries %}
+    <details {% if not inquiry.replies or inquiry.replies[0].is_read %}open{% endif %}>
+      <summary>
+        <strong>質問日時:</strong> {{ inquiry.created_at.strftime('%Y-%m-%d') }}
+        {% if inquiry.replies and not inquiry.replies[0].is_read %}<mark>未読</mark>{% endif %}
+      </summary>
+      <p><strong>あなたの質問:</strong><br>{{ inquiry.message }}</p>
+      {% if inquiry.replies %}
+        <p><strong>管理者からの回答:</strong><br>{{ inquiry.replies[0].message }}</p>
+      {% else %}
+        <p><em>まだ返信がありません。</em></p>
+      {% endif %}
+    </details>
+  {% else %}
+    <p>お問い合わせの履歴はありません。</p>
+  {% endfor %}
+</article>
+{% endblock %}

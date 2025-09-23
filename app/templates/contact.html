@@ -25,4 +25,50 @@
     <button type="submit">送信</button>
   </form>
 </article>
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const contactForm = document.querySelector('form');
+    const submitButton = contactForm.querySelector('button[type="submit"]');
+    const messageTextarea = document.getElementById('message');
+    const formContainer = contactForm.parentElement; // <article>タグ
+
+    contactForm.addEventListener('submit', (event) => {
+        event.preventDefault(); // 通常のフォーム送信をキャンセル
+        submitButton.setAttribute('aria-busy', 'true');
+        submitButton.disabled = true;
+
+        fetch('{{ url_for("main.contact") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: messageTextarea.value })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 成功した場合、フォームを完了メッセージに置き換える
+                formContainer.innerHTML = `
+                    <hgroup>
+                        <h2>送信完了</h2>
+                        <p>${data.message}</p>
+                    </hgroup>
+                    <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}" role="button">マイページに戻る</a>
+                `;
+            } else {
+                // エラー処理（今回はシンプルにalert）
+                alert(data.error || '送信に失敗しました。');
+                submitButton.removeAttribute('aria-busy');
+                submitButton.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('サーバーとの通信でエラーが発生しました。');
+            submitButton.removeAttribute('aria-busy');
+            submitButton.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}

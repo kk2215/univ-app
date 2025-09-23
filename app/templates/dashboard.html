@@ -46,6 +46,11 @@
       <p><strong>【あなたの質問】</strong><br>{{ reply.inquiry.message }}</p>
       <p><strong>【管理者からの回答】</strong><br>{{ reply.message }}</p>
       </details>
+      <details class="notification-item" data-reply-id="{{ reply.id }}">
+    <footer>
+      <button class="mark-as-read-btn">読みました</button>
+    </footer>
+  </details>
   {% endfor %}
 </article>
 {% endif %}
@@ -254,6 +259,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // モーダルを表示
             taskModal.showModal();
+        });
+    });
+});
+document.querySelectorAll('.mark-as-read-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const detailElement = e.target.closest('.notification-item');
+        const replyId = detailElement.dataset.replyId;
+        e.target.setAttribute('aria-busy', 'true');
+
+        fetch(`/api/reply/${replyId}/read`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                // 成功したら、通知を画面から非表示にする
+                detailElement.style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Error:', error))
+        .finally(() => {
+            e.target.removeAttribute('aria-busy');
         });
     });
 });

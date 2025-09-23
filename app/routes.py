@@ -1033,32 +1033,29 @@ def update_continuous_tasks(user_id):
     db.session.commit()
     return jsonify({'success': True})
 
-# app/routes.py の一番下に追加
-
 @bp.route('/contact', methods=['GET', 'POST'])
-@login_required # ▼▼▼ ログイン必須にする ▼▼▼
+@login_required
 def contact():
     if request.method == 'POST':
-        message = request.form.get('message')
+        # AJAXリクエストの処理
+        data = request.get_json()
+        message = data.get('message')
 
         if not message:
-            flash('お問い合わせ内容を入力してください。', 'error')
-        else:
-            # ログインユーザーの情報を自動でセット
-            new_inquiry = Inquiry(
-                user_id=current_user.id,
-                name=current_user.username,
-                email=f"user_id:{current_user.id}", # メールアドレスは必須ではないのでIDを記録
-                message=message
-            )
-            db.session.add(new_inquiry)
-            db.session.commit()
-            flash('お問い合わせいただき、ありがとうございます！', 'success')
-            return redirect(url_for('main.contact'))
+            return jsonify({'success': False, 'error': 'お問い合わせ内容を入力してください。'}), 400
+        
+        new_inquiry = Inquiry(
+            user_id=current_user.id,
+            name=current_user.username,
+            email=f"user_id:{current_user.id}",
+            message=message
+        )
+        db.session.add(new_inquiry)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'お問い合わせいただき、ありがとうございます！'})
             
+    # GETリクエスト（通常のページ表示）
     return render_template('contact.html', user=current_user)
-
-# app/routes.py の一番下に追加
 
 @bp.route('/admin/inquiries')
 @login_required
@@ -1118,3 +1115,71 @@ def reply_to_inquiry(inquiry_id):
             return redirect(url_for('main.admin_inquiries'))
             
     return render_template('admin/admin_reply_form.html', inquiry=inquiry, user=current_user)
+
+# app/routes.py に追加
+
+@bp.route('/admin/faqs')
+@login_required
+@admin_required
+def admin_faqs():
+    faqs = db.session.query(FAQ).order_by(FAQ.sort_order).all()
+    return render_template('admin/admin_faqs.html', faqs=faqs, user=current_user)
+
+@bp.route('/admin/faqs/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_faq():
+    if request.method == 'POST':
+        new_faq = FAQ(
+            question=request.form['question'],
+            answer=request.form['answer'],
+            sort_order=int(request.form.get('sort_order', 0))
+        )
+        db.session.add(new_faq)
+        db.session.commit()
+        flash('新しいFAQを登録しました。')
+        return redirect(url_for('main.admin_faqs'))
+    return render_template('admin/admin_faq_form.html', user=current_user, faq=None)
+
+@bp.route('/admin/faqs/<int:faq_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_faq(faq_id):
+    faq = db.session.query(FAQ).get_or_404(faq_id)
+    if request.method == 'POST':
+        faq.question = request.form['question']
+        faq.answer = request.form['answer']
+        faq.sort_order = int(request.form.get('sort_order', 0))
+        db.session.commit()
+        flash('FAQを更新しました。')
+        return redirect(url_for('main.admin_faqs'))
+    return render_template('admin/admin_faq_form.html', user=current_user, faq=faq)
+
+@bp.route('/admin/faqs/<int:faq_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_faq(faq_id):
+    faq = db.session.query(FAQ).get_or_404(faq_id)
+    db.session.delete(faq)
+    db.session.commit()
+    flash('FAQを削除しました。')
+    return redirect(url_for('main.admin_faqs'))
+
+@bp.route('/inbox')
+@login_required
+def inbox():
+    # ユーザーに関連する全てのお問い合わせと、それに対する返信を取得
+    inquiries = db.session.query(Inquiry).filter_by(user_id=current_user.id).order_by(Inquiry.created_at.desc()).all()
+    return render_template('inbox.html', inquiries=inquiries, user=current_user)
+
+@bp.route('/api/reply/<int:reply_id>/read', methods=['POST'])
+@login_required
+def mark_reply_as_read(reply_id):
+    reply = db.session.query(Reply).join(Inquiry).filter(
+        Reply.id == reply_id,
+        Inquiry.user_id == current_user.id
+    ).first_or_404()
+    
+    reply.is_read = True
+    db.session.commit()
+    return jsonify({'success': True})
