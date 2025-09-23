@@ -125,7 +125,25 @@ class MockExam(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     exam_name = db.Column(db.String, nullable=False)
     exam_date = db.Column(db.Date, nullable=False)
-    results_url = db.Column(db.String) 
+    provider = db.Column(db.String) # ▼▼▼ 予備校名（河合、駿台など）を追加 ▼▼▼
+    
+    # ▼▼▼ この模試に紐づく、科目ごとの結果リストを定義 ▼▼▼
+    results = db.relationship('MockExamResult', backref='mock_exam', cascade="all, delete-orphan")
+
+# ▼▼▼▼▼ この新しいモデルをファイルの一番下などに追加 ▼▼▼▼▼
+class MockExamResult(db.Model):
+    __tablename__ = 'mock_exam_results'
+    id = db.Column(db.Integer, primary_key=True)
+    mock_exam_id = db.Column(db.Integer, db.ForeignKey('mock_exams.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    
+    score = db.Column(db.Integer)       # 点数
+    max_score = db.Column(db.Integer)   # 満点
+    deviation = db.Column(db.Float)     # 偏差値
+    ranking = db.Column(db.String)      # 判定 (A, B, Cなど)
+
+    # どの科目の結果かを簡単に取得できるようにする
+    subject = db.relationship('Subject')
     
 class OfficialMockExam(db.Model):
     __tablename__ = 'official_mock_exam'
@@ -171,4 +189,4 @@ class FAQ(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.String, nullable=False)
     answer = db.Column(db.Text, nullable=False)
-    sort_order = db.Column(db.Integer, default=0)    
+    sort_order = db.Column(db.Integer, default=0) 
