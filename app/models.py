@@ -142,8 +142,9 @@ class OfficialMockExam(db.Model):
 class Inquiry(db.Model):
     __tablename__ = 'inquiries'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # ▼▼▼ 追加 ▼▼▼
+    name = db.Column(db.String(100), nullable=True) # ▼▼▼ nullable=True に変更 ▼▼▼
+    email = db.Column(db.String(100), nullable=True) # ▼▼▼ nullable=True に変更 ▼▼▼
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_resolved = db.Column(db.Boolean, default=False, nullable=False)
