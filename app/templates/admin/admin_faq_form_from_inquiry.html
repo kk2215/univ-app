@@ -8,17 +8,14 @@
     <p>ユーザーからのお問い合わせを元に、新しいFAQ項目を作成します。</p>
   </hgroup>
 
-  <figure>
-    <figcaption><strong>元の質問内容 (これがFAQの「質問」になります)</strong></figcaption>
-    <blockquote>
-      {{ inquiry.message }}
-      <footer><cite>- {{ inquiry.name }}さんより</cite></footer>
-    </blockquote>
-  </figure>
-
   <form method="POST">
+    <label for="question">
+      <strong>質問 (FAQ用に編集してください)</strong>
+    </label>
+    <textarea id="question" name="question" rows="4" required>{{ inquiry.message }}</textarea>
+
     <label for="answer">
-      <strong>回答 (これがFAQの「答え」になります)</strong>
+      <strong>回答 (FAQの答えを入力してください)</strong>
     </label>
     <textarea id="answer" name="answer" rows="8" required></textarea>
     

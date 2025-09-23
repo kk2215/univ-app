@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}お問い合わせに返信{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>お問い合わせに返信</h1>
+    <p>ユーザーに個別に回答します。回答は相手のダッシュボードに通知されます。</p>
+  </hgroup>
+
+  <figure>
+    <figcaption><strong>ユーザーからの質問内容</strong></figcaption>
+    <blockquote>
+      {{ inquiry.message }}
+      <footer><cite>- {{ inquiry.name }}さんより</cite></footer>
+    </blockquote>
+  </figure>
+
+  <form method="POST">
+    <label for="message">
+      <strong>返信内容</strong>
+    </label>
+    <textarea id="message" name="message" rows="8" required></textarea>
+    
+    <button type="submit">返信を送信して対応済みにする</button>
+  </form>
+
+</article>
+{% endblock %}

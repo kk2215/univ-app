@@ -1074,25 +1074,20 @@ def faq_from_inquiry(inquiry_id):
     inquiry = db.session.query(Inquiry).get_or_404(inquiry_id)
     
     if request.method == 'POST':
+        # ▼▼▼ 編集された質問と回答の両方を取得 ▼▼▼
+        question_text = request.form.get('question')
         answer_text = request.form.get('answer')
-        if answer_text:
-            # 新しいFAQを作成
+
+        if question_text and answer_text:
             new_faq = FAQ(
-                question=inquiry.message, # 問い合わせ内容を質問として使用
+                question=question_text, # 編集された質問を使用
                 answer=answer_text
             )
             db.session.add(new_faq)
-            
-            # 問い合わせを「対応済み」にする
             inquiry.is_resolved = True
-            
-            # DBの変更を一度にコミット
             db.session.commit()
-            
-            # FAQと問い合わせを紐付け
             inquiry.faq_id = new_faq.id
             db.session.commit()
-
             flash('FAQに登録し、お問い合わせを対応済みにしました。')
             return redirect(url_for('main.admin_inquiries'))
 
@@ -1102,3 +1097,24 @@ def faq_from_inquiry(inquiry_id):
 def faq_list():
     faqs = db.session.query(FAQ).order_by(FAQ.sort_order).all()
     return render_template('faq.html', faqs=faqs, user=current_user)
+
+@bp.route('/admin/inquiry/<int:inquiry_id>/reply', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def reply_to_inquiry(inquiry_id):
+    inquiry = db.session.query(Inquiry).get_or_404(inquiry_id)
+    if request.method == 'POST':
+        reply_message = request.form.get('message')
+        if reply_message:
+            new_reply = Reply(
+                inquiry_id=inquiry.id,
+                admin_id=current_user.id,
+                message=reply_message
+            )
+            db.session.add(new_reply)
+            inquiry.is_resolved = True
+            db.session.commit()
+            flash('返信を送信し、お問い合わせを対応済みにしました。')
+            return redirect(url_for('main.admin_inquiries'))
+            
+    return render_template('admin/admin_reply_form.html', inquiry=inquiry, user=current_user)

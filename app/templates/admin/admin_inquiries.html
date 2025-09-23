@@ -33,8 +33,11 @@
           </td>
         </tr>
         <td>
-  <a href="{{ url_for('main.faq_from_inquiry', inquiry_id=inquiry.id) }}" role="button" class="secondary outline">FAQに追加</a>
-  </td>
+  <div class="grid">
+    <a href="{{ url_for('main.reply_to_inquiry', inquiry_id=inquiry.id) }}" role="button" class="contrast">個人へ返信</a>
+    <a href="{{ url_for('main.faq_from_inquiry', inquiry_id=inquiry.id) }}" role="button" class="secondary outline">FAQに追加</a>
+  </div>
+</td>
         {% else %}
         <tr>
           <td colspan="4">お問い合わせはまだありません。</td>
