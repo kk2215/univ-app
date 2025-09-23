@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}お問い合わせ{% endblock %}
+
+{% block content %}
+<article>
+  <hgroup>
+    <h1>お問い合わせ</h1>
+    <p>ご意見、ご感想、バグ報告など、お気軽にご連絡ください。</p>
+  </hgroup>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST">
+    <label for="name">お名前</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="email">メールアドレス</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="message">お問い合わせ内容</label>
+    <textarea id="message" name="message" rows="5" required></textarea>
+
+    <button type="submit">送信</button>
+  </form>
+</article>
+{% endblock %}

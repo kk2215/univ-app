@@ -11,7 +11,7 @@ from flask_login import login_user, login_required, current_user
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
 # データベースモデルをインポートします
-from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam
+from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, FAQ, Inquiry
 from functools import wraps
 from flask_login import current_user, login_user, logout_user, login_required
 import re
@@ -1026,3 +1026,27 @@ def update_continuous_tasks(user_id):
     
     db.session.commit()
     return jsonify({'success': True})
+
+# app/routes.py の一番下に追加
+
+@bp.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        message = request.form.get('message')
+
+        if not name or not email or not message:
+            flash('全ての項目を入力してください。', 'error')
+        else:
+            new_inquiry = Inquiry(
+                name=name,
+                email=email,
+                message=message
+            )
+            db.session.add(new_inquiry)
+            db.session.commit()
+            flash('お問い合わせいただき、ありがとうございます！', 'success')
+            return redirect(url_for('main.contact'))
+            
+    return render_template('contact.html', user=current_user)
