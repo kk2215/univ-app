@@ -889,16 +889,6 @@ def _extract_exam_details_with_ai(url: str, provider: str):
         raise ValueError("AI did not return a valid JSON block.")
     return json.loads(json_text_match.group(1))
 
-@bp.route('/admin') # URLをシンプルに /admin に変更
-@login_required
-@admin_required
-def admin_dashboard():
-    # 将来、ここに管理者用の機能を追加していく
-    return render_template('admin/admin_dashboard.html', user=current_user)
-
-# app/routes.py
-
-# ... (既存のadmin_dashboardルートなどの後に追加)
 
 @bp.route('/admin/universities')
 @login_required
@@ -1240,10 +1230,8 @@ def about():
 @login_required
 @admin_required
 def admin_dashboard():
-    # ▼▼▼ 統計情報を取得するコードを追加 ▼▼▼
     user_count = db.session.query(User).count()
     unresolved_inquiries = db.session.query(Inquiry).filter_by(is_resolved=False).count()
-    
     return render_template(
         'admin/admin_dashboard.html', 
         user=current_user,
