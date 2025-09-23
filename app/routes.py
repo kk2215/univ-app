@@ -11,7 +11,7 @@ from flask_login import login_user, login_required, current_user
 # ▼▼▼ 修正点: dbはmodelsからではなく、appパッケージから直接インポートします ▼▼▼
 from . import db
 # データベースモデルをインポートします
-from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, FAQ, Inquiry
+from .models import User, Subject, University, Faculty, Book, Route, RouteStep, Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, StudyLog, SubjectStrategy, Weakness, UserHiddenTask, MockExam, OfficialMockExam, Inquiry
 from functools import wraps
 from flask_login import current_user, login_user, logout_user, login_required
 import re
