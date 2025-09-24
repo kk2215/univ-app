@@ -79,8 +79,17 @@
                     <p><strong>この日の学習内容:</strong></p>
                     <ul>
                         {% for log_item in daily_log.logs %}
-                            <li>{{ log_item.subject_name }}: {{ log_item.duration }} 分</li>
-                        {% endfor %}
+    <li>
+        {{ log_item.subject_name }}: 
+        <strong>
+        {% set hours = log_item.duration // 60 %}
+        {% set minutes = log_item.duration % 60 %}
+        {% if hours > 0 %}{{ hours }}時間{% endif %}
+        {% if minutes > 0 %}{{ minutes }}分{% endif %}
+        {% if log_item.duration == 0 %}0分{% endif %}
+        </strong>
+    </li>
+    {% endfor %}
                     </ul>
                 </div>
             </details>
