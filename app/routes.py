@@ -346,17 +346,18 @@ def dashboard(user_id):
             if temp_group: task_groups.append(temp_group)
 
         # --- 2c. 「次のタスク」と「最後に完了したタスク」を決定 ---
-        uncompleted_groups = []
         completed_task_ids_in_plan = []
+        uncompleted_groups = []
         for group in task_groups:
             group_id = next((t['book'].task_id for t in group if t['step'].is_main), group[0]['book'].task_id)
             actual_task_id = seq_selections.get(group_id, group_id)
-            if actual_task_id not in completed_tasks_set:
-                uncompleted_groups.append(group)
-            else:
+            if actual_task_id in completed_tasks_set:
                 completed_task_ids_in_plan.append(actual_task_id)
-        
+            else:
+                uncompleted_groups.append(group)
+
         if uncompleted_groups:
+            # --- 未完了タスクがある場合の処理 ---
             next_group = uncompleted_groups[0]
             group_id = next((t['book'].task_id for t in next_group if t['step'].is_main), next_group[0]['book'].task_id)
             
@@ -366,17 +367,13 @@ def dashboard(user_id):
                 selected_task_id = seq_selections.get(group_id, group_id)
                 subject.next_task = db.session.query(Book).filter_by(task_id=selected_task_id).first()
 
-        if completed_task_ids_in_plan:
-            subject.last_completed_task = db.session.query(Book).filter_by(task_id=completed_task_ids_in_plan[-1]).first()
-
-        # --- 2d. 「目標期限（ベンチマーク）」を計算 ---
-        user_schedule = BENCHMARK_SCHEDULES.get(user.grade, {}).get(target_level_name, {})
-        if user_schedule:
+            user_schedule = BENCHMARK_SCHEDULES.get(user.grade, {}).get(target_level_name, {})
+            if user_schedule:
                 next_benchmark_level = None
-                for task in uncompleted_groups[0]:
-                    level_from_db = task['step'].level # 例: '日東駒専レベル'
-                    lookup_key = level_from_db.replace('レベル', '') # 例: '日東駒専'
-                    
+                # uncompleted_groups[0] (つまり next_group) を使う
+                for task in next_group:
+                    level_from_db = task['step'].level
+                    lookup_key = level_from_db.replace('レベル', '')
                     if lookup_key in user_schedule:
                         next_benchmark_level = level_from_db
                         break
@@ -386,7 +383,10 @@ def dashboard(user_id):
                     deadline_str = user_schedule[lookup_key]
                     deadline_date = datetime.strptime(f"{date.today().year}-{deadline_str}", "%Y-%m-%d").date()
                     subject.benchmark = {'level_name': next_benchmark_level, 'deadline': deadline_date.strftime('%-m月%-d日'), 'days_remaining': (deadline_date - date.today()).days}
-            
+
+        if completed_task_ids_in_plan:
+            subject.last_completed_task = db.session.query(Book).filter_by(task_id=completed_task_ids_in_plan[-1]).first()
+
 
         # --- 2e. 「継続タスク」と「現在のレベル」と「進捗率」を決定 ---
         current_level = None
