@@ -2,12 +2,24 @@
 
 {% block title %}学習記録{% endblock %}
 
+{% block head_extra %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <article>
     <hgroup>
         <h1>学習記録</h1>
         <h2>カレンダーの日付をクリックして、学習時間を記録・編集しましょう。</h2>
     </hgroup>
+</article>
+
+<article>
+    <h3>年間学習ヒートマップ</h3>
+    <div id="cal-heatmap"></div>
 </article>
 
 <div class="grid">
@@ -32,8 +44,6 @@
         {% endif %}
     </div>
 
-    <div id="cal-heatmap" style="margin-top: 2rem; margin-bottom: 2rem;"></div>
-
     <div class="calendar-grid">
         <div class="day-header">月</div><div class="day-header">火</div><div class="day-header">水</div><div class="day-header">木</div><div class="day-header">金</div><div class="day-header">土</div><div class="day-header">日</div>
         {% for week in calendar_data %}
@@ -57,8 +67,9 @@
             <tbody>
                 {% for log in recent_logs %}
                 <tr>
-                    <td>{{ log.name }}</td>
+                    <td>{{ log.date.strftime('%-m/%-d') }} - {{ log.name }}</td>
                     <td><strong>{{ log.duration_minutes }} 分</strong></td>
+                    <td>{{ log.comment or '' }}</td>
                     <td>
                         <form method="POST" action="{{ url_for('main.delete_log', log_id=log.id) }}" onsubmit="return confirm('本当にこの記録を削除しますか？');" style="margin: 0;">
                             <button type="submit" class="secondary outline" style="margin: 0;">削除</button>
@@ -93,7 +104,7 @@
                 </div>
             </div>
             {% endfor %}
-            <label for="comment">コメント（任意）</label>
+            <label for="log-comment">コメント（任意）</label>
             <textarea id="log-comment" name="comment" rows="3" placeholder="今日の学習で気づいたこと、難しかったことなどを記録しよう"></textarea>
             <footer>
                 <a href="#cancel" role="button" class="secondary" data-target="log-modal">キャンセル</a>
@@ -102,71 +113,51 @@
         </form>
     </article>
 </dialog>
+{% endblock %}
+
 
 {% block scripts %}
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// ▼▼▼ 修正点3: すべてのJavaScriptコードを一つの 'DOMContentLoaded' イベントリスナー内にまとめる ▼▼▼
 document.addEventListener('DOMContentLoaded', () => {
-    // ▼▼▼ 改善2: グラフの単位を「時間」に変更 ▼▼▼
+
+    // --- グラフ描画 (Chart.js) ---
     const subjectCtx = document.getElementById('subjectChart');
-    if (subjectCtx && {{ subject_labels | tojson }} && {{ subject_data | tojson }}.some(d => d > 0)) { 
-        new Chart(subjectCtx, { 
-            type: 'doughnut', 
-            data: { 
-                labels: {{ subject_labels | tojson }}, 
-                datasets: [{ 
-                    label: '学習時間 (時間)', 
-                    data: {{ subject_data | tojson }},
+    if (subjectCtx && {{ subject_labels | tojson | safe }} && {{ subject_data | tojson | safe }}.some(d => d > 0)) {
+        new Chart(subjectCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ subject_labels | tojson | safe }},
+                datasets: [{
+                    label: '学習時間 (時間)',
+                    data: {{ subject_data | tojson | safe }},
                     backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'],
-                }] 
+                }]
             },
-            options: {
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) { return context.label + ': ' + context.raw + ' 時間'; }
-                        }
-                    }
-                }
-            }
-        }); 
+            options: { plugins: { tooltip: { callbacks: { label: (context) => context.label + ': ' + context.raw + ' 時間' } } } }
+        });
     }
     
     const dailyCtx = document.getElementById('dailyChart');
-    if (dailyCtx && {{ date_labels | tojson }} && {{ date_data | tojson }}.some(d => d > 0)) { 
-        new Chart(dailyCtx, { 
-            type: 'bar', 
-            data: { 
-                labels: {{ date_labels | tojson }}, 
-                datasets: [{ 
-                    label: '学習時間 (時間)', 
-                    data: {{ date_data | tojson }}, 
-                    backgroundColor: '#36a2eb', 
-                }] 
-            }, 
-            options: { 
-                scales: { 
-                    y: { 
-                        beginAtZero: true,
-                        title: { display: true, text: '学習時間 (時間)' }
-                    } 
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) { return context.dataset.label + ': ' + context.raw + ' 時間'; }
-                        }
-                    }
-                }
-            } 
-        }); 
+    if (dailyCtx && {{ date_labels | tojson | safe }} && {{ date_data | tojson | safe }}.some(d => d > 0)) {
+        new Chart(dailyCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ date_labels | tojson | safe }},
+                datasets: [{
+                    label: '学習時間 (時間)',
+                    data: {{ date_data | tojson | safe }},
+                    backgroundColor: '#36a2eb',
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true, title: { display: true, text: '学習時間 (時間)' } } },
+                plugins: { tooltip: { callbacks: { label: (context) => context.dataset.label + ': ' + context.raw + ' 時間' } } }
+            }
+        });
     }
 
-    // --- ここから下は、新しいボタン式入力に対応したJavaScript ---
+    // --- 学習記録モーダルのロジック ---
     const modal = document.getElementById('log-modal');
     const form = document.getElementById('log-form');
     const dateInput = document.getElementById('log-date');
@@ -181,11 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         const displaySpan = subjectRow.querySelector('.time-display');
-        let displayText = '';
-        if (hours > 0) displayText += `${hours}時間 `;
+        let displayText = (hours > 0) ? `${hours}時間 ` : '';
         if (minutes > 0) displayText += `${minutes}分`;
-        if (displayText === '') displayText = '0分';
-        displaySpan.textContent = displayText.trim();
+        displaySpan.textContent = (displayText === '') ? '0分' : displayText.trim();
     }
 
     if (calendarGrid) {
@@ -198,19 +187,28 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = `${dateStr} の学習を記録・編集`;
             
             const recordsForDay = logsByDate[dateStr] || {};
-            const firstSubjectId = Object.keys(recordsForDay)[0];
-            commentInput.value = firstSubjectId ? (recordsForDay[firstSubjectId].comment || '') : '';
+            
+            // ▼▼▼ 修正点4: コメントを正しく取得・設定するロジック ▼▼▼
+            let commentText = '';
+            const firstSubjectIdWithLog = Object.keys(recordsForDay)[0];
+            if(firstSubjectIdWithLog && recordsForDay[firstSubjectIdWithLog].comment) {
+                commentText = recordsForDay[firstSubjectIdWithLog].comment;
+            }
+            commentInput.value = commentText;
+
             modal.querySelectorAll('.subject-log-row').forEach(row => {
                 const subjectId = row.dataset.subjectId;
-                const totalMinutes = recordsForDay[String(subjectId)] || 0;
+                const totalMinutes = recordsForDay[String(subjectId)] ? recordsForDay[String(subjectId)].duration_minutes : 0;
                 row.dataset.totalMinutes = totalMinutes;
                 updateDisplay(row);
             });
             modal.showModal();
         });
     }
-
-    modal.addEventListener('click', (e) => {
+    
+    // ... (modal.addEventListener と form.addEventListener は、あなたのコードとほぼ同じなのでここでは省略) ...
+    // ... (ただし、あなたのコードには閉じ括弧がいくつか抜けていたので、この完全版で置き換えるのが安全です) ...
+     modal.addEventListener('click', (e) => {
         if (e.target.matches('.close') || e.target.getAttribute('href') === '#cancel') {
             e.preventDefault();
             modal.close();
@@ -255,45 +253,38 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.textContent = 'この日の記録を保存';
         }
     });
-    // ▼▼▼ ここから「今日」をハイライトする処理を追加 ▼▼▼
-    // ユーザーのブラウザのタイムゾーンで「今日」の日付をYYYY-MM-DD形式で取得
+
+    // --- 「今日」をハイライトする処理 ---
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     const todayStr = `${yyyy}-${mm}-${dd}`;
 
-    // カレンダーの中から今日の日付に一致する要素を探す
     const todayElement = document.querySelector(`.day[data-date="${todayStr}"]`);
     if (todayElement) {
-        // is-todayクラスを追加してハイライト
         todayElement.classList.add('is-today');
     }
+    
+    // --- ヒートマップのコード ---
+    const heatmapData = {{ heatmap_data|tojson|safe }};
+    const cal = new CalHeatmap();
+    cal.paint({
+      itemSelector: "#cal-heatmap",
+      domain: { type: "month", padding: 10, label: { text: "MMM", textAlign: "start", position: "top" } },
+      subDomain: { type: "ghDay", width: 15, height: 15, radius: 3 },
+      data: { source: heatmapData, x: 'date', y: 'value' },
+      scale: {
+        color: {
+          type: 'threshold',
+          range: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
+          domain: [1, 60, 180, 300],
+        },
+      },
+      date: { start: new Date(new Date().getFullYear(), 0, 1) },
+      theme: "light"
+    });
 
-    // is-todayクラスを追加してハイライト
-  todayElement.classList.add('is-today');
-}
-
-// ▼▼▼ ここからヒートマップのコードを追加 ▼▼▼
-const heatmapData = {{ heatmap_data|tojson|safe }};
-const cal = new CalHeatmap();
-cal.paint({
-  itemSelector: "#cal-heatmap",
-  domain: { type: "month" },
-  subDomain: { type: "ghDay", width: 15, height: 15, radius: 3 },
-  data: { source: heatmapData, x: 'date', y: 'value' },
-  scale: {
-    color: {
-      type: 'threshold',
-      range: ['#c6e48b', '#7bc96f', '#239a3b', '#196127'],
-      domain: [60, 180, 300],
-    },
-  },
-  date: { start: new Date(new Date().getFullYear(), 0, 1) },
-  theme: "light"
 });
-
-);
 </script>
-{% endblock %}
 {% endblock %}
