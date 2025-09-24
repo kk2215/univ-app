@@ -60,25 +60,30 @@
     </div>
 </article>
 
-<details>
-    <summary><h3 style="display: inline-block; margin: 0;">最近の記録</h3></summary>
-    <article style="padding-top: 0;">
-        <table>
-            <tbody>
-                {% for log in recent_logs %}
-                <tr>
-                    <td>{{ log.date.strftime('%-m/%-d') }} - {{ log.name }}</td>
-                    <td><strong>{{ log.duration_minutes }} 分</strong></td>
-                    <td>{{ log.comment or '' }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('main.delete_log', log_id=log.id) }}" onsubmit="return confirm('本当にこの記録を削除しますか？');" style="margin: 0;">
-                            <button type="submit" class="secondary outline" style="margin: 0;">削除</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<details open> <summary><h3 style="display: inline-block; margin: 0;">最近の記録・コメント</h3></summary>
+    
+    <article style="padding-top: 1rem;">
+        {% set logs_with_comments = recent_logs | selectattr('comment') | list %}
+        {% if not logs_with_comments %}
+            <p>コメント付きの記録はまだありません。</p>
+        {% endif %}
+
+        {% for log in logs_with_comments %}
+            <details style="margin-bottom: 1rem;">
+                <summary>
+                    <strong style="font-size: 1.1em;">{{ log.comment }}</strong>
+                    <br>
+                    <small>{{ log.date.strftime('%Y-%m-%d') }}</small>
+                </summary>
+                <div style="padding-top: 1rem;">
+                    <p><strong>この日の学習内容:</strong></p>
+                    <ul>
+                        <li>{{ log.name }}: {{ log.duration_minutes }} 分</li>
+                        {# 同じ日の他の科目の記録も表示したい場合は、ここに追加のロジックが必要 #}
+                    </ul>
+                </div>
+            </details>
+        {% endfor %}
     </article>
 </details>
 

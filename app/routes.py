@@ -476,7 +476,8 @@ def stats(user_id):
         calendar_data.append(week_data)
         
     user_subjects_list = [{'id': s.id, 'name': s.name} for s in user.subjects]    
-    recent_logs = db.session.query(StudyLog.id, StudyLog.date, Subject.name, StudyLog.duration_minutes).join(Subject).filter(StudyLog.user_id == user_id).order_by(StudyLog.date.desc(), StudyLog.id.desc()).limit(10).all()
+    # app/routes.py の stats 関数内
+    recent_logs = db.session.query(StudyLog.id, StudyLog.date, Subject.name, StudyLog.duration_minutes, StudyLog.comment).join(Subject).filter(StudyLog.user_id == user_id).order_by(StudyLog.date.desc(), StudyLog.id.desc()).limit(10).all()
     all_logs_details_rows = db.session.query(StudyLog).filter_by(user_id=user_id).all()
     logs_by_date = defaultdict(dict)
     for row in all_logs_details_rows: logs_by_date[row.date.isoformat()][row.subject_id] = row.duration_minutes
