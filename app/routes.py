@@ -477,11 +477,25 @@ def stats(user_id):
         
     user_subjects_list = [{'id': s.id, 'name': s.name} for s in user.subjects]    
     # app/routes.py の stats 関数内
-    recent_logs = db.session.query(StudyLog.id, StudyLog.date, Subject.name, StudyLog.duration_minutes, StudyLog.comment).join(Subject).filter(StudyLog.user_id == user_id).order_by(StudyLog.date.desc(), StudyLog.id.desc()).limit(10).all()
-    all_logs_details_rows = db.session.query(StudyLog).filter_by(user_id=user_id).all()
-    logs_by_date = defaultdict(dict)
-    for row in all_logs_details_rows: logs_by_date[row.date.isoformat()][row.subject_id] = row.duration_minutes
+    # ▼▼▼ 新しいロジック：日毎のログをグループ化する ▼▼▼
+    all_logs_details = db.session.query(StudyLog, Subject.name.label('subject_name'))\
+        .join(Subject, StudyLog.subject_id == Subject.id)\
+        .filter(StudyLog.user_id == user_id)\
+        .order_by(StudyLog.date.desc()).all()
     
+    logs_by_date = defaultdict(lambda: {'date': None, 'comment': None, 'logs': []})
+    for log, subject_name in all_logs_details:
+        day_key = log.date.isoformat()
+        logs_by_date[day_key]['date'] = log.date
+        logs_by_date[day_key]['comment'] = log.comment
+        logs_by_date[day_key]['logs'].append({'subject_name': subject_name, 'duration': log.duration_minutes})
+    
+    # 最近のコメント付きログ10件を抽出
+    recent_logs_grouped = [log_group for log_group in logs_by_date.values() if log_group['comment']][:10]
+
+    heatmap_data = [{"date": row.date.isoformat(), "value": row.total} for row in all_logs_rows]
+
+
     return render_template(
         'stats.html', user=user,
         subject_labels=[r.name for r in total_by_subject], 
@@ -489,7 +503,7 @@ def stats(user_id):
         date_labels=[r.date.isoformat() for r in last_7_days], 
         date_data=[round(r.total / 60, 1) for r in last_7_days],
         calendar_data=calendar_data, month=month, year=year,
-        recent_logs=recent_logs, user_subjects=user_subjects_list,
+        recent_logs_grouped=recent_logs_grouped, user_subjects=user_subjects_list,
         logs_by_date=logs_by_date, prev_month=prev_month, next_month=next_month, is_future=is_future, heatmap_data=heatmap_data
     )
 
