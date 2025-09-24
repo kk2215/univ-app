@@ -461,6 +461,7 @@ def stats(user_id):
     
     thresholds = {5: 600, 4: 480, 3: 300, 2: 180, 1: 1} if user.grade == 'ronin' else {5: 300, 4: 180, 3: 120, 2: 60, 1: 1}
     all_logs_rows = db.session.query(StudyLog.date, db.func.sum(StudyLog.duration_minutes).label('total')).filter(StudyLog.user_id == user_id).group_by(StudyLog.date).all()
+    heatmap_data = [{"date": row.date.isoformat(), "value": row.total} for row in all_logs_rows]
     study_data = {row.date.isoformat(): row.total for row in all_logs_rows}
     cal = calendar.Calendar(); month_days = cal.monthdatescalendar(year, month)
     calendar_data = []
@@ -488,7 +489,7 @@ def stats(user_id):
         date_data=[round(r.total / 60, 1) for r in last_7_days],
         calendar_data=calendar_data, month=month, year=year,
         recent_logs=recent_logs, user_subjects=user_subjects_list,
-        logs_by_date=logs_by_date, prev_month=prev_month, next_month=next_month, is_future=is_future
+        logs_by_date=logs_by_date, prev_month=prev_month, next_month=next_month, is_future=is_future, heatmap_data=heatmap_data
     )
 
 @bp.route('/settings/<int:user_id>', methods=['GET', 'POST'])
@@ -628,20 +629,22 @@ def log_study_for_date(user_id):
     if user_id != current_user.id: return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     data = request.get_json()
     date_str = data.get('date'); logs = data.get('logs')
+    comment = data.get('comment')
     if not date_str or logs is None: return jsonify({'success': False}), 400
     
     for log_item in logs:
-        subject_id = log_item.get('subject_id'); hours = log_item.get('hours') or '0'; minutes = log_item.get('minutes') or '0'
-        try: total_minutes = int(hours) * 60 + int(minutes)
-        except (ValueError, TypeError): total_minutes = 0
-        
-        existing_log = db.session.query(StudyLog).filter_by(user_id=user_id, subject_id=subject_id, date=date.fromisoformat(date_str)).first()
+        subject_id = log_item.get('subject_id')
+        total_minutes = int(log_item.get('hours', 0)) * 60 + int(log_item.get('minutes', 0))
         if total_minutes > 0:
-            if existing_log: existing_log.duration_minutes = total_minutes
-            else:
-                new_log = StudyLog(user_id=user_id, subject_id=subject_id, date=date.fromisoformat(date_str), duration_minutes=total_minutes)
-                db.session.add(new_log)
-        elif existing_log: db.session.delete(existing_log)
+         new_log = StudyLog(
+            user_id=user_id, 
+            subject_id=subject_id, 
+            date=date.fromisoformat(date_str), 
+            duration_minutes=total_minutes,
+            comment=comment # ▼▼▼ 全てのログに同じコメントを紐付け ▼▼▼
+         )
+         db.session.add(new_log)
+
     db.session.commit()
     return jsonify({'success': True})
 

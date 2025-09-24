@@ -32,6 +32,8 @@
         {% endif %}
     </div>
 
+    <div id="cal-heatmap" style="margin-top: 2rem; margin-bottom: 2rem;"></div>
+
     <div class="calendar-grid">
         <div class="day-header">月</div><div class="day-header">火</div><div class="day-header">水</div><div class="day-header">木</div><div class="day-header">金</div><div class="day-header">土</div><div class="day-header">日</div>
         {% for week in calendar_data %}
@@ -91,6 +93,8 @@
                 </div>
             </div>
             {% endfor %}
+            <label for="comment">コメント（任意）</label>
+            <textarea id="log-comment" name="comment" rows="3" placeholder="今日の学習で気づいたこと、難しかったことなどを記録しよう"></textarea>
             <footer>
                 <a href="#cancel" role="button" class="secondary" data-target="log-modal">キャンセル</a>
                 <button type="submit" id="save-log-btn">この日の記録を保存</button>
@@ -100,6 +104,10 @@
 </dialog>
 
 {% block scripts %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -162,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('log-modal');
     const form = document.getElementById('log-form');
     const dateInput = document.getElementById('log-date');
+    const commentInput = document.getElementById('log-comment');
     const modalTitle = document.getElementById('modal-title');
     const userSubjects = JSON.parse('{{ user_subjects|tojson|safe }}');
     const logsByDate = JSON.parse('{{ logs_by_date|tojson|safe }}');
@@ -189,6 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = `${dateStr} の学習を記録・編集`;
             
             const recordsForDay = logsByDate[dateStr] || {};
+            const firstSubjectId = Object.keys(recordsForDay)[0];
+            commentInput.value = firstSubjectId ? (recordsForDay[firstSubjectId].comment || '') : '';
             modal.querySelectorAll('.subject-log-row').forEach(row => {
                 const subjectId = row.dataset.subjectId;
                 const totalMinutes = recordsForDay[String(subjectId)] || 0;
@@ -231,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch("{{ url_for('main.log_study_for_date', user_id=user.id) }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: dateInput.value, logs: logs })
+                body: JSON.stringify({ date: dateInput.value, logs: logs, comment: commentInput.value })
             });
             const result = await response.json();
             if (result.success) {
@@ -258,7 +269,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // is-todayクラスを追加してハイライト
         todayElement.classList.add('is-today');
     }
+
+    // is-todayクラスを追加してハイライト
+  todayElement.classList.add('is-today');
+}
+
+// ▼▼▼ ここからヒートマップのコードを追加 ▼▼▼
+const heatmapData = {{ heatmap_data|tojson|safe }};
+const cal = new CalHeatmap();
+cal.paint({
+  itemSelector: "#cal-heatmap",
+  domain: { type: "month" },
+  subDomain: { type: "ghDay", width: 15, height: 15, radius: 3 },
+  data: { source: heatmapData, x: 'date', y: 'value' },
+  scale: {
+    color: {
+      type: 'threshold',
+      range: ['#c6e48b', '#7bc96f', '#239a3b', '#196127'],
+      domain: [60, 180, 300],
+    },
+  },
+  date: { start: new Date(new Date().getFullYear(), 0, 1) },
+  theme: "light"
 });
+
+);
 </script>
 {% endblock %}
 {% endblock %}
