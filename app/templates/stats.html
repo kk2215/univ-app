@@ -117,8 +117,13 @@
 
 
 {% block scripts %}
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cal-heatmap@4.2.2/dist/cal-heatmap.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-// ▼▼▼ 修正点3: すべてのJavaScriptコードを一つの 'DOMContentLoaded' イベントリスナー内にまとめる ▼▼▼
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- グラフ描画 (Chart.js) ---
@@ -163,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('log-date');
     const commentInput = document.getElementById('log-comment');
     const modalTitle = document.getElementById('modal-title');
-    const userSubjects = JSON.parse('{{ user_subjects|tojson|safe }}');
     const logsByDate = JSON.parse('{{ logs_by_date|tojson|safe }}');
     const calendarGrid = document.querySelector('.calendar-grid');
 
@@ -179,13 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (calendarGrid) {
         calendarGrid.addEventListener('click', (e) => {
-            console.log("カレンダーエリアがクリックされました！");
             const dayElement = e.target.closest('.day.is-this-month');
-            if (!dayElement) {
-               // ▼▼▼ 探偵その2：有効な日付ではなかったことを知らせる ▼▼▼
-               console.log("クリックされましたが、有効な日付（今月の日付）ではありませんでした。処理を中断します。");
-               return;
-            }
+            if (!dayElement) return;
 
             const dateStr = dayElement.dataset.date;
             dateInput.value = dateStr;
@@ -193,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const recordsForDay = logsByDate[dateStr] || {};
             
-            // ▼▼▼ 修正点4: コメントを正しく取得・設定するロジック ▼▼▼
             let commentText = '';
             const firstSubjectIdWithLog = Object.keys(recordsForDay)[0];
             if(firstSubjectIdWithLog && recordsForDay[firstSubjectIdWithLog].comment) {
@@ -203,7 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             modal.querySelectorAll('.subject-log-row').forEach(row => {
                 const subjectId = row.dataset.subjectId;
-                const totalMinutes = recordsForDay[String(subjectId)] ? recordsForDay[String(subjectId)].duration_minutes : 0;
+                const record = recordsForDay[String(subjectId)];
+                const totalMinutes = record ? record.duration_minutes : 0;
                 row.dataset.totalMinutes = totalMinutes;
                 updateDisplay(row);
             });
@@ -211,9 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // ... (modal.addEventListener と form.addEventListener は、あなたのコードとほぼ同じなのでここでは省略) ...
-    // ... (ただし、あなたのコードには閉じ括弧がいくつか抜けていたので、この完全版で置き換えるのが安全です) ...
-     modal.addEventListener('click', (e) => {
+    modal.addEventListener('click', (e) => {
         if (e.target.matches('.close') || e.target.getAttribute('href') === '#cancel') {
             e.preventDefault();
             modal.close();
@@ -240,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 minutes: String(totalMinutes % 60),
             };
         });
-
+        
         try {
             const response = await fetch("{{ url_for('main.log_study_for_date', user_id=user.id) }}", {
                 method: 'POST',
@@ -289,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
       date: { start: new Date(new Date().getFullYear(), 0, 1) },
       theme: "light"
     });
-
 });
 </script>
 {% endblock %}
