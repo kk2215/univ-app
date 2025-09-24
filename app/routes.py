@@ -250,6 +250,31 @@ def get_plan_data(user_id, subject_name):
         }
     })
     
+# 学年と志望校レベルに応じた、中間目標の基準日（月-日）
+# これはあくまで一例であり、あなたの教育方針に合わせて自由に調整できます。
+BENCHMARK_SCHEDULES = {
+    # 高校3年生向けのスケジュール
+    'high3': {
+        '早慶レベル': {
+            '日東駒専レベル': '07-31', # 7月末
+            'MARCHレベル': '10-31',   # 10月末
+        },
+        'MARCHレベル': {
+            '日東駒専レベル': '09-30', # 9月末
+        }
+    },
+    # 浪人生向けの、より前倒しのスケジュール
+    'ronin': {
+        '早慶レベル': {
+            '日東駒専レベル': '06-30', # 6月末
+            'MARCHレベル': '09-30',   # 9月末
+        },
+        'MARCHレベル': {
+            '日東駒専レベル': '08-31', # 8月末
+        }
+    }
+}    
+    
 @bp.route('/dashboard/<int:user_id>')
 @login_required
 def dashboard(user_id):
@@ -395,6 +420,37 @@ def dashboard(user_id):
                         tasks_to_display.append({'title': book_title})
 
             subject.continuous_tasks = tasks_to_display
+        
+        # ▼▼▼ 新しいロジック：ベンチマークを計算する ▼▼▼
+        subject.benchmark = None
+        if user.grade in BENCHMARK_SCHEDULES and target_level_name in BENCHMARK_SCHEDULES[user.grade]:
+            user_schedule = BENCHMARK_SCHEDULES[user.grade][target_level_name]
+
+            # まだ完了していないルートタスクのレベルを順番に取得
+            uncompleted_levels = []
+            if 'task_groups' in locals() and task_groups: # task_groupsが定義されているか確認
+                current_year = date.today().year
+                for group in task_groups:
+                    group_id = next((t['task_id'] for t in group if t['is_main']), group[0]['task_id'])
+                    actual_task_id = seq_selections.get(group_id, group_id)
+                    if actual_task_id not in completed_tasks_set:
+                        level = group[0]['level']
+                        if level not in uncompleted_levels:
+                            uncompleted_levels.append(level)
+
+            # 次に達成すべき目標レベルとその期限を探す
+            for level in uncompleted_levels:
+                if level in user_schedule:
+                    deadline_str = user_schedule[level]
+                    deadline_date = datetime.strptime(f"{current_year}-{deadline_str}", "%Y-%m-%d").date()
+                    days_to_benchmark = (deadline_date - date.today()).days
+
+                    subject.benchmark = {
+                        'level_name': level,
+                        'deadline': deadline_date.strftime('%-m月%-d日'),
+                        'days_remaining': days_to_benchmark
+                    }
+                    break # 最初の目標が見つかったらループを抜ける    
         
         dashboard_data.append(subject)
 

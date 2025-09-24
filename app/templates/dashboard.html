@@ -64,6 +64,18 @@
             {% for subject in dashboard_data %}
             <div class="focus-subject-group">
                 <h4>{{ subject.name }}</h4>
+                {% if subject.benchmark %}
+    <div class="benchmark-info" style="margin-bottom: 1rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);">
+      <small>次の目標</small>
+      <p style="margin: 0;">
+        <strong>{{ subject.benchmark.level_name }}</strong> まで
+        <strong style="font-size: 1.2em; color: {% if subject.benchmark.days_remaining < 14 %}var(--pico-color-red-500){% else %}var(--pico-primary){% endif %};">
+          あと {{ subject.benchmark.days_remaining }} 日
+        </strong>
+        <small> (目標: {{ subject.benchmark.deadline }})</small>
+      </p>
+    </div>
+  {% endif %}
                 <div class="focus-task-list">
                     {% for c_task in subject.continuous_tasks %}
                     <div class="focus-task-item continuous">
