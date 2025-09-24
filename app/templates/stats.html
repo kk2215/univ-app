@@ -179,8 +179,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (calendarGrid) {
         calendarGrid.addEventListener('click', (e) => {
+            console.log("カレンダーエリアがクリックされました！");
             const dayElement = e.target.closest('.day.is-this-month');
-            if (!dayElement) return;
+            if (!dayElement) {
+               // ▼▼▼ 探偵その2：有効な日付ではなかったことを知らせる ▼▼▼
+               console.log("クリックされましたが、有効な日付（今月の日付）ではありませんでした。処理を中断します。");
+               return;
+            }
 
             const dateStr = dayElement.dataset.date;
             dateInput.value = dateStr;
