@@ -371,17 +371,22 @@ def dashboard(user_id):
 
         # --- 2d. 「目標期限（ベンチマーク）」を計算 ---
         user_schedule = BENCHMARK_SCHEDULES.get(user.grade, {}).get(target_level_name, {})
-        if user_schedule and uncompleted_groups:
-            next_benchmark_level = None
-            for task in uncompleted_groups[0]:
-                if task['step'].level in user_schedule:
-                    next_benchmark_level = task['step'].level
-                    break
+        if user_schedule:
+                next_benchmark_level = None
+                for task in uncompleted_groups[0]:
+                    level_from_db = task['step'].level # 例: '日東駒専レベル'
+                    lookup_key = level_from_db.replace('レベル', '') # 例: '日東駒専'
+                    
+                    if lookup_key in user_schedule:
+                        next_benchmark_level = level_from_db
+                        break
+                
+                if next_benchmark_level:
+                    lookup_key = next_benchmark_level.replace('レベル', '')
+                    deadline_str = user_schedule[lookup_key]
+                    deadline_date = datetime.strptime(f"{date.today().year}-{deadline_str}", "%Y-%m-%d").date()
+                    subject.benchmark = {'level_name': next_benchmark_level, 'deadline': deadline_date.strftime('%-m月%-d日'), 'days_remaining': (deadline_date - date.today()).days}
             
-            if next_benchmark_level:
-                deadline_str = user_schedule[next_benchmark_level]
-                deadline_date = datetime.strptime(f"{date.today().year}-{deadline_str}", "%Y-%m-%d").date()
-                subject.benchmark = {'level_name': next_benchmark_level, 'deadline': deadline_date.strftime('%-m月%-d日'), 'days_remaining': (deadline_date - date.today()).days}
 
         # --- 2e. 「継続タスク」と「現在のレベル」と「進捗率」を決定 ---
         current_level = None
