@@ -408,7 +408,7 @@ def dashboard(user_id):
 
     return render_template('dashboard.html', user=user, university=university, 
                            days_until_exam=days_until_exam, dashboard_data=dashboard_data,
-                           upcoming_exams=upcoming_exams, unread_replies=unread_replies)
+                           upcoming_exams=upcoming_exams, unread_replies=unread_replies, today=date.today())
     
     
 @bp.route('/support/<int:user_id>')
