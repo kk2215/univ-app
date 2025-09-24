@@ -24,7 +24,7 @@
         <article style="padding: 1rem; margin-bottom: 1rem;">
             <strong>{{ exam.provider }} - {{ exam.name }}</strong> (対象: {{ exam.target_grade }})<br>
             <small>実施日: {{ exam.exam_date.strftime('%Y年%m月%d日') }}</small>
-            {% if exam.app_end_date and exam.app_end_date >= date.today() %}
+            {% if exam.app_end_date and exam.app_end_date >= today %}
                 <small style="color: red; margin-left: 1rem;">申込締切: {{ exam.app_end_date.strftime('%m月%d日') }}</small>
             {% endif %}
             <a href="{{ exam.url }}" target="_blank" rel="noopener noreferrer" role="button" class="contrast outline" style="float: right;">公式サイトへ</a>
