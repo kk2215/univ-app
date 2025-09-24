@@ -310,6 +310,18 @@ def dashboard(user_id):
         subject.pending_selections = []
         subject.benchmark = None
         
+        # ▼▼▼▼▼ このデバッグブロックを追加 ▼▼▼▼▼
+        print(f"\n--- 🕵️‍♂️ デバッグ開始: 科目「{subject.name}」---")
+        print(f"1. ユーザーの学年 (user.grade): '{user.grade}'")
+        print(f"2. 志望校レベル (target_level_name): '{target_level_name}'")
+        print(f"3. ルールブックに学年 '{user.grade}' は存在しますか？ -> {user.grade in BENCHMARK_SCHEDULES}")
+        if user.grade in BENCHMARK_SCHEDULES:
+            print(f"4. 学年ルールブックにレベル '{target_level_name}' は存在しますか？ -> {target_level_name in BENCHMARK_SCHEDULES.get(user.grade, {})}")
+        else:
+            print(f"4. 学年ルールブックが存在しないため、レベルをチェックできません。")
+        print(f"--- デバッグ終了 ---\n")
+        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        
         # --- 2b. 科目ごとのルート計画を取得 ---
         base_query = db.session.query(Book, RouteStep).join(RouteStep, Book.id == RouteStep.book_id).join(Route, RouteStep.route_id == Route.id)
         route_name_map = {'数学': 'math_rikei_standard' if user.course_type == 'science' else 'math_bunkei_standard'}
