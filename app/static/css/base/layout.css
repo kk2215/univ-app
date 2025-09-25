@@ -2,31 +2,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 
 :root {
+    /* --- あなたの既存の優れた設定はそのまま活かします --- */
     --font-family: 'Noto Sans JP', sans-serif;
     --line-height: 1.7;
     --border-radius: 0.75rem;
-    
-    /* 新しいカラーパレット */
-    --pico-background-color: #f8f9fa;
-    --pico-card-background-color: #ffffff;
-    --pico-color: #212529;
-    --pico-h1-color: #212529;
-    --pico-h2-color: #343a40;
-    --pico-h3-color: #495057;
-    --pico-muted-color: #6c757d;
-    --pico-primary: #0d6efd;
-    --pico-primary-background: #0d6efd;
-    --pico-primary-inverse: #ffffff;
-    --pico-primary-hover: #0b5ed7;
-    --pico-primary-focus: rgba(13, 110, 253, 0.25);
-    --pico-contrast: #ffffff;
-    --pico-contrast-inverse: #212529;
-    --pico-card-border-color: #dee2e6;
-    --pico-card-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+    --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
 
-    /* アクセントカラー */
-    --accent-color: #fd7e14; /* やる気を出すオレンジ */
-    --success-color: #198754; /* 完了を示すグリーン */
+    /* --- カラーパレットを新しいコンセプトに合わせて調整 --- */
+    --pico-background-color: #F8F9FA; /* 背景は少しだけグレーに */
+    --pico-card-background-color: #FFFFFF;
+    --pico-color: #1F2937; /* テキストはより濃く、読みやすく */
+    --pico-muted-color: #6B7280;
+    --pico-card-border-color: #E5E7EB;
+
+    /* --- メインカラーを「インテリジェンス・ブルー」に変更 --- */
+    --pico-primary: #3B82F6;
+    --pico-primary-background: #3B82F6;
+    --pico-primary-inverse: #FFFFFF;
+    --pico-primary-hover: #2563EB; /* ホバー色も調整 */
+    --pico-primary-focus: rgba(59, 130, 246, 0.25);
+    
+    /* --- アクセントカラーとして「ゴールデン・イエロー」を追加 --- */
+    --accent-color: #FBBF24;
+    --success-color: #10B981;
+    --error-color: #EF4444;
+    
+    /* Pico.cssのデフォルトで使われる他の色も、primaryに合わせておくと統一感が出ます */
+    --pico-contrast: #1F2937;
+    --pico-contrast-inverse: #FFFFFF;
 }
 
 body {

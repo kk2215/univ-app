@@ -5,6 +5,22 @@
 {% block content %}
 <section class="hero hidden">
     <div class="container">
+    <style>
+  .hero {
+    background-color: #EBF4FF; /* 青系の薄い色 */
+    background-image: url('ここにundraw.coなどからダウンロードしたイラストのパス');
+    background-size: contain;
+    background-position: right center;
+    background-repeat: no-repeat;
+    padding: 4rem 2rem;
+    border-radius: var(--border-radius);
+  }
+</style>
+<div class="hero">
+    <h1>あなたの学習に、最適な「道しるべ」を。</h1>
+    <p>志望校合格までの最短ルートを、あなたのためだけに設計します。</p>
+    <a href="{{ url_for('main.register') }}" role="button">無料で始める</a>
+</div>
         <hgroup>
             <h1>ようこそ！ここは、君だけの「合格への地図」が見つかる場所。</h1>
         　　<h2>
