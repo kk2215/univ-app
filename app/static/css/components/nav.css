@@ -69,3 +69,9 @@ nav .container {
         display: flex;
     }
 }
+/* ナビゲーションバーの主要なボタン（ログイン、管理者など）のスタイル調整 */
+nav ul a[role="button"]:not(.outline) {
+  color: var(--pico-primary-inverse, #FFFFFF); /* 文字色を強制的に白に */
+  border-radius: 9999px; /* 角を完全に丸くして、カプセル型にする */
+  padding: 0.5rem 1.25rem; /* 少しだけ横長の余白に調整 */
+}
