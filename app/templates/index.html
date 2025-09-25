@@ -21,6 +21,43 @@
       </div>
     </div>
 
+    {% endblock %} <section class="features-section">
+  <div class="container">
+
+    <div class="feature-row">
+      <div class="feature-image">
+        <img src="{{ url_for('static', filename='images/feature_map.png') }}" alt="インタラクティブな学習マップ">
+      </div>
+      <div class="feature-text">
+        <h2>あなただけの最短ルートを、視覚的に。</h2>
+        <p>あなたの現在の学力と志望校レベルを入力するだけで、合格までの道のりをステップ・バイ・ステップで可視化します。次に何をすべきかが一目でわかるので、もう勉強の順番で迷いません。</p>
+      </div>
+    </div>
+
+    <div class="feature-row feature-row--reversed">
+      <div class="feature-image">
+        <img src="{{ url_for('static', filename='images/feature_benchmark.png') }}" alt="目標期限の表示">
+      </div>
+      <div class="feature-text">
+        <h2>もう、「ペースがわからない」と悩まない。</h2>
+        <p>「この時期までに、このレベルはクリアしておきたい」という受験のセオリーに基づいた目標期限を科目ごとに自動で提示。あなたの進捗が順調か、それとも少し急ぐべきか、常に客観的なペースを把握できます。</p>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div class="feature-image">
+        <img src="{{ url_for('static', filename='images/feature_heatmap.png') }}" alt="学習ヒートマップ">
+      </div>
+      <div class="feature-text">
+        <h2>日々の努力を、自信に変える。</h2>
+        <p>毎日の学習時間を記録するだけで、あなたの頑張りが美しい色のヒートマップとして可視化されます。積み重ねてきた努力が一目でわかることで、学習を続ける大きなモチベーションになります。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% block scripts %}
+
   </main>
 </div>
 {% endblock %}

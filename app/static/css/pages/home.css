@@ -73,3 +73,62 @@
     font-size: 2rem;
   }
 }
+/* static/css/pages/home.css の一番下に追加 */
+
+.features-section {
+  padding: 4rem 0;
+  background-color: var(--pico-card-background-color); /* 背景を白にしてヒーローエリアと区切る */
+}
+
+.feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 3rem;
+  margin-bottom: 5rem; /* 各セクションの間に十分な余白 */
+}
+
+/* 2つ目のセクションで画像とテキストを左右反転させる */
+.feature-row--reversed .feature-image {
+  order: 2;
+}
+
+.feature-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+  box-shadow: var(--pico-card-box-shadow);
+}
+
+.feature-text h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.feature-text p {
+  font-size: 1.1rem;
+  color: var(--pico-muted-color);
+  line-height: 1.8;
+}
+
+/* スマホ表示用の設定 */
+@media (max-width: 768px) {
+  .features-section {
+    padding: 3rem 0;
+  }
+  .feature-row {
+    grid-template-columns: 1fr; /* 1カラムに切り替え */
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+  .feature-row--reversed .feature-image {
+    order: -1; /* 反転レイアウトでもスマホでは画像を上にする */
+  }
+   .feature-image {
+    margin-bottom: 2rem;
+  }
+   .feature-text h2 {
+    font-size: 1.5rem;
+  }
+}
