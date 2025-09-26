@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 import click
+from .models import User
+from sqlalchemy.orm import selectinload
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -27,7 +29,10 @@ def create_app():
 
         @login_manager.user_loader
         def load_user(user_id):
-            return db.session.query(models.User).get(int(user_id))
+        # ▼▼▼ ユーザー情報を取得する際に、関連する科目も一緒に読み込むように変更 ▼▼▼
+            return db.session.query(User).options(
+            db.selectinload(User.subjects)
+            ).get(int(user_id))
 
         from .routes.main import main_bp
         from .routes.auth import auth_bp
