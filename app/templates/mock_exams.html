@@ -29,35 +29,30 @@
     <h4>登録済みの模試</h4>
     {% if exams %}
         <table>
-            <thead>
-                <tr>
-                    <th>受験日</th>
-                    <th>模試の名称</th>
-                    <th>結果</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for exam in exams %}
-                <tr>
-                    <td>{{ exam.exam_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ exam.exam_name }}</td>
-                    <td>
-                        <a href="{{ exam.results_url or '#' }}" target="_blank" rel="noopener noreferrer">結果を見る</a>
-                        {# 将来的に結果URLを編集する機能を追加できます #}
-                    </td>
-                    <td>
-  <a href="{{ url_for('main.edit_exam_results', exam_id=exam.id) }}" role="button" class="outline">結果を入力/編集</a>
-</td>
-                    <td>
-                        <form method="post" action="{{ url_for('main.delete_mock_exam', exam_id=exam.id) }}" style="margin: 0;">
-                            <button type="submit" class="secondary outline" onclick="return confirm('本当にこの模試の記録を削除しますか？');">削除</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <thead>
+    <tr>
+      <th scope="col">受験日</th>
+      <th scope="col">模試の名称</th>
+      <th scope="col">操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for exam in exams %}
+    <tr>
+      <td>{{ exam.exam_date.strftime('%Y-%m-%d') }}</td>
+      <td>{{ exam.exam_name }}</td>
+      <td>
+        <div class="grid">
+          <a href="{{ url_for('main.edit_exam_results', exam_id=exam.id) }}" role="button" class="contrast">結果を入力/編集</a>
+          <form method="post" action="{{ url_for('main.delete_mock_exam', exam_id=exam.id) }}" style="margin: 0;">
+            <button type="submit" class="secondary outline" onclick="return confirm('本当にこの模試の記録を削除しますか？');">削除</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
     {% else %}
         <p>まだ模試の記録はありません。</p>
     {% endif %}

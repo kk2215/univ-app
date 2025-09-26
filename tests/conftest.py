@@ -2,16 +2,18 @@
 
 import pytest
 from app import create_app, db
+from config import Config
+
+# ▼▼▼ テスト専用の設定クラスを追加 ▼▼▼
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # ファイルではなくメモリ上のDBを使用
+    WTF_CSRF_ENABLED = False # テストではCSRF保護を無効にすると便利
 
 @pytest.fixture(scope='module')
 def app():
     """Flaskアプリのインスタンスを作成する"""
-    app = create_app()
-    app.config.update({
-        "TESTING": True,
-        # テスト用のDB設定（インメモリSQLiteなど）
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", 
-    })
+    app = create_app(TestConfig) # ▼▼▼ テスト用の設定を渡す ▼▼▼
 
     with app.app_context():
         db.create_all()

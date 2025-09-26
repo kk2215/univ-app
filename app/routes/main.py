@@ -904,3 +904,38 @@ def terms_of_service():
 @main_bp.route('/about')
 def about():
     return render_template('about.html', user=current_user)
+
+# app/routes/main.py の一番下に追加
+
+@main_bp.route('/exams/<int:exam_id>/results', methods=['GET', 'POST'])
+@login_required
+def edit_exam_results(exam_id):
+    exam = db.session.query(MockExam).filter_by(id=exam_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        # フォームから送信された科目ごとの結果を処理
+        for subject in current_user.subjects:
+            result = db.session.query(MockExamResult).filter_by(
+                mock_exam_id=exam_id, 
+                subject_id=subject.id
+            ).first()
+
+            # フォームからデータが送られてきていれば、新しい結果として作成または更新
+            if f'score_{subject.id}' in request.form:
+                if not result:
+                    result = MockExamResult(mock_exam_id=exam_id, subject_id=subject.id)
+                    db.session.add(result)
+                
+                # 空欄の場合はNone(NULL)を、そうでなければ数値に変換して保存
+                result.score = int(request.form[f'score_{subject.id}']) if request.form[f'score_{subject.id}'] else None
+                result.max_score = int(request.form[f'max_score_{subject.id}']) if request.form[f'max_score_{subject.id}'] else None
+                result.deviation = float(request.form[f'deviation_{subject.id}']) if request.form[f'deviation_{subject.id}'] else None
+                result.ranking = request.form[f'ranking_{subject.id}'] if request.form[f'ranking_{subject.id}'] else None
+
+        db.session.commit()
+        flash('模試の結果を保存しました。')
+        return redirect(url_for('.mock_exams', user_id=current_user.id))
+
+    # GETリクエストの場合：既存の結果を辞書としてテンプレートに渡す
+    existing_results = {res.subject_id: res for res in exam.results}
+    return render_template('exam_results_form.html', user=current_user, exam=exam, results=existing_results)

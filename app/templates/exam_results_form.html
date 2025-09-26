@@ -10,7 +10,7 @@
 
   <form method="POST">
     <figure>
-      <table>
+      <table role="grid">
         <thead>
           <tr>
             <th scope="col">科目</th>
@@ -25,16 +25,16 @@
             {% set result = results.get(subject.id) %}
             <tr>
               <td><strong>{{ subject.name }}</strong></td>
-              <td><input type="number" name="score_{{ subject.id }}" value="{{ result.score if result }}"></td>
-              <td><input type="number" name="max_score_{{ subject.id }}" value="{{ result.max_score if result }}"></td>
-              <td><input type="number" step="0.1" name="deviation_{{ subject.id }}" value="{{ result.deviation if result }}"></td>
+              <td><input type="number" name="score_{{ subject.id }}" value="{{ result.score if result and result.score is not none }}"></td>
+              <td><input type="number" name="max_score_{{ subject.id }}" value="{{ result.max_score if result and result.max_score is not none }}"></td>
+              <td><input type="number" step="0.1" name="deviation_{{ subject.id }}" value="{{ result.deviation if result and result.deviation is not none }}"></td>
               <td><input type="text" name="ranking_{{ subject.id }}" value="{{ result.ranking if result }}"></td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </figure>
-    <button type="submit">結果を保存する</button>
+    <button type="submit">この内容で保存する</button>
   </form>
 </article>
 {% endblock %}
