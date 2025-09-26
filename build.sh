@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # exit on error
-set -e
+set -o errexit
 
+# 必要なライブラリをインストール
 pip install -r requirements.txt
 
-export FLASK_APP=app:create_app
-flask setup-db
+# データベースのマイグレーションを実行
+flask db upgrade
