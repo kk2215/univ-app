@@ -3,7 +3,7 @@ from datetime import date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from functools import wraps
-from .. import db
+from ..extensions import db
 from ..models import OfficialMockExam, University, Faculty, User, Inquiry, FAQ, Reply
 
 # 'admin'という名前で、URLの接頭辞が/adminのブループリントを作成

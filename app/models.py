@@ -1,5 +1,5 @@
 from datetime import datetime
-from . import db
+from .extensions import db
 from flask_login import UserMixin
 
 # ユーザーと科目を繋ぐための中間テーブル（多対多リレーションシップ用）

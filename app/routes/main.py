@@ -6,7 +6,7 @@ from collections import defaultdict
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash, abort
 from flask_login import login_required, current_user
 # ... 他に必要なものをインポート ...
-from .. import db
+from ..extensions import db
 from ..models import (User, Subject, University, Faculty, Book, Route, RouteStep, 
                        Progress, UserContinuousTaskSelection, UserSequentialTaskSelection, 
                        StudyLog, Reply, Inquiry, MockExam, OfficialMockExam, FAQ, MockExamResult)

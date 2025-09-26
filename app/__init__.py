@@ -1,70 +1,38 @@
-import os
+# app/__init__.py (完全版)
+
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-import click
+from config import Config
+from .extensions import db, migrate, login_manager, mail
 from .models import User
 from sqlalchemy.orm import selectinload
 
-db = SQLAlchemy()
-migrate = Migrate()
-login_manager = LoginManager()
-login_manager.login_view = 'main.login'
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
 
-def create_app():
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_mapping(
-        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
-        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///app.db'),
-        SQLALCHEMY_TRACK_MODIFICATIONS=False
-    )
-
+    # 拡張機能をアプリに登録
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    mail.init_app(app)
 
-    with app.app_context():
-        from . import models
+    # ログインしていないユーザーがアクセスした場合のリダイレクト先
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'このページにアクセスするにはログインが必要です。'
 
-        @login_manager.user_loader
-        def load_user(user_id):
-        # ▼▼▼ ユーザー情報を取得する際に、関連する科目も一緒に読み込むように変更 ▼▼▼
-            return db.session.query(User).options(
-            db.selectinload(User.subjects)
-            ).get(int(user_id))
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.query(User).options(
+            selectinload(User.subjects)
+        ).get(int(user_id))
 
-        from .routes.main import main_bp
-        from .routes.auth import auth_bp
-        from .routes.admin import admin_bp
+    # ブループリントの登録
+    from .routes.main import main_bp
+    from .routes.auth import auth_bp
+    from .routes.admin import admin_bp
 
-        app.register_blueprint(main_bp)
-        app.register_blueprint(auth_bp)
-        app.register_blueprint(admin_bp)
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
 
-        from flask_migrate import upgrade
-        from seed_db import seed_database
-        
-        @app.cli.command('setup-db')
-        def setup_db_command():
-            """データベースのテーブル作成と初期データの投入を両方行います。"""
-            upgrade()
-            seed_database(db)
-            
-         # ▼▼▼ このブロックを追加 ▼▼▼
-        from werkzeug.security import generate_password_hash
-
-        @app.cli.command('reset-password')
-        @click.argument('username')
-        @click.argument('new_password')
-        def reset_password_command(username, new_password):
-            """指定されたユーザーのパスワードをリセットします。"""
-            user = db.session.query(models.User).filter_by(username=username).first()
-            if user:
-                user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
-                db.session.commit()
-                print(f"ユーザー '{username}' のパスワードが正常にリセットされました。")
-            else:
-                print(f"ユーザー '{username}' が見つかりませんでした。")
-        # ▲▲▲ ここまで ▲▲▲    
     return app
