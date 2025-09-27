@@ -14,4 +14,4 @@ def test_index_page(client):
     
     # ページに特定の文字列が含まれていることを確認
     assert "最短ルートを".encode('utf-8') in response.data
-    assert "無料で始める".encode('utf-8') in response.data
+    assert "無料であなたの学習計画を見てみる".encode('utf-8') in response.data
