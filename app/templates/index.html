@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="hero-container">
-  <main class="grid">
+  <div class="hero-content-wrapper">
     
     <div class="hero-image">
       <img src="{{ url_for('static', filename='michi.png') }}" alt="学習ルートを示すイラスト">
@@ -22,8 +22,8 @@
     </div>
 
      <section class="features-section">
-    <div class="container">
-  <h2 class="section-title">あなたの「みちしるべ」が提供する3つのこと</h2>
+      <div class="container">
+     <h2 class="section-title">あなたの「みちしるべ」が提供する3つのこと</h2>
 
   <div class="feature-grid">
     <article class="feature-card">
@@ -44,11 +44,12 @@
       <p>毎日の学習時間を記録すれば、あなたの頑張りが美しいヒートマップに。積み重ねた努力が目に見えるから、モチベーションが続きます。</p>
     </article>
   </div>
+  </div>
 </div>
 </section>
 {% block scripts %}
 
-  </main>
+  
 </div>
 {% endblock %}
 {% endblock %}
