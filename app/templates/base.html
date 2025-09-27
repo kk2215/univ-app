@@ -30,8 +30,9 @@
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('main.dashboard', user_id=current_user.id) }}" class="contrast"><strong>みちしるべ</strong></a>
                     {% else %}
-                        <a href="{{ url_for('main.index') }}" class="contrast"><strong>みちしるべ</strong></a>
-                    {% endif %}
+                        a href="{{ url_for('main.index') }}" class="brand-logo">
+        <img src="{{ url_for('static', filename='images/unnamed.png') }}" alt="みちしるべ ロゴ">
+        <strong>みちしるべ</strong>
                 </li>
             </ul>
             <ul id="primary-navigation" class="primary-navigation">
@@ -45,7 +46,6 @@
                     {% endif %}
                 {% else %}
                     <li><a href="{{ url_for('auth.login') }}" role="button">ログイン</a></li>
-                    <li><a href="{{ url_for('auth.register') }}" role="button" class="contrast">新規登録</a></li>
                 {% endif %}
             </ul>
         </div>
