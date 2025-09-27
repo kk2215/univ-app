@@ -75,3 +75,17 @@ nav ul a[role="button"]:not(.outline) {
   border-radius: 9999px; /* 角を完全に丸くして、カプセル型にする */
   padding: 0.5rem 1.25rem; /* 少しだけ横長の余白に調整 */
 }
+/* static/css/components/nav.css に追加 */
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* アイコンと文字の間のスペース */
+  text-decoration: none;
+  font-size: 1.1rem; /* 文字サイズを少し調整 */
+}
+
+.brand-logo img {
+  height: 32px; /* アイコンの高さを指定 */
+  width: auto;
+}
