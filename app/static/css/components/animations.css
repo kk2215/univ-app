@@ -1,0 +1,14 @@
+/* static/css/components/animations.css */
+
+/* アニメーションの初期状態（透明で、少し下にいる） */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* 画面に表示された時に適用される状態（不透明で、元の位置に戻る） */
+.animate-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

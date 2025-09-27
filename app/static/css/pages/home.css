@@ -100,3 +100,4 @@
 .feature-icon { height: 60px; width: auto; margin-bottom: 1.5rem; }
 .feature-card h3 { font-size: 1.25rem; margin-bottom: 0.75rem; }
 .feature-card p { color: var(--pico-muted-color); font-size: 1rem; }
+.features-section { padding: 4rem 1rem;/* ▼▼▼ 背景色をイラストの背景に近い、ごく薄い青に変更 ▼▼▼ */ background-color: #F0F7FF; }
