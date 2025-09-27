@@ -1,55 +1,95 @@
 {% extends "base.html" %}
-{% block title %}ようこそ！みちしるべへ{% endblock %}
+{% block title %}ようこそ！みちしるべへ - AIがあなたの志望校合格を計画します{% endblock %}
 
 {% block content %}
-<div class="hero-container">
-  <div class="hero-content-wrapper">
-    
-    <div class="hero-image">
-      <img src="{{ url_for('static', filename='michi.png') }}" alt="学習ルートを示すイラスト">
+<section class="hero-section">
+    <div class="container grid">
+        <div class="hero-content">
+            <hgroup>
+                <h1>合格は、計画で決まる。</h1>
+                <p>AIがあなたの現在地と志望校を分析し、合格までの最短ルートを1日単位でナビゲートします。</p>
+            </hgroup>
+            <a href="{{ url_for('auth.register') }}" role="button" class="primary-cta">無料であなたの学習計画を見てみる</a>
+        </div>
+        <div class="hero-image">
+            <img src="{{ url_for('static', filename='images/hero-mockup.png') }}" alt="学習マップの画面イメージ">
+        </div>
     </div>
-
-    <div class="hero-content">
-      <hgroup>
-        <h1>志望校合格への、最短ルートを。</h1>
-        <p>あなたの現在地と目標から、自分だけの学習計画（みちしるべ）を設計します。</p>
-      </hgroup>
-      
-      <div class="hero-buttons">
-        <a href="{{ url_for('auth.register') }}" role="button" class="primary-cta">無料で始める</a>
-        <a href="{{ url_for('auth.login') }}" role="button" class="secondary-cta">すでにアカウントをお持ちですか？ ログイン</a>
-      </div>
-    </div>
-
-     <section class="features-section">
-      <div class="container">
-     <h2 class="section-title">あなたの「みちしるべ」が提供する3つのこと</h2>
-
-  <div class="feature-grid">
-    <article class="feature-card">
-      <img src="{{ url_for('static', filename='images/1.png') }}" alt="計画を設計するアイコン" class="feature-icon">
-      <h3>あなただけの学習計画を設計</h3>
-      <p>あなたの現在の学力と志望校から、合格までの最短ルートとなる参考書の順番を自動で作成。もう「次に何をすべきか」で迷いません。</p>
-    </article>
-
-    <article class="feature-card">
-      <img src="{{ url_for('static', filename='images/2.png') }}" alt="進捗ペースを把握するアイコン" class="feature-icon">
-      <h3>進捗ペースを常に把握</h3>
-      <p>「夏までにこのレベル」といった受験のセオリーに基づいた目標期限を自動で提示。自分のペースが順調か、常に客観的に確認できます。</p>
-    </article>
-
-    <article class="feature-card">
-      <img src="{{ url_for('static', filename='images/3.png') }}" alt="努力を可視化するアイコン" class="feature-icon">
-      <h3>日々の努力を、自信に変える</h3>
-      <p>毎日の学習時間を記録すれば、あなたの頑張りが美しいヒートマップに。積み重ねた努力が目に見えるから、モチベーションが続きます。</p>
-    </article>
-  </div>
-  </div>
-</div>
 </section>
-{% block scripts %}
 
-  
-</div>
-{% endblock %}
+<section class="social-proof-section">
+    <div class="container">
+        <p><strong>難関大学への合格ルート、多数搭載</strong></p>
+        <div class="logos">
+            <span>早稲田大学</span>
+            <span>慶應義塾大学</span>
+            <span>上智大学</span>
+            <span>明治大学</span>
+            <span>日本大学</span>
+        </div>
+    </div>
+</section>
+
+<section class="values-section">
+    <div class="container">
+        <div class="feature-grid">
+            <article class="feature-card">
+                <img src="{{ url_for('static', filename='images/icon_plan.png') }}" alt="計画アイコン" class="feature-icon">
+                <h3>AIが最適な「あなただけのルート」を作成</h3>
+                <p>市販されている全ての参考書から、あなたのレベルと目標に合った最適な組み合わせをAIが自動で構築します。</p>
+            </article>
+            <article class="feature-card">
+                <img src="{{ url_for('static', filename='images/icon_pace.png') }}" alt="ペース管理アイコン" class="feature-icon">
+                <h3>受験までの「理想のペース」を常に提示</h3>
+                <p>「夏までにこのレベル」といった受験のセオリーに基づいた目標日を自動で設定。常に自分の立ち位置を客観視できます。</p>
+            </article>
+            <article class="feature-card">
+                <img src="{{ url_for('static', filename='images/icon_progress.png') }}" alt="可視化アイコン" class="feature-icon">
+                <h3>日々の努力を「自信」に変える学習記録</h3>
+                <p>毎日の学習時間を記録すれば、あなたの頑張りが美しいヒートマップに。努力の積み重ねが、あなたを裏切りません。</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="feature-details-section">
+    <div class="container">
+        <div class="feature-row">
+            <div class="feature-image"><img src="{{ url_for('static', filename='images/feature_map.png') }}" alt="学習マップのスクリーンショット"></div>
+            <div class="feature-text">
+                <h2>インタラクティブな学習マップ</h2>
+                <p>あなたの学習計画は、ただのリストではありません。どの参考書がどのレベルに属し、次に何をすべきかが一目でわかる、インタラクティブなマップとして表示されます。完了したタスクはチェックされ、常に最新の現在地を示します。</p>
+            </div>
+        </div>
+        <div class="feature-row feature-row--reversed">
+            <div class="feature-image"><img src="{{ url_for('static', filename='images/feature_benchmark.png') }}" alt="目標期限のスクリーンショット"></div>
+            <div class="feature-text">
+                <h2>パーソナルな目標管理</h2>
+                <p>AIが提示する標準ペースに加え、あなた自身で模試の予定や結果を記録できます。目標と実績を管理することで、計画はより現実的で、達成可能なものになります。</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="faq-section">
+    <div class="container">
+        <h2 class="section-title">よくある質問</h2>
+        <details>
+            <summary>本当に無料ですか？</summary>
+            <p>はい。全ての基本機能は、志望校に合格するまで無料でご利用いただけます。将来的に、より高度なAIコーチング機能などを有料オプションとして提供する可能性はありますが、基本的な学習計画機能が有料になることはありません。</p>
+        </details>
+        <details>
+            <summary>どの科目に対応していますか？</summary>
+            <p>現在、主要な科目（英語、数学、国語、理科、社会）の学習ルートを搭載しています。対応科目は順次拡大予定です。</p>
+        </details>
+    </div>
+</section>
+
+<section class="final-cta-section">
+    <div class="container">
+        <h2>さあ、あなただけの「みちしるべ」を始めよう。</h2>
+        <a href="{{ url_for('auth.register') }}" role="button" class="primary-cta">無料で学習計画を見てみる</a>
+    </div>
+</section>
+
 {% endblock %}
