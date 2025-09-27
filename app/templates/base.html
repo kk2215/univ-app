@@ -44,8 +44,8 @@
                         <li><a href="{{ url_for('admin.admin_dashboard') }}" role="button">管理者</a></li>
                     {% endif %}
                 {% else %}
-                    <li><a href="{{ url_for('auth.login') }}" role="button" class="secondary outline">ログイン</a></li>
-                    <li><a href="{{ url_for('auth.register') }}" role="button">新規登録</a></li>
+                    <li><a href="{{ url_for('auth.login') }}" role="button">ログイン</a></li>
+                    <li><a href="{{ url_for('auth.register') }}" role="button" class="contrast">新規登録</a></li>
                 {% endif %}
             </ul>
         </div>
